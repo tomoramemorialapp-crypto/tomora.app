@@ -100,7 +100,7 @@ export function KinshipTreeCanvas({
         <ScrollView showsVerticalScrollIndicator contentContainerStyle={{ minHeight: height }}>
           <View style={{ width: bounds.width, height: bounds.height }}>
             <Svg width={bounds.width} height={bounds.height} style={{ position: 'absolute', left: 0, top: 0 }}>
-              <G translateX={bounds.offsetX} translateY={bounds.offsetY}>
+              <G transform={`translate(${bounds.offsetX}, ${bounds.offsetY})`}>
                 {graph.edges.map((edge) => (
                   <FamilyTreeEdge key={edge.id} edge={edge} highlighted={highlightedEdges.has(edge.id)} />
                 ))}

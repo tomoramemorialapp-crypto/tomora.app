@@ -11,6 +11,14 @@ import type {
   MemoryType,
   ApprovalStatus,
 } from '@/types/models';
+import type {
+  ChangeLogAction,
+  NodeProfile,
+  ProfileChangeLog,
+  ProfileFieldKey,
+  SuggestedEdit,
+  SuggestedEditStatus,
+} from '@/types/profile';
 import type { Tables } from '@/types/database.types';
 
 /** Map Supabase rows (snake_case) to the app's camelCase domain models. */
@@ -53,6 +61,8 @@ export function mapNode(row: Tables<'nodes'>): FamilyNode {
     city: row.city ?? undefined,
     country: row.country ?? undefined,
     defaultVisibility: row.default_visibility as VisibilityLevel,
+    profile: (row.profile as NodeProfile) ?? {},
+    tags: row.tags ?? [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -70,6 +80,39 @@ export function mapRelationship(row: Tables<'relationships'>): Relationship {
     createdByAccountId: row.created_by_account_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+export function mapChangeLog(row: Tables<'node_change_log'>): ProfileChangeLog {
+  return {
+    id: row.id,
+    targetNodeId: row.node_id,
+    familyTreeId: row.family_tree_id,
+    fieldKey: (row.field_key as ProfileFieldKey) ?? undefined,
+    action: row.action as ChangeLogAction,
+    previousValue: row.previous_value ?? undefined,
+    newValue: row.new_value ?? undefined,
+    performedByAccountId: row.performed_by_account_id,
+    note: row.note ?? undefined,
+    createdAt: row.created_at,
+  };
+}
+
+export function mapSuggestedEdit(row: Tables<'suggested_edits'>): SuggestedEdit {
+  return {
+    id: row.id,
+    familyTreeId: row.family_tree_id,
+    targetNodeId: row.target_node_id,
+    targetProfileFieldKey: row.field_key as ProfileFieldKey,
+    currentValueSnapshot: row.current_value_snapshot ?? undefined,
+    suggestedValue: row.suggested_value ?? undefined,
+    suggestedByAccountId: row.suggested_by_account_id,
+    suggestedAt: row.created_at,
+    reason: row.reason ?? undefined,
+    status: row.status as SuggestedEditStatus,
+    reviewedByAccountId: row.reviewed_by_account_id ?? undefined,
+    reviewedAt: row.reviewed_at ?? undefined,
+    reviewNote: row.review_note ?? undefined,
   };
 }
 

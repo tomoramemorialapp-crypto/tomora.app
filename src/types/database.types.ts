@@ -146,6 +146,67 @@ export type Database = {
           },
         ]
       }
+      node_change_log: {
+        Row: {
+          action: string
+          created_at: string
+          family_tree_id: string
+          field_key: string | null
+          id: string
+          new_value: Json | null
+          node_id: string
+          note: string | null
+          performed_by_account_id: string
+          previous_value: Json | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          family_tree_id: string
+          field_key?: string | null
+          id?: string
+          new_value?: Json | null
+          node_id: string
+          note?: string | null
+          performed_by_account_id: string
+          previous_value?: Json | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          family_tree_id?: string
+          field_key?: string | null
+          id?: string
+          new_value?: Json | null
+          node_id?: string
+          note?: string | null
+          performed_by_account_id?: string
+          previous_value?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "node_change_log_family_tree_id_fkey"
+            columns: ["family_tree_id"]
+            isOneToOne: false
+            referencedRelation: "family_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "node_change_log_node_id_fkey"
+            columns: ["node_id"]
+            isOneToOne: false
+            referencedRelation: "nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "node_change_log_performed_by_account_id_fkey"
+            columns: ["performed_by_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       nodes: {
         Row: {
           avatar_url: string | null
@@ -162,7 +223,9 @@ export type Database = {
           legal_name: string | null
           managed_by_account_id: string | null
           owner_account_id: string | null
+          profile: Json
           status: string
+          tags: string[]
           updated_at: string
         }
         Insert: {
@@ -180,7 +243,9 @@ export type Database = {
           legal_name?: string | null
           managed_by_account_id?: string | null
           owner_account_id?: string | null
+          profile?: Json
           status?: string
+          tags?: string[]
           updated_at?: string
         }
         Update: {
@@ -198,7 +263,9 @@ export type Database = {
           legal_name?: string | null
           managed_by_account_id?: string | null
           owner_account_id?: string | null
+          profile?: Json
           status?: string
+          tags?: string[]
           updated_at?: string
         }
         Relationships: [
@@ -287,6 +354,86 @@ export type Database = {
           {
             foreignKeyName: "relationships_to_node_id_fkey"
             columns: ["to_node_id"]
+            isOneToOne: false
+            referencedRelation: "nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suggested_edits: {
+        Row: {
+          created_at: string
+          current_value_snapshot: Json | null
+          family_tree_id: string
+          field_key: string
+          id: string
+          reason: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by_account_id: string | null
+          status: string
+          suggested_by_account_id: string
+          suggested_value: Json | null
+          target_node_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_value_snapshot?: Json | null
+          family_tree_id: string
+          field_key: string
+          id?: string
+          reason?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by_account_id?: string | null
+          status?: string
+          suggested_by_account_id: string
+          suggested_value?: Json | null
+          target_node_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_value_snapshot?: Json | null
+          family_tree_id?: string
+          field_key?: string
+          id?: string
+          reason?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by_account_id?: string | null
+          status?: string
+          suggested_by_account_id?: string
+          suggested_value?: Json | null
+          target_node_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suggested_edits_family_tree_id_fkey"
+            columns: ["family_tree_id"]
+            isOneToOne: false
+            referencedRelation: "family_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suggested_edits_reviewed_by_account_id_fkey"
+            columns: ["reviewed_by_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suggested_edits_suggested_by_account_id_fkey"
+            columns: ["suggested_by_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suggested_edits_target_node_id_fkey"
+            columns: ["target_node_id"]
             isOneToOne: false
             referencedRelation: "nodes"
             referencedColumns: ["id"]

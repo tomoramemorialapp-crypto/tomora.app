@@ -34,6 +34,9 @@ export default function RootLayout() {
               name="relative/new"
               options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
             />
+            <Stack.Screen name="node/[nodeId]" />
+            <Stack.Screen name="node/edit" />
+            <Stack.Screen name="node/history" />
           </Stack>
         </AppStateProvider>
       </SafeAreaProvider>

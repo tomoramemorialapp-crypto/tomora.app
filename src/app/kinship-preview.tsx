@@ -14,6 +14,8 @@ function node(id: string, name: string, extra: Partial<FamilyNode> = {}): Family
     displayName: name,
     status: 'placeholder',
     defaultVisibility: 'family_tree',
+    profile: {},
+    tags: [],
     createdAt: now,
     updatedAt: now,
     ...extra,

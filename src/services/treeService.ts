@@ -9,7 +9,30 @@ import type {
   VisibilityLevel,
 } from '@/types/models';
 import { isLivingFor, nodeStatusFor } from '@/lib/relationshipUtils';
-import { mapAccount, mapMemory, mapNode, mapRelationship, mapTree } from './mappers';
+import { makeField } from '@/lib/profile';
+import type { EditScope } from '@/lib/profile';
+import type { NodeProfile, SuggestedEdit } from '@/types/profile';
+import type { Json } from '@/types/database.types';
+import {
+  mapAccount,
+  mapMemory,
+  mapNode,
+  mapRelationship,
+  mapSuggestedEdit,
+  mapTree,
+} from './mappers';
+
+/** Seed a minimal profile so the very first name carries provenance metadata. */
+function seedProfile(fullName: string, scope: EditScope, accountId: string): NodeProfile {
+  return {
+    fullName: makeField(fullName.trim(), {
+      visibility: 'family_tree',
+      scope,
+      accountId,
+      confirmed: scope !== 'suggest',
+    }),
+  };
+}
 
 /** Ensure the signed-in user's account row exists (id == auth user id). */
 export async function ensureAccount(userId: string, displayName: string): Promise<Account> {
@@ -41,6 +64,7 @@ export interface TreeBundle {
   nodes: FamilyNode[];
   relationships: Relationship[];
   memories: Memory[];
+  suggestedEdits: SuggestedEdit[];
 }
 
 /**
@@ -71,6 +95,7 @@ export async function createInitialTree(input: InitialTreeInput): Promise<TreeBu
       display_name: selfName.trim() || 'You',
       status: 'claimed',
       is_living: true,
+      profile: seedProfile(selfName.trim() || 'You', 'owner', accountId) as unknown as Json,
     })
     .select()
     .single();
@@ -83,6 +108,7 @@ export async function createInitialTree(input: InitialTreeInput): Promise<TreeBu
       display_name: lovedOneName.trim() || 'Loved one',
       status: nodeStatusFor(relationshipType, isRemembered),
       is_living: isLivingFor(relationshipType, isRemembered),
+      profile: seedProfile(lovedOneName.trim() || 'Loved one', 'guardian', accountId) as unknown as Json,
     })
     .select()
     .single();
@@ -107,6 +133,7 @@ export async function createInitialTree(input: InitialTreeInput): Promise<TreeBu
     nodes: [mapNode(selfRow), mapNode(lovedRow)],
     relationships: [mapRelationship(relRow)],
     memories: [],
+    suggestedEdits: [],
   };
 }
 
@@ -118,6 +145,8 @@ export interface AddRelativeInput {
   name: string;
   relationshipType: RelationshipType;
   isRemembered: boolean;
+  /** Optional family tags, e.g. ['Unknown link'] for an unclear connection. */
+  tags?: string[];
 }
 
 export interface AddRelativeResult {
@@ -127,7 +156,7 @@ export interface AddRelativeResult {
 
 /** Add a new family member: a node plus an approved relationship to `fromNodeId`. */
 export async function addRelative(input: AddRelativeInput): Promise<AddRelativeResult> {
-  const { treeId, accountId, fromNodeId, name, relationshipType, isRemembered } = input;
+  const { treeId, accountId, fromNodeId, name, relationshipType, isRemembered, tags } = input;
 
   const { data: nodeRow, error: nodeErr } = await supabase
     .from('nodes')
@@ -136,6 +165,8 @@ export async function addRelative(input: AddRelativeInput): Promise<AddRelativeR
       display_name: name.trim() || 'Family member',
       status: nodeStatusFor(relationshipType, isRemembered),
       is_living: isLivingFor(relationshipType, isRemembered),
+      profile: seedProfile(name.trim() || 'Family member', 'guardian', accountId) as unknown as Json,
+      ...(tags && tags.length ? { tags } : null),
     })
     .select()
     .single();
@@ -188,19 +219,22 @@ export async function loadMyTreeBundle(accountId: string): Promise<TreeBundle | 
   const treeRow = trees?.[0];
   if (!treeRow) return null;
 
-  const [nodesRes, relsRes, memsRes] = await Promise.all([
+  const [nodesRes, relsRes, memsRes, suggestionsRes] = await Promise.all([
     supabase.from('nodes').select().eq('family_tree_id', treeRow.id).order('created_at'),
     supabase.from('relationships').select().eq('family_tree_id', treeRow.id),
     supabase.from('memories').select().eq('family_tree_id', treeRow.id).order('created_at', { ascending: false }),
+    supabase.from('suggested_edits').select().eq('family_tree_id', treeRow.id).order('created_at', { ascending: false }),
   ]);
   if (nodesRes.error) throw nodesRes.error;
   if (relsRes.error) throw relsRes.error;
   if (memsRes.error) throw memsRes.error;
+  if (suggestionsRes.error) throw suggestionsRes.error;
 
   return {
     tree: mapTree(treeRow),
     nodes: (nodesRes.data ?? []).map(mapNode),
     relationships: (relsRes.data ?? []).map(mapRelationship),
     memories: (memsRes.data ?? []).map(mapMemory),
+    suggestedEdits: (suggestionsRes.data ?? []).map(mapSuggestedEdit),
   };
 }

@@ -19,10 +19,13 @@ import type {
   RelationshipType,
   VisibilityLevel,
 } from '@/types/models';
+import type { NodeProfile, ProfileChangeLog, ProfileFieldKey, SuggestedEdit } from '@/types/profile';
 import { supabase } from '@/lib/supabase';
 import * as authService from '@/services/authService';
 import * as treeService from '@/services/treeService';
 import * as memoryService from '@/services/memoryService';
+import * as profileService from '@/services/profileService';
+import type { ChangeLogEntryInput } from '@/services/profileService';
 
 interface OnboardingDraft {
   selfName: string;
@@ -39,6 +42,7 @@ interface AppStateValue {
   nodes: FamilyNode[];
   relationships: Relationship[];
   memories: Memory[];
+  suggestedEdits: SuggestedEdit[];
   isOnboarded: boolean;
   draft: OnboardingDraft;
 
@@ -53,12 +57,38 @@ interface AppStateValue {
     name: string;
     relationshipType: RelationshipType;
     isRemembered: boolean;
+    tags?: string[];
   }) => Promise<FamilyNode>;
 
   updateTreePrivacy: (patch: {
     defaultVisibility: VisibilityLevel;
     publicSharingEnabled: boolean;
   }) => Promise<void>;
+
+  updateNodeProfile: (input: {
+    nodeId: string;
+    profile: NodeProfile;
+    tags?: string[];
+    defaultVisibility?: VisibilityLevel;
+    changeLog: ChangeLogEntryInput[];
+  }) => Promise<FamilyNode>;
+
+  submitSuggestedEdit: (input: {
+    nodeId: string;
+    fieldKey: ProfileFieldKey;
+    currentValueSnapshot: unknown;
+    suggestedValue: unknown;
+    reason?: string;
+  }) => Promise<SuggestedEdit>;
+
+  reviewSuggestedEdit: (input: {
+    editId: string;
+    status: 'approved' | 'rejected' | 'needs_more_info';
+    reviewNote?: string;
+  }) => Promise<void>;
+
+  fetchChangeLog: (nodeId: string) => Promise<ProfileChangeLog[]>;
+  getSuggestedEditsForNode: (nodeId: string) => SuggestedEdit[];
 
   addTextMemory: (input: {
     nodeId: string;
@@ -119,6 +149,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [nodes, setNodes] = useState<FamilyNode[]>([]);
   const [relationships, setRelationships] = useState<Relationship[]>([]);
   const [memories, setMemories] = useState<Memory[]>([]);
+  const [suggestedEdits, setSuggestedEdits] = useState<SuggestedEdit[]>([]);
   const [draft, setDraftState] = useState<OnboardingDraft>(() => loadStoredDraft());
   const draftRef = useRef(draft);
   draftRef.current = draft;
@@ -129,12 +160,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setNodes([]);
       setRelationships([]);
       setMemories([]);
+      setSuggestedEdits([]);
       return;
     }
     setTree(bundle.tree);
     setNodes(bundle.nodes);
     setRelationships(bundle.relationships);
     setMemories(bundle.memories);
+    setSuggestedEdits(bundle.suggestedEdits);
   }, []);
 
   // Load the signed-in user's data. If they have no tree yet but a saved draft
@@ -232,11 +265,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setNodes([]);
     setRelationships([]);
     setMemories([]);
+    setSuggestedEdits([]);
     setDraftState(emptyDraft);
   }, []);
 
   const addRelative = useCallback<AppStateValue['addRelative']>(
-    async ({ name, relationshipType, isRemembered }) => {
+    async ({ name, relationshipType, isRemembered, tags }) => {
       if (!tree || !account) throw new Error('No tree or account loaded.');
       const selfNode =
         nodes.find((n) => n.ownerAccountId === account.id) ??
@@ -250,6 +284,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         name,
         relationshipType,
         isRemembered,
+        tags,
       });
       setNodes((prev) => [...prev, node]);
       setRelationships((prev) => [...prev, relationship]);
@@ -265,6 +300,66 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setTree(updated);
     },
     [tree],
+  );
+
+  const updateNodeProfile = useCallback<AppStateValue['updateNodeProfile']>(
+    async ({ nodeId, profile, tags, defaultVisibility, changeLog }) => {
+      if (!tree || !account) throw new Error('No tree or account loaded.');
+      const updated = await profileService.updateNodeProfile({
+        treeId: tree.id,
+        nodeId,
+        accountId: account.id,
+        profile,
+        tags,
+        defaultVisibility,
+        changeLog,
+      });
+      setNodes((prev) => prev.map((n) => (n.id === nodeId ? updated : n)));
+      return updated;
+    },
+    [account, tree],
+  );
+
+  const submitSuggestedEdit = useCallback<AppStateValue['submitSuggestedEdit']>(
+    async ({ nodeId, fieldKey, currentValueSnapshot, suggestedValue, reason }) => {
+      if (!tree || !account) throw new Error('No tree or account loaded.');
+      const edit = await profileService.createSuggestedEdit({
+        treeId: tree.id,
+        nodeId,
+        accountId: account.id,
+        fieldKey,
+        currentValueSnapshot,
+        suggestedValue,
+        reason,
+      });
+      setSuggestedEdits((prev) => [edit, ...prev]);
+      return edit;
+    },
+    [account, tree],
+  );
+
+  const reviewSuggestedEdit = useCallback<AppStateValue['reviewSuggestedEdit']>(
+    async ({ editId, status, reviewNote }) => {
+      if (!account) throw new Error('No account loaded.');
+      const updated = await profileService.reviewSuggestedEdit({
+        editId,
+        reviewerAccountId: account.id,
+        status,
+        reviewNote,
+      });
+      setSuggestedEdits((prev) => prev.map((e) => (e.id === editId ? updated : e)));
+    },
+    [account],
+  );
+
+  const fetchChangeLog = useCallback<AppStateValue['fetchChangeLog']>(
+    (nodeId) => profileService.fetchChangeLog(nodeId),
+    [],
+  );
+
+  const getSuggestedEditsForNode = useCallback(
+    (nodeId: string) => suggestedEdits.filter((e) => e.targetNodeId === nodeId),
+    [suggestedEdits],
   );
 
   const addTextMemory = useCallback<AppStateValue['addTextMemory']>(
@@ -303,6 +398,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       nodes,
       relationships,
       memories,
+      suggestedEdits,
       isOnboarded: !!session && !!tree,
       draft,
       setDraft,
@@ -311,6 +407,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       resetAll,
       addRelative,
       updateTreePrivacy,
+      updateNodeProfile,
+      submitSuggestedEdit,
+      reviewSuggestedEdit,
+      fetchChangeLog,
+      getSuggestedEditsForNode,
       addTextMemory,
       getNode,
       getMemoriesForNode,
@@ -324,6 +425,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       nodes,
       relationships,
       memories,
+      suggestedEdits,
       draft,
       setDraft,
       signUpAndStart,
@@ -331,6 +433,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       resetAll,
       addRelative,
       updateTreePrivacy,
+      updateNodeProfile,
+      submitSuggestedEdit,
+      reviewSuggestedEdit,
+      fetchChangeLog,
+      getSuggestedEditsForNode,
       addTextMemory,
       getNode,
       getMemoriesForNode,

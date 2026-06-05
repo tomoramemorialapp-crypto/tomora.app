@@ -10,15 +10,17 @@ import { MemoryCard } from '@/components/memories/MemoryCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Body, Caption, Display } from '@/components/ui/Typography';
-import { colors, spacing } from '@/constants/theme';
+import { colors, radii, spacing } from '@/constants/theme';
 import { copy } from '@/constants/copy';
 import { useAppState } from '@/state/AppState';
 import { relationshipPath } from '@/lib/relationshipUtils';
+import { editScopeFor, formatDateValue, formatGenderSex, formatPlace } from '@/lib/profile';
 
 export default function LifeProfile() {
   const router = useRouter();
   const { nodeId } = useLocalSearchParams<{ nodeId: string }>();
-  const { getNode, getMemoriesForNode, getRelationshipForNode, nodes } = useAppState();
+  const { getNode, getMemoriesForNode, getRelationshipForNode, getSuggestedEditsForNode, nodes, account } =
+    useAppState();
 
   const node = getNode(String(nodeId));
   if (!node) {
@@ -36,6 +38,22 @@ export default function LifeProfile() {
   const other = rel ? nodes.find((n) => n.id !== node.id && (n.id === rel.fromNodeId || n.id === rel.toNodeId)) : undefined;
   const isSelf = !!node.ownerAccountId;
   const path = isSelf ? 'This is you' : rel ? relationshipPath(rel.relationshipType) : 'In your Family Tree';
+
+  const scope = editScopeFor(node, account?.id);
+  const canEdit = scope === 'owner' || scope === 'guardian';
+  const profile = node.profile ?? {};
+  const pendingSuggestions = getSuggestedEditsForNode(node.id).filter((s) => s.status === 'pending').length;
+
+  const details: { label: string; value: string }[] = [
+    { label: 'Date of birth', value: formatDateValue(profile.dateOfBirth?.value) },
+    { label: 'Date of death', value: formatDateValue(profile.dateOfDeath?.value) },
+    { label: 'Place of birth', value: formatPlace(profile.placeOfBirth?.value) },
+    { label: 'Place of death', value: formatPlace(profile.placeOfDeath?.value) },
+    { label: 'Gender / Sex', value: formatGenderSex(profile.genderSex?.value) },
+    { label: 'Languages', value: (profile.languages?.value ?? []).join(', ') },
+    { label: 'Known for', value: (profile.notesHistory?.value?.knownFor ?? []).join(', ') },
+    { label: 'What they did', value: (profile.notesHistory?.value?.occupationOrRole ?? []).join(', ') },
+  ].filter((d) => d.value);
 
   return (
     <ScreenContainer
@@ -65,7 +83,50 @@ export default function LifeProfile() {
           <NodeStatusBadge status={node.status} />
           <VisibilityBadge visibility={node.defaultVisibility} />
         </View>
+        <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+          <Button
+            label={canEdit ? 'Edit Profile' : 'Suggest a Change'}
+            variant="secondary"
+            onPress={() => router.push({ pathname: '/node/edit', params: { nodeId: node.id } })}
+          />
+          <Button
+            label="Change History"
+            variant="ghost"
+            onPress={() => router.push({ pathname: '/node/history', params: { nodeId: node.id } })}
+          />
+        </View>
+        {canEdit && pendingSuggestions > 0 ? (
+          <Pressable
+            onPress={() => router.push({ pathname: '/node/history', params: { nodeId: node.id } })}
+            style={{
+              marginTop: spacing.xs,
+              backgroundColor: 'rgba(184,135,47,0.12)',
+              borderRadius: radii.pill,
+              paddingHorizontal: spacing.md,
+              paddingVertical: 6,
+            }}
+          >
+            <Caption style={{ color: colors.guardianGold, fontWeight: '700' }}>
+              {pendingSuggestions} suggested {pendingSuggestions === 1 ? 'change' : 'changes'} to review ›
+            </Caption>
+          </Pressable>
+        ) : null}
       </View>
+
+      {/* Details */}
+      {details.length > 0 ? (
+        <Card style={{ marginBottom: spacing.lg }}>
+          <SectionHeader title="Details" overline="Life Profile" />
+          <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+            {details.map((d) => (
+              <View key={d.label} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md }}>
+                <Caption style={{ flex: 1 }}>{d.label}</Caption>
+                <Body style={{ flex: 1.4, textAlign: 'right' }}>{d.value}</Body>
+              </View>
+            ))}
+          </View>
+        </Card>
+      ) : null}
 
       {/* Overview */}
       <Card style={{ marginBottom: spacing.lg }}>

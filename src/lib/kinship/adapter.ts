@@ -149,7 +149,11 @@ export function buildKinshipGraphFromApp(params: {
       deathDate: n.deathDate,
       isAnchor: n.id === anchorNodeId,
       visibility: mapVisibility(n.defaultVisibility),
-      metadata: role ? { roleLabel: roleLabelFor(role) } : undefined,
+      metadata: {
+        ...(role ? { roleLabel: roleLabelFor(role) } : null),
+        tags: n.tags ?? [],
+        isLiving: n.isLiving !== false,
+      },
     };
   });
 

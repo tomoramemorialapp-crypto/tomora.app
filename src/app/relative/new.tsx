@@ -9,6 +9,7 @@ import { Toggle } from '@/components/ui/Toggle';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Body, Caption, Display, Title } from '@/components/ui/Typography';
+import { DisconnectedNodeBridgePrompt } from '@/components/family-tree/DisconnectedNodeBridgePrompt';
 import { colors, spacing } from '@/constants/theme';
 import { relationshipChoices } from '@/constants/copy';
 import { useAppState } from '@/state/AppState';
@@ -28,6 +29,7 @@ export default function NewRelative() {
 
   const canSave = !!choice && name.trim().length > 0 && !busy;
   const isPet = choice?.relationshipType === 'pet';
+  const isUnsure = choice?.relationshipType === 'other';
 
   const onSave = async () => {
     if (!choice) return;
@@ -38,6 +40,7 @@ export default function NewRelative() {
         name: name.trim(),
         relationshipType: choice.relationshipType as RelationshipType,
         isRemembered,
+        tags: isUnsure ? ['Unknown link'] : undefined,
       });
       router.back();
     } catch (e: unknown) {
@@ -86,7 +89,7 @@ export default function NewRelative() {
               />
             </View>
 
-            {!isPet ? (
+            {!isPet && !isUnsure ? (
               <Card style={{ backgroundColor: colors.candlelight, borderColor: colors.softGold }}>
                 <Toggle
                   value={isRemembered}
@@ -96,6 +99,11 @@ export default function NewRelative() {
                 />
               </Card>
             ) : null}
+
+            <DisconnectedNodeBridgePrompt
+              relationshipType={choice.relationshipType as RelationshipType}
+              relationshipLabel={choice.label}
+            />
           </View>
         ) : null}
 

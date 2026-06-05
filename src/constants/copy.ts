@@ -111,7 +111,20 @@ export const relationshipChoices = [
   { id: 'niece', label: 'Niece', relationshipType: 'niece_nephew' },
   { id: 'nephew', label: 'Nephew', relationshipType: 'niece_nephew' },
   { id: 'pet', label: 'Pet', relationshipType: 'pet' },
+  { id: 'unsure', label: 'Not sure yet', relationshipType: 'other' },
 ] as const;
+
+/** Warm copy for the disconnected / unclear-connection bridge prompt. */
+export const bridgePrompt = {
+  title: 'How is this person connected to your Family Tree?',
+  body: 'We can trace the path now, or save them with an Unknown connection and complete it later.',
+  indirectNote: (label: string) =>
+    `Tomora will gently place an Unknown link between you and your ${label.toLowerCase()} so the branches connect correctly. You can complete it anytime.`,
+  unknownNote:
+    'They’ll be saved with an Unknown connection and tagged so you can find and complete it later.',
+  trace: 'Trace connection now',
+  saveUnknown: 'Save with Unknown link',
+};
 
 /** Human-friendly visibility labels. */
 export const visibilityLabels: Record<string, string> = {

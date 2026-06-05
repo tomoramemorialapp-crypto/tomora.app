@@ -27,6 +27,8 @@ export default function Reveal() {
       status: 'claimed',
       isLiving: true,
       defaultVisibility: 'family_tree',
+      profile: {},
+      tags: [],
       createdAt: now,
       updatedAt: now,
     };
@@ -37,6 +39,8 @@ export default function Reveal() {
       status: nodeStatusFor(draft.lovedOneRelationship, draft.lovedOneIsRemembered),
       isLiving: isLivingFor(draft.lovedOneRelationship, draft.lovedOneIsRemembered),
       defaultVisibility: 'family_tree',
+      profile: {},
+      tags: [],
       createdAt: now,
       updatedAt: now,
     };

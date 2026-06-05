@@ -93,6 +93,10 @@ export interface FamilyNode {
   city?: string;
   country?: string;
   defaultVisibility: VisibilityLevel;
+  /** Rich, field-level editable profile (provenance + per-field visibility). */
+  profile: import('./profile').NodeProfile;
+  /** Free-form family tags used for filtering the Family Tree. */
+  tags: string[];
   createdAt: string;
   updatedAt: string;
 }

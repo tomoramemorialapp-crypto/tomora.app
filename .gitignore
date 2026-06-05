@@ -26,6 +26,10 @@ npm-debug.*
 yarn-debug.*
 yarn-error.*
 expo-web.log
+export-web.log
+
+# Vercel
+.vercel
 
 # macOS
 .DS_Store

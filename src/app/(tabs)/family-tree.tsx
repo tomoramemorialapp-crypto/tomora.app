@@ -2,7 +2,7 @@ import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
-import { FamilyTreeCanvas } from '@/components/family-tree/FamilyTreeCanvas';
+import { KinshipTreeCanvas } from '@/components/family-tree/KinshipTreeCanvas';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Body, Caption, Display } from '@/components/ui/Typography';
@@ -35,14 +35,14 @@ export default function FamilyTreeScreen() {
           <Badge label="Private · Family Tree" tone="gold" />
         </View>
         <Display style={{ fontSize: 32 }}>Your Family Tree</Display>
-        <Body style={{ fontSize: 17 }}>Tap a light to open their Life Profile.</Body>
+        <Body style={{ fontSize: 17 }}>Tap a light to see how you’re connected, then open their Life Profile.</Body>
       </View>
 
       <View style={{ paddingVertical: spacing.lg }}>
-        <FamilyTreeCanvas
+        <KinshipTreeCanvas
           nodes={nodes}
           relationships={relationships}
-          selfNodeId={selfNode?.id}
+          anchorNodeId={selfNode?.id}
           onSelectNode={(nodeId) => router.push({ pathname: '/node/[nodeId]', params: { nodeId } })}
           onAddRelative={() => router.push('/relative/new')}
         />

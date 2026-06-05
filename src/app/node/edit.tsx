@@ -8,13 +8,15 @@ import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Badge } from '@/components/ui/Badge';
+import { Avatar } from '@/components/ui/Avatar';
 import { Body, Caption, Display } from '@/components/ui/Typography';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { VisibilitySelector } from '@/components/ui/VisibilitySelector';
 import { SuggestChangeModal } from '@/components/profile/SuggestChangeModal';
 import { colors, radii, spacing } from '@/constants/theme';
 import { useAppState } from '@/state/AppState';
-import type { VisibilityLevel } from '@/types/models';
+import type { RelationshipType, VisibilityLevel } from '@/types/models';
+import { capFor, formatBytes, getSignedUrl, isWithinCap, pickMedia, uploadMedia } from '@/lib/media';
 import type {
   CertaintyLevel,
   DateValue,
@@ -36,6 +38,24 @@ import type { ChangeLogEntryInput } from '@/services/profileService';
 
 const CERTAINTY: CertaintyLevel[] = ['exact', 'approximate', 'unknown', 'disputed'];
 const GENDER_DISPLAY: GenderSexField['displayPreference'][] = ['show_gender', 'show_sex', 'show_both', 'hide'];
+
+/** Relationship options offered when re-classifying a connected node. */
+const RELATIONSHIP_OPTIONS: { id: RelationshipType; label: string }[] = [
+  { id: 'parent', label: 'Parent' },
+  { id: 'child', label: 'Child' },
+  { id: 'sibling', label: 'Sibling' },
+  { id: 'grandparent', label: 'Grandparent' },
+  { id: 'grandchild', label: 'Grandchild' },
+  { id: 'aunt_uncle', label: 'Aunt / Uncle' },
+  { id: 'niece_nephew', label: 'Niece / Nephew' },
+  { id: 'cousin', label: 'Cousin' },
+  { id: 'spouse', label: 'Spouse' },
+  { id: 'partner', label: 'Partner' },
+  { id: 'friend', label: 'Friend' },
+  { id: 'pet', label: 'Pet' },
+  { id: 'chosen_family', label: 'Chosen family' },
+  { id: 'other', label: 'Not sure yet' },
+];
 
 function listToString(v?: string[]): string {
   return (v ?? []).join(', ');
@@ -64,11 +84,16 @@ function placeHasValue(p: PlaceReference): boolean {
 export default function EditProfile() {
   const router = useRouter();
   const { nodeId } = useLocalSearchParams<{ nodeId: string }>();
-  const { getNode, account, updateNodeProfile } = useAppState();
+  const { getNode, account, updateNodeProfile, getRelationshipForNode, updateRelationshipType, deleteNode } =
+    useAppState();
 
   const node = getNode(String(nodeId));
   const scope = node ? editScopeFor(node, account?.id) : 'suggest';
   const canEdit = scope === 'owner' || scope === 'guardian';
+  const isSelf = !!node?.ownerAccountId;
+  const rel = node ? getRelationshipForNode(node.id) : undefined;
+  /** Creator may delete unclaimed nodes they steward (not their own self node). */
+  const canDelete = scope === 'guardian' && !isSelf;
 
   const profile = node?.profile ?? {};
 
@@ -113,6 +138,59 @@ export default function EditProfile() {
 
   const [saving, setSaving] = useState(false);
   const [suggestOpen, setSuggestOpen] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [relType, setRelType] = useState<RelationshipType | undefined>(rel?.relationshipType);
+  const [relBusy, setRelBusy] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const onUploadPhoto = async () => {
+    if (!account) return;
+    setPhotoError(null);
+    setPhotoBusy(true);
+    try {
+      const picked = await pickMedia('photo');
+      if (!picked) return;
+      if (!isWithinCap(picked)) {
+        setPhotoError(`That image is ${formatBytes(picked.size)} — the limit is ${formatBytes(capFor('photo'))}.`);
+        return;
+      }
+      const uploaded = await uploadMedia(account.id, picked);
+      const url = await getSignedUrl(uploaded.storagePath, 60 * 60 * 24 * 365);
+      if (url) setPhoto(url);
+    } catch (e) {
+      console.warn('[tomora] photo upload failed', e);
+      setPhotoError('Could not upload that photo. Please try again.');
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
+  const onChangeRelationship = async (next: RelationshipType) => {
+    setRelType(next);
+    if (!rel || next === rel.relationshipType) return;
+    setRelBusy(true);
+    try {
+      await updateRelationshipType(rel.id, next);
+    } catch (e) {
+      console.warn('[tomora] relationship update failed', e);
+    } finally {
+      setRelBusy(false);
+    }
+  };
+
+  const onDeleteNode = async () => {
+    if (!node) return;
+    setDeleting(true);
+    try {
+      await deleteNode(node.id);
+      router.replace('/(tabs)/family-tree');
+    } catch (e) {
+      console.warn('[tomora] delete node failed', e);
+      setDeleting(false);
+    }
+  };
 
   const dirtyRef = useMemo(() => ({}), []); // placeholder to keep memo stable
 
@@ -294,7 +372,24 @@ export default function EditProfile() {
       <Card style={sectionGap}>
         <SectionHeader title="Photo & Name" />
         <View style={{ gap: spacing.md, marginTop: spacing.sm }}>
-          <TextField label="Profile photo URL" value={photo} onChangeText={setPhoto} placeholder="https://…" autoCapitalize="none" />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+            <Avatar name={fullName || node.displayName} size={64} uri={photo || undefined} />
+            <View style={{ flex: 1 }}>
+              <Button
+                label={photoBusy ? 'Uploading…' : 'Upload from device'}
+                variant="secondary"
+                disabled={photoBusy}
+                onPress={onUploadPhoto}
+              />
+              {photo ? (
+                <Pressable onPress={() => setPhoto('')} hitSlop={8} style={{ marginTop: 6, alignSelf: 'center' }}>
+                  <Caption style={{ color: colors.deepUmber }}>Remove photo</Caption>
+                </Pressable>
+              ) : null}
+            </View>
+          </View>
+          {photoError ? <Caption style={{ color: colors.error }}>{photoError}</Caption> : null}
+          <TextField label="Or paste a photo URL" value={photo} onChangeText={setPhoto} placeholder="https://…" autoCapitalize="none" />
           <TextField label="Full name" value={fullName} onChangeText={setFullName} placeholder="Full name" />
           <VisibilitySelector value={vis.fullName ?? 'family_tree'} onChange={setFieldVis('fullName')} label="Name visibility" />
           <TextField
@@ -379,6 +474,48 @@ export default function EditProfile() {
           <Caption>Tags help you filter the Family Tree.</Caption>
         </View>
       </Card>
+
+      {/* Relationship — only for connected, non-self nodes */}
+      {rel && !isSelf ? (
+        <Card style={sectionGap}>
+          <SectionHeader title="Relationship" />
+          <Caption style={{ marginTop: spacing.xs }}>How is this person connected to you?</Caption>
+          <View style={{ marginTop: spacing.sm }}>
+            <ChipRow
+              options={RELATIONSHIP_OPTIONS.map((o) => ({ id: o.id, label: o.label }))}
+              value={(relType ?? rel.relationshipType) as string}
+              onChange={(v) => onChangeRelationship(v as RelationshipType)}
+            />
+          </View>
+          {relBusy ? <Caption style={{ marginTop: spacing.xs }}>Updating…</Caption> : null}
+        </Card>
+      ) : null}
+
+      {/* Danger zone — delete an unclaimed node you created */}
+      {canDelete ? (
+        <Card style={{ ...sectionGap, borderColor: colors.error, borderWidth: 1 }}>
+          <SectionHeader title="Remove from tree" />
+          <Caption style={{ marginTop: spacing.xs }}>
+            You can remove this profile until {node.displayName} claims it. This also deletes their memories and
+            connection. This can’t be undone.
+          </Caption>
+          <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
+            {confirmDelete ? (
+              <>
+                <Button
+                  label={deleting ? 'Removing…' : `Yes, remove ${node.displayName}`}
+                  variant="gold"
+                  disabled={deleting}
+                  onPress={onDeleteNode}
+                />
+                <Button label="Keep this profile" variant="ghost" onPress={() => setConfirmDelete(false)} />
+              </>
+            ) : (
+              <Button label="Remove from tree" variant="secondary" onPress={() => setConfirmDelete(true)} />
+            )}
+          </View>
+        </Card>
+      ) : null}
 
       <Pressable
         onPress={() => router.push({ pathname: '/node/history', params: { nodeId: node.id } })}

@@ -84,9 +84,12 @@ export type Database = {
           created_by_account_id: string
           family_tree_id: string
           id: string
+          media_mime: string | null
+          media_size_bytes: number | null
           media_url: string | null
           node_id: string | null
           occasion_id: string | null
+          storage_path: string | null
           title: string | null
           type: string
           updated_at: string
@@ -99,9 +102,12 @@ export type Database = {
           created_by_account_id: string
           family_tree_id: string
           id?: string
+          media_mime?: string | null
+          media_size_bytes?: number | null
           media_url?: string | null
           node_id?: string | null
           occasion_id?: string | null
+          storage_path?: string | null
           title?: string | null
           type?: string
           updated_at?: string
@@ -114,9 +120,12 @@ export type Database = {
           created_by_account_id?: string
           family_tree_id?: string
           id?: string
+          media_mime?: string | null
+          media_size_bytes?: number | null
           media_url?: string | null
           node_id?: string | null
           occasion_id?: string | null
+          storage_path?: string | null
           title?: string | null
           type?: string
           updated_at?: string

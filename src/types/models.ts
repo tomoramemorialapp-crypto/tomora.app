@@ -123,7 +123,14 @@ export interface Memory {
   type: MemoryType;
   title?: string;
   body?: string;
+  /** External link (for `link` memories) or a resolvable media URL. */
   mediaUrl?: string;
+  /** Path in the private `media` storage bucket for device uploads. */
+  storagePath?: string;
+  /** Size of the uploaded file in bytes (used for the storage tracker). */
+  mediaSizeBytes?: number;
+  /** MIME type of the uploaded file. */
+  mediaMime?: string;
   visibility: VisibilityLevel;
   approvalStatus: ApprovalStatus;
   createdAt: string;

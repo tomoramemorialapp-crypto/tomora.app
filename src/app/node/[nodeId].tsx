@@ -1,4 +1,4 @@
-import { Pressable, View } from 'react-native';
+import { Pressable, useWindowDimensions, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
@@ -21,6 +21,8 @@ export default function LifeProfile() {
   const { nodeId } = useLocalSearchParams<{ nodeId: string }>();
   const { getNode, getMemoriesForNode, getRelationshipForNode, getSuggestedEditsForNode, nodes, account } =
     useAppState();
+  const { width } = useWindowDimensions();
+  const stackActions = width < 480;
 
   const node = getNode(String(nodeId));
   if (!node) {
@@ -76,24 +78,40 @@ export default function LifeProfile() {
       </Pressable>
 
       <View style={{ alignItems: 'center', gap: spacing.sm, marginBottom: spacing.lg }}>
-        <Avatar name={node.displayName} size={96} memorial={memorial} />
-        <Display style={{ fontSize: 30 }}>{node.displayName}</Display>
-        <Caption style={{ fontSize: 15 }}>{path}</Caption>
-        <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }}>
+        <Avatar
+          name={node.displayName}
+          size={96}
+          memorial={memorial}
+          uri={profile.profilePhoto?.value ?? node.avatarUrl}
+        />
+        <Display style={{ fontSize: 30, textAlign: 'center' }}>{node.displayName}</Display>
+        <Caption style={{ fontSize: 15, textAlign: 'center' }}>{path}</Caption>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: spacing.sm, marginTop: spacing.xs }}>
           <NodeStatusBadge status={node.status} />
           <VisibilityBadge visibility={node.defaultVisibility} />
         </View>
-        <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
-          <Button
-            label={canEdit ? 'Edit Profile' : 'Suggest a Change'}
-            variant="secondary"
-            onPress={() => router.push({ pathname: '/node/edit', params: { nodeId: node.id } })}
-          />
-          <Button
-            label="Change History"
-            variant="ghost"
-            onPress={() => router.push({ pathname: '/node/history', params: { nodeId: node.id } })}
-          />
+        <View
+          style={{
+            flexDirection: stackActions ? 'column' : 'row',
+            alignSelf: 'stretch',
+            gap: spacing.sm,
+            marginTop: spacing.sm,
+          }}
+        >
+          <View style={{ flex: stackActions ? undefined : 1 }}>
+            <Button
+              label={canEdit ? 'Edit Profile' : 'Suggest a Change'}
+              variant="secondary"
+              onPress={() => router.push({ pathname: '/node/edit', params: { nodeId: node.id } })}
+            />
+          </View>
+          <View style={{ flex: stackActions ? undefined : 1 }}>
+            <Button
+              label="Change History"
+              variant="ghost"
+              onPress={() => router.push({ pathname: '/node/history', params: { nodeId: node.id } })}
+            />
+          </View>
         </View>
         {canEdit && pendingSuggestions > 0 ? (
           <Pressable
@@ -161,7 +179,12 @@ export default function LifeProfile() {
         ) : (
           <View style={{ gap: spacing.md }}>
             {memories.map((m) => (
-              <MemoryCard key={m.id} memory={m} />
+              <MemoryCard
+                key={m.id}
+                memory={m}
+                editable={m.createdByAccountId === account?.id}
+                onEdit={() => router.push({ pathname: '/memory/new', params: { memoryId: m.id } })}
+              />
             ))}
           </View>
         )}

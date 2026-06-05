@@ -1,4 +1,5 @@
 import { Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import { colors, fonts } from '@/constants/theme';
 
 function initials(name: string): string {
@@ -9,32 +10,47 @@ function initials(name: string): string {
 }
 
 /**
- * Initials avatar in warm tones. Memorial nodes get a softer candlelight ring.
+ * Avatar in warm tones. Renders an uploaded/linked photo when `uri` is set,
+ * otherwise falls back to initials. Memorial nodes get a softer candlelight ring.
  */
 export function Avatar({
   name,
   size = 56,
   memorial = false,
+  uri,
 }: {
   name: string;
   size?: number;
   memorial?: boolean;
+  uri?: string;
 }) {
+  const ring = {
+    width: size,
+    height: size,
+    borderRadius: size / 2,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    backgroundColor: memorial ? colors.candlelight : colors.mistBeige,
+    borderWidth: memorial ? 2 : 1,
+    borderColor: memorial ? colors.softGold : colors.hairline,
+    overflow: 'hidden' as const,
+  };
+
+  if (uri) {
+    return (
+      <View accessibilityRole="image" accessibilityLabel={name} style={ring}>
+        <Image
+          source={{ uri }}
+          style={{ width: size, height: size }}
+          contentFit="cover"
+          transition={150}
+        />
+      </View>
+    );
+  }
+
   return (
-    <View
-      accessibilityRole="image"
-      accessibilityLabel={name}
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: memorial ? colors.candlelight : colors.mistBeige,
-        borderWidth: memorial ? 2 : 1,
-        borderColor: memorial ? colors.softGold : colors.hairline,
-      }}
-    >
+    <View accessibilityRole="image" accessibilityLabel={name} style={ring}>
       <Text
         style={{
           fontFamily: fonts.display,

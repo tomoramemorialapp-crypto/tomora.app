@@ -15,6 +15,7 @@ import type {
   FamilyTree,
   FamilyNode,
   Memory,
+  MemoryType,
   Relationship,
   RelationshipType,
   VisibilityLevel,
@@ -60,6 +61,12 @@ interface AppStateValue {
     tags?: string[];
   }) => Promise<FamilyNode>;
 
+  /** Change a node's relationship type to its connected node (creator/guardian only). */
+  updateRelationshipType: (relationshipId: string, relationshipType: RelationshipType) => Promise<void>;
+
+  /** Permanently remove an unclaimed node the user created. */
+  deleteNode: (nodeId: string) => Promise<void>;
+
   updateTreePrivacy: (patch: {
     defaultVisibility: VisibilityLevel;
     publicSharingEnabled: boolean;
@@ -97,7 +104,32 @@ interface AppStateValue {
     visibility: VisibilityLevel;
   }) => Promise<Memory>;
 
+  createMemory: (input: {
+    nodeId: string;
+    type: MemoryType;
+    title?: string;
+    body?: string;
+    mediaUrl?: string;
+    storagePath?: string;
+    mediaSizeBytes?: number;
+    mediaMime?: string;
+    visibility: VisibilityLevel;
+  }) => Promise<Memory>;
+
+  updateMemory: (input: {
+    id: string;
+    title?: string;
+    body?: string;
+    visibility?: VisibilityLevel;
+  }) => Promise<Memory>;
+
+  deleteMemory: (id: string) => Promise<void>;
+
+  /** Total bytes of media this account has uploaded (for the storage tracker). */
+  mediaUsageBytes: number;
+
   getNode: (id: string) => FamilyNode | undefined;
+  getMemory: (id: string) => Memory | undefined;
   getMemoriesForNode: (id: string) => Memory[];
   getRelationshipForNode: (id: string) => Relationship | undefined;
 }
@@ -293,6 +325,22 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     [account, nodes, tree],
   );
 
+  const updateRelationshipType = useCallback<AppStateValue['updateRelationshipType']>(
+    async (relationshipId, relationshipType) => {
+      const updated = await treeService.updateRelationshipType(relationshipId, relationshipType);
+      setRelationships((prev) => prev.map((r) => (r.id === relationshipId ? updated : r)));
+    },
+    [],
+  );
+
+  const deleteNode = useCallback<AppStateValue['deleteNode']>(async (nodeId) => {
+    await treeService.deleteNode(nodeId);
+    setNodes((prev) => prev.filter((n) => n.id !== nodeId));
+    setRelationships((prev) => prev.filter((r) => r.fromNodeId !== nodeId && r.toNodeId !== nodeId));
+    setMemories((prev) => prev.filter((m) => m.nodeId !== nodeId));
+    setSuggestedEdits((prev) => prev.filter((e) => e.targetNodeId !== nodeId));
+  }, []);
+
   const updateTreePrivacy = useCallback<AppStateValue['updateTreePrivacy']>(
     async (patch) => {
       if (!tree) return;
@@ -362,16 +410,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     [suggestedEdits],
   );
 
-  const addTextMemory = useCallback<AppStateValue['addTextMemory']>(
-    async ({ nodeId, title, body, visibility }) => {
+  const createMemory = useCallback<AppStateValue['createMemory']>(
+    async (input) => {
       if (!tree || !account) throw new Error('No tree or account loaded.');
-      const memory = await memoryService.addTextMemory({
+      const memory = await memoryService.createMemory({
         familyTreeId: tree.id,
-        nodeId,
         accountId: account.id,
-        title,
-        body,
-        visibility,
+        ...input,
       });
       setMemories((prev) => [memory, ...prev]);
       return memory;
@@ -379,7 +424,41 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     [account, tree],
   );
 
+  const addTextMemory = useCallback<AppStateValue['addTextMemory']>(
+    ({ nodeId, title, body, visibility }) =>
+      createMemory({ nodeId, type: 'text', title, body, visibility }),
+    [createMemory],
+  );
+
+  const updateMemory = useCallback<AppStateValue['updateMemory']>(
+    async (input) => {
+      const updated = await memoryService.updateMemory(input);
+      setMemories((prev) => prev.map((m) => (m.id === input.id ? updated : m)));
+      return updated;
+    },
+    [],
+  );
+
+  const deleteMemory = useCallback<AppStateValue['deleteMemory']>(
+    async (id) => {
+      const target = memories.find((m) => m.id === id);
+      await memoryService.deleteMemory({ id, storagePath: target?.storagePath });
+      setMemories((prev) => prev.filter((m) => m.id !== id));
+    },
+    [memories],
+  );
+
+  const mediaUsageBytes = useMemo(
+    () =>
+      memories.reduce(
+        (sum, m) => (m.createdByAccountId === account?.id ? sum + (m.mediaSizeBytes ?? 0) : sum),
+        0,
+      ),
+    [memories, account?.id],
+  );
+
   const getNode = useCallback((id: string) => nodes.find((n) => n.id === id), [nodes]);
+  const getMemory = useCallback((id: string) => memories.find((m) => m.id === id), [memories]);
   const getMemoriesForNode = useCallback(
     (id: string) => memories.filter((m) => m.nodeId === id),
     [memories],
@@ -406,6 +485,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       signInAndLoad,
       resetAll,
       addRelative,
+      updateRelationshipType,
+      deleteNode,
       updateTreePrivacy,
       updateNodeProfile,
       submitSuggestedEdit,
@@ -413,7 +494,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       fetchChangeLog,
       getSuggestedEditsForNode,
       addTextMemory,
+      createMemory,
+      updateMemory,
+      deleteMemory,
+      mediaUsageBytes,
       getNode,
+      getMemory,
       getMemoriesForNode,
       getRelationshipForNode,
     }),
@@ -432,6 +518,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       signInAndLoad,
       resetAll,
       addRelative,
+      updateRelationshipType,
+      deleteNode,
       updateTreePrivacy,
       updateNodeProfile,
       submitSuggestedEdit,
@@ -439,7 +527,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       fetchChangeLog,
       getSuggestedEditsForNode,
       addTextMemory,
+      createMemory,
+      updateMemory,
+      deleteMemory,
+      mediaUsageBytes,
       getNode,
+      getMemory,
       getMemoriesForNode,
       getRelationshipForNode,
     ],

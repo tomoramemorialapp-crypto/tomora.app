@@ -189,6 +189,32 @@ export async function addRelative(input: AddRelativeInput): Promise<AddRelativeR
   return { node: mapNode(nodeRow), relationship: mapRelationship(relRow) };
 }
 
+/** Change the relationship type between an existing relationship's endpoints. */
+export async function updateRelationshipType(
+  relationshipId: string,
+  relationshipType: RelationshipType,
+): Promise<Relationship> {
+  const { data, error } = await supabase
+    .from('relationships')
+    .update({ relationship_type: relationshipType })
+    .eq('id', relationshipId)
+    .select()
+    .single();
+  if (error) throw error;
+  return mapRelationship(data);
+}
+
+/**
+ * Permanently remove a node the user created (not yet claimed). Dependent
+ * relationships and memories are deleted first since they have no cascade.
+ */
+export async function deleteNode(nodeId: string): Promise<void> {
+  await supabase.from('memories').delete().eq('node_id', nodeId);
+  await supabase.from('relationships').delete().or(`from_node_id.eq.${nodeId},to_node_id.eq.${nodeId}`);
+  const { error } = await supabase.from('nodes').delete().eq('id', nodeId);
+  if (error) throw error;
+}
+
 /** Update a tree's privacy settings (default visibility + public sharing). */
 export async function updateTreePrivacy(
   treeId: string,

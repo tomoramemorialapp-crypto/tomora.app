@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LayoutChangeEvent, Pressable, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { useFocusEffect } from 'expo-router';
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { Gesture, GestureDetector, type GestureType } from 'react-native-gesture-handler';
+import type { SharedValue } from 'react-native-reanimated';
 import Svg, { G } from 'react-native-svg';
 
 import { colors, radii, spacing } from '@/constants/theme';
@@ -59,6 +61,66 @@ function edgePath(
 }
 
 /**
+ * A node the user can freely drag around the canvas. The position is local and
+ * ephemeral — it is never persisted or shared, and resets on every visit.
+ */
+function DraggableNode({
+  left,
+  top,
+  scaleSV,
+  canvasPanRef,
+  onCommit,
+  children,
+}: {
+  left: number;
+  top: number;
+  scaleSV: SharedValue<number>;
+  canvasPanRef: React.MutableRefObject<GestureType | undefined>;
+  onCommit: (dx: number, dy: number) => void;
+  children: React.ReactNode;
+}) {
+  const tx = useSharedValue(0);
+  const ty = useSharedValue(0);
+  const sx = useSharedValue(0);
+  const sy = useSharedValue(0);
+
+  const style = useAnimatedStyle(() => ({
+    transform: [{ translateX: tx.value }, { translateY: ty.value }],
+  }));
+
+  // Pan moves the node; a tap (no movement) falls through to the child Pressable
+  // for selection. Dragging blocks the canvas pan so only the node moves.
+  const gesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .blocksExternalGesture(canvasPanRef)
+        .minDistance(4)
+        .onStart(() => {
+          sx.value = tx.value;
+          sy.value = ty.value;
+        })
+        .onUpdate((e) => {
+          const s = scaleSV.value || 1;
+          tx.value = sx.value + e.translationX / s;
+          ty.value = sy.value + e.translationY / s;
+        })
+        .onEnd(() => {
+          runOnJS(onCommit)(tx.value, ty.value);
+          tx.value = 0;
+          ty.value = 0;
+        }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [onCommit],
+  );
+
+  return (
+    <GestureDetector gesture={gesture}>
+      <Animated.View style={[{ position: 'absolute', left, top }, style]}>{children}</Animated.View>
+    </GestureDetector>
+  );
+}
+
+/**
  * Engine-powered Family Tree visualizer with a draggable, zoomable canvas,
  * relationship-degree / branch / tag filtering, and vertical/horizontal
  * generational orientation.
@@ -85,6 +147,18 @@ export function KinshipTreeCanvas({
   const [filter, setFilter] = useState<FamilyTreeFilterState>(DEFAULT_FILTER);
   const [filterOpen, setFilterOpen] = useState(false);
   const [container, setContainer] = useState({ w: 0, h: height });
+  // Local, ephemeral per-node drag offsets — never saved, reset on every visit.
+  const [dragOffsets, setDragOffsets] = useState<Record<string, { dx: number; dy: number }>>({});
+  const canvasPanRef = useRef<GestureType | undefined>(undefined);
+
+  useFocusEffect(useCallback(() => setDragOffsets({}), []));
+
+  const commitDrag = useCallback((id: string, dx: number, dy: number) => {
+    setDragOffsets((prev) => {
+      const cur = prev[id] ?? { dx: 0, dy: 0 };
+      return { ...prev, [id]: { dx: cur.dx + dx, dy: cur.dy + dy } };
+    });
+  }, []);
 
   const anchor = anchorNodeId ?? nodes.find((n) => n.ownerAccountId)?.id ?? nodes[0]?.id;
 
@@ -221,6 +295,7 @@ export function KinshipTreeCanvas({
   const panGesture = useMemo(
     () =>
       Gesture.Pan()
+        .withRef(canvasPanRef)
         .onStart(() => {
           startX.value = tx.value;
           startY.value = ty.value;
@@ -247,6 +322,17 @@ export function KinshipTreeCanvas({
   );
 
   const composed = useMemo(() => Gesture.Simultaneous(panGesture, pinchGesture), [panGesture, pinchGesture]);
+
+  // Edges re-routed to follow any committed drag offsets.
+  const draggedEdges = useMemo<RenderEdge[]>(() => {
+    if (!graph || !view) return [];
+    const pos = (id: string) => {
+      const base = view.posMap.get(id)!;
+      const off = dragOffsets[id];
+      return off ? { x: base.x + off.dx, y: base.y + off.dy } : base;
+    };
+    return view.edges.map((e) => ({ ...e, path: edgePath(pos(e.fromNodeId), pos(e.toNodeId), orientation) }));
+  }, [graph, view, dragOffsets, orientation]);
 
   if (!graph || !view) {
     return (
@@ -284,7 +370,7 @@ export function KinshipTreeCanvas({
           <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: contentW, height: contentH }, animatedStyle]}>
             <Svg width={contentW} height={contentH} style={{ position: 'absolute', left: 0, top: 0 }}>
               <G transform={`translate(${view.offsetX}, ${view.offsetY})`}>
-                {view.edges.map((edge) => (
+                {draggedEdges.map((edge) => (
                   <FamilyTreeEdge key={edge.id} edge={edge} highlighted={highlightedEdges.has(edge.id)} />
                 ))}
               </G>
@@ -292,14 +378,15 @@ export function KinshipTreeCanvas({
 
             {view.visibleNodes.map((node) => {
               const p = view.posMap.get(node.id)!;
+              const off = dragOffsets[node.id];
               return (
-                <View
+                <DraggableNode
                   key={node.id}
-                  style={{
-                    position: 'absolute',
-                    left: p.x + view.offsetX - NODE_HALF_W,
-                    top: p.y + view.offsetY - NODE_HALF_H,
-                  }}
+                  left={p.x + (off?.dx ?? 0) + view.offsetX - NODE_HALF_W}
+                  top={p.y + (off?.dy ?? 0) + view.offsetY - NODE_HALF_H}
+                  scaleSV={scale}
+                  canvasPanRef={canvasPanRef}
+                  onCommit={(dx, dy) => commitDrag(node.id, dx, dy)}
                 >
                   <FamilyTreeNode
                     node={node}
@@ -307,7 +394,7 @@ export function KinshipTreeCanvas({
                     highlighted={highlightedEdges.size > 0 && node.kinshipPathFromAnchor.includes(selectedId ?? '')}
                     onPress={() => setSelectedId((prev) => (prev === node.id ? null : node.id))}
                   />
-                </View>
+                </DraggableNode>
               );
             })}
           </Animated.View>

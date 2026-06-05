@@ -54,7 +54,7 @@ export const copy = {
   },
   addLovedOne: {
     prompt: 'Who should stay close to you first?',
-    body: 'Add one loved one now. You can grow the rest later.',
+    body: 'Add a loved one now. You can grow the rest later.',
     namePrompt: 'What should we call them?',
     cta: 'Add to my Family Tree',
   },

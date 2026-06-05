@@ -62,6 +62,7 @@ export default function Reveal() {
   return (
     <ScreenContainer
       center
+      showBack
       footer={
         <View style={{ gap: spacing.md }}>
           <Button label={copy.reveal.primaryCta} variant="gold" onPress={() => router.push('/(onboarding)/save')} />

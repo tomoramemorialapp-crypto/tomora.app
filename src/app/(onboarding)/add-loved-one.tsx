@@ -39,6 +39,7 @@ export default function AddLovedOne() {
 
   return (
     <ScreenContainer
+      showBack
       footer={<Button label={copy.addLovedOne.cta} variant="gold" disabled={!canContinue} onPress={onContinue} />}
     >
       <View style={{ gap: spacing.lg }}>

@@ -26,6 +26,7 @@ export default function AddSelf() {
 
   return (
     <ScreenContainer
+      showBack
       footer={<Button label={copy.addSelf.cta} variant="gold" disabled={!canContinue} onPress={onContinue} />}
     >
       <View style={{ gap: spacing.lg }}>

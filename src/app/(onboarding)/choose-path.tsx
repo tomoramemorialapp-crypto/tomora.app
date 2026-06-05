@@ -19,7 +19,7 @@ export default function ChoosePath() {
   };
 
   return (
-    <ScreenContainer>
+    <ScreenContainer showBack>
       <View style={{ gap: spacing.lg }}>
         <OnboardingProgress step={1} total={6} />
         <Display style={{ fontSize: 34 }}>{copy.choosePath.prompt}</Display>

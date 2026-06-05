@@ -14,6 +14,7 @@ export default function Privacy() {
 
   return (
     <ScreenContainer
+      showBack
       footer={
         <View style={{ gap: spacing.md }}>
           <Button label={copy.privacy.cta} variant="gold" onPress={() => router.push('/(onboarding)/invite')} />

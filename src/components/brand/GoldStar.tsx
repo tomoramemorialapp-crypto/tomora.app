@@ -1,45 +1,33 @@
 import { View, type ViewStyle } from 'react-native';
-import { colors } from '@/constants/theme';
+import { Image } from 'expo-image';
+
+const STAR = require('../../../assets/brand/star.png');
 
 /**
- * A small four-point gold light — the star/light motif. Built from two rotated
- * diamonds so it stays crisp without an SVG dependency.
+ * The Tomora four-point gold star — the light/star motif used as accents and
+ * as the gentle "add" affordance throughout the app. Renders the brand star
+ * asset; pass `color` to tint it for a specific surface.
  */
 export function GoldStar({
   size = 16,
-  color = colors.guardianGold,
+  color,
   style,
 }: {
   size?: number;
   color?: string;
   style?: ViewStyle;
 }) {
-  const arm = size;
-  const thickness = Math.max(2, size * 0.18);
   return (
     <View
       accessible={false}
       style={[{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }, style]}
     >
-      {/* vertical beam */}
-      <View
-        style={{
-          position: 'absolute',
-          width: thickness,
-          height: arm,
-          backgroundColor: color,
-          borderRadius: thickness,
-        }}
-      />
-      {/* horizontal beam */}
-      <View
-        style={{
-          position: 'absolute',
-          width: arm,
-          height: thickness,
-          backgroundColor: color,
-          borderRadius: thickness,
-        }}
+      <Image
+        source={STAR}
+        style={{ width: size, height: size }}
+        contentFit="contain"
+        tintColor={color}
+        accessible={false}
       />
     </View>
   );

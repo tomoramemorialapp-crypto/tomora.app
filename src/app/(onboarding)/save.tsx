@@ -68,6 +68,7 @@ export default function Save() {
 
   return (
     <ScreenContainer
+      showBack
       footer={
         <View style={{ gap: spacing.md }}>
           <Button label="Save my Family Tree" variant="gold" disabled={!canSave} loading={busy} onPress={onSave} />

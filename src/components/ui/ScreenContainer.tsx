@@ -2,6 +2,7 @@ import React from 'react';
 import { ScrollView, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing } from '@/constants/theme';
+import { BackButton } from './BackButton';
 
 /**
  * Ivory full-bleed screen wrapper. Centers content and caps width on wide/web
@@ -15,6 +16,8 @@ export function ScreenContainer({
   background = colors.ivory,
   contentStyle,
   footer,
+  showBack = false,
+  onBack,
 }: {
   children: React.ReactNode;
   scroll?: boolean;
@@ -23,6 +26,8 @@ export function ScreenContainer({
   background?: string;
   contentStyle?: ViewStyle;
   footer?: React.ReactNode;
+  showBack?: boolean;
+  onBack?: () => void;
 }) {
   const insets = useSafeAreaInsets();
 
@@ -31,7 +36,7 @@ export function ScreenContainer({
     maxWidth,
     alignSelf: 'center',
     paddingHorizontal: spacing.lg,
-    paddingTop: insets.top + spacing.lg,
+    paddingTop: insets.top + (showBack ? 56 : spacing.lg),
     paddingBottom: spacing.xl,
     flexGrow: 1,
     ...(center ? { justifyContent: 'center' } : null),
@@ -40,6 +45,11 @@ export function ScreenContainer({
 
   return (
     <View style={{ flex: 1, backgroundColor: background }}>
+      {showBack ? (
+        <View style={{ position: 'absolute', top: insets.top + spacing.xs, left: spacing.sm, zIndex: 10 }}>
+          <BackButton onPress={onBack} />
+        </View>
+      ) : null}
       {scroll ? (
         <ScrollView
           contentContainerStyle={inner}

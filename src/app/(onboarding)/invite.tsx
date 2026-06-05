@@ -32,6 +32,7 @@ export default function Invite() {
 
   return (
     <ScreenContainer
+      showBack
       footer={
         <View style={{ gap: spacing.md }}>
           <Button label={copy.invite.inviteNow} variant="gold" onPress={finish} />

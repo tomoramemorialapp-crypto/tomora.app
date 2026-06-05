@@ -2,9 +2,13 @@ import React, {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
+import { Platform } from 'react-native';
+import type { Session } from '@supabase/supabase-js';
 
 import type {
   Account,
@@ -15,9 +19,10 @@ import type {
   RelationshipType,
   VisibilityLevel,
 } from '@/types/models';
-import { createId } from '@/lib/relationshipUtils';
-
-type PrivacyPreset = 'recommended' | 'custom';
+import { supabase } from '@/lib/supabase';
+import * as authService from '@/services/authService';
+import * as treeService from '@/services/treeService';
+import * as memoryService from '@/services/memoryService';
 
 interface OnboardingDraft {
   selfName: string;
@@ -27,6 +32,8 @@ interface OnboardingDraft {
 }
 
 interface AppStateValue {
+  loading: boolean;
+  session: Session | null;
   account: Account | null;
   tree: FamilyTree | null;
   nodes: FamilyNode[];
@@ -35,21 +42,20 @@ interface AppStateValue {
   isOnboarded: boolean;
   draft: OnboardingDraft;
 
-  // onboarding
   setDraft: (patch: Partial<OnboardingDraft>) => void;
-  commitOnboarding: (override?: Partial<OnboardingDraft>) => { selfNodeId: string; lovedOneNodeId: string };
-  completeOnboarding: () => void;
-  resetAll: () => void;
 
-  // memories
+  // auth + persistence
+  signUpAndStart: (email: string, password: string) => Promise<{ needsEmailConfirmation: boolean }>;
+  signInAndLoad: (email: string, password: string) => Promise<void>;
+  resetAll: () => Promise<void>;
+
   addTextMemory: (input: {
     nodeId: string;
     title?: string;
     body: string;
     visibility: VisibilityLevel;
-  }) => Memory;
+  }) => Promise<Memory>;
 
-  // selectors
   getNode: (id: string) => FamilyNode | undefined;
   getMemoriesForNode: (id: string) => Memory[];
   getRelationshipForNode: (id: string) => Relationship | undefined;
@@ -62,123 +68,177 @@ const emptyDraft: OnboardingDraft = {
   lovedOneIsRemembered: false,
 };
 
+const DRAFT_KEY = 'tomora.onboarding.draft';
+
+function loadStoredDraft(): OnboardingDraft {
+  if (Platform.OS !== 'web' || typeof localStorage === 'undefined') return emptyDraft;
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    return raw ? { ...emptyDraft, ...JSON.parse(raw) } : emptyDraft;
+  } catch {
+    return emptyDraft;
+  }
+}
+
+function storeDraft(draft: OnboardingDraft) {
+  if (Platform.OS !== 'web' || typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function clearStoredDraft() {
+  if (Platform.OS !== 'web' || typeof localStorage === 'undefined') return;
+  try {
+    localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 const AppStateContext = createContext<AppStateValue | null>(null);
 
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
+  const [loading, setLoading] = useState(true);
+  const [session, setSession] = useState<Session | null>(null);
   const [account, setAccount] = useState<Account | null>(null);
   const [tree, setTree] = useState<FamilyTree | null>(null);
   const [nodes, setNodes] = useState<FamilyNode[]>([]);
   const [relationships, setRelationships] = useState<Relationship[]>([]);
   const [memories, setMemories] = useState<Memory[]>([]);
-  const [isOnboarded, setIsOnboarded] = useState(false);
-  const [draft, setDraftState] = useState<OnboardingDraft>(emptyDraft);
+  const [draft, setDraftState] = useState<OnboardingDraft>(() => loadStoredDraft());
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
 
-  const setDraft = useCallback((patch: Partial<OnboardingDraft>) => {
-    setDraftState((prev) => ({ ...prev, ...patch }));
+  const applyBundle = useCallback((bundle: treeService.TreeBundle | null) => {
+    if (!bundle) {
+      setTree(null);
+      setNodes([]);
+      setRelationships([]);
+      setMemories([]);
+      return;
+    }
+    setTree(bundle.tree);
+    setNodes(bundle.nodes);
+    setRelationships(bundle.relationships);
+    setMemories(bundle.memories);
   }, []);
 
-  const commitOnboarding = useCallback((override?: Partial<OnboardingDraft>) => {
-    // Merge any explicit values so a commit in the same handler as setDraft
-    // doesn't read stale state.
-    const d: OnboardingDraft = { ...draft, ...override };
-    if (override) setDraftState(d);
+  // Load the signed-in user's data. If they have no tree yet but a saved draft
+  // exists (e.g. after an email-confirmation redirect), persist it now.
+  const loadForUser = useCallback(
+    async (activeSession: Session) => {
+      const userId = activeSession.user.id;
+      const displayName = draftRef.current.selfName || activeSession.user.email?.split('@')[0] || 'You';
+      const acct = (await treeService.getAccount(userId)) ?? (await treeService.ensureAccount(userId, displayName));
+      setAccount(acct);
 
-    const ts = new Date().toISOString();
-    const accountId = createId('account');
-    const treeId = createId('tree');
-    const selfNodeId = createId('node');
-    const lovedOneNodeId = createId('node');
+      let bundle = await treeService.loadMyTreeBundle(userId);
+      if (!bundle && draftRef.current.lovedOneName.trim()) {
+        bundle = await treeService.createInitialTree({
+          accountId: userId,
+          selfName: draftRef.current.selfName,
+          lovedOneName: draftRef.current.lovedOneName,
+          relationshipType: draftRef.current.lovedOneRelationship,
+          isRemembered: draftRef.current.lovedOneIsRemembered,
+        });
+        clearStoredDraft();
+      }
+      applyBundle(bundle);
+    },
+    [applyBundle],
+  );
 
-    const newAccount: Account = {
-      id: accountId,
-      displayName: d.selfName.trim() || 'You',
-      createdAt: ts,
-      updatedAt: ts,
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const current = await authService.getSession();
+        if (!mounted) return;
+        setSession(current);
+        if (current) await loadForUser(current);
+      } catch (e) {
+        console.warn('[tomora] initial load failed', e);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+      if (!newSession) {
+        setAccount(null);
+        applyBundle(null);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
     };
-    const newTree: FamilyTree = {
-      id: treeId,
-      name: 'My Family Tree',
-      createdByAccountId: accountId,
-      defaultVisibility: 'family_tree',
-      publicSharingEnabled: false,
-      createdAt: ts,
-      updatedAt: ts,
-    };
-    const selfNode: FamilyNode = {
-      id: selfNodeId,
-      familyTreeId: treeId,
-      ownerAccountId: accountId,
-      displayName: d.selfName.trim() || 'You',
-      status: 'claimed',
-      isLiving: true,
-      defaultVisibility: 'family_tree',
-      createdAt: ts,
-      updatedAt: ts,
-    };
-    const lovedOneNode: FamilyNode = {
-      id: lovedOneNodeId,
-      familyTreeId: treeId,
-      displayName: d.lovedOneName.trim() || 'Loved one',
-      status: d.lovedOneIsRemembered ? 'managed' : 'placeholder',
-      isLiving: !d.lovedOneIsRemembered,
-      defaultVisibility: 'family_tree',
-      createdAt: ts,
-      updatedAt: ts,
-    };
-    const relationship: Relationship = {
-      id: createId('rel'),
-      familyTreeId: treeId,
-      fromNodeId: selfNodeId,
-      toNodeId: lovedOneNodeId,
-      relationshipType: d.lovedOneRelationship,
-      status: 'approved',
-      visibility: 'family_tree',
-      createdByAccountId: accountId,
-      createdAt: ts,
-      updatedAt: ts,
-    };
+  }, [applyBundle, loadForUser]);
 
-    setAccount(newAccount);
-    setTree(newTree);
-    setNodes([selfNode, lovedOneNode]);
-    setRelationships([relationship]);
-    setMemories([]);
+  const setDraft = useCallback((patch: Partial<OnboardingDraft>) => {
+    setDraftState((prev) => {
+      const next = { ...prev, ...patch };
+      storeDraft(next);
+      return next;
+    });
+  }, []);
 
-    return { selfNodeId, lovedOneNodeId };
-  }, [draft]);
+  const signUpAndStart = useCallback<AppStateValue['signUpAndStart']>(
+    async (email, password) => {
+      const result = await authService.signUpWithEmail(email, password);
+      if (!result.session) {
+        // email confirmation required — draft is persisted and will be saved
+        // automatically once the user confirms and returns.
+        return { needsEmailConfirmation: true };
+      }
+      setSession(result.session);
+      await loadForUser(result.session);
+      return { needsEmailConfirmation: false };
+    },
+    [loadForUser],
+  );
 
-  const completeOnboarding = useCallback(() => setIsOnboarded(true), []);
+  const signInAndLoad = useCallback<AppStateValue['signInAndLoad']>(
+    async (email, password) => {
+      const s = await authService.signInWithEmail(email, password);
+      setSession(s);
+      await loadForUser(s);
+    },
+    [loadForUser],
+  );
 
-  const resetAll = useCallback(() => {
+  const resetAll = useCallback(async () => {
+    await authService.signOut();
+    clearStoredDraft();
+    setSession(null);
     setAccount(null);
     setTree(null);
     setNodes([]);
     setRelationships([]);
     setMemories([]);
-    setIsOnboarded(false);
     setDraftState(emptyDraft);
   }, []);
 
   const addTextMemory = useCallback<AppStateValue['addTextMemory']>(
-    ({ nodeId, title, body, visibility }) => {
-      const ts = new Date().toISOString();
-      const memory: Memory = {
-        id: createId('memory'),
-        familyTreeId: tree?.id ?? 'tree_local',
+    async ({ nodeId, title, body, visibility }) => {
+      if (!tree || !account) throw new Error('No tree or account loaded.');
+      const memory = await memoryService.addTextMemory({
+        familyTreeId: tree.id,
         nodeId,
-        createdByAccountId: account?.id ?? 'account_local',
-        type: 'text',
-        title: title?.trim() || undefined,
-        body: body.trim(),
+        accountId: account.id,
+        title,
+        body,
         visibility,
-        approvalStatus: 'approved',
-        createdAt: ts,
-        updatedAt: ts,
-      };
+      });
       setMemories((prev) => [memory, ...prev]);
       return memory;
     },
-    [account?.id, tree?.id],
+    [account, tree],
   );
 
   const getNode = useCallback((id: string) => nodes.find((n) => n.id === id), [nodes]);
@@ -193,16 +253,18 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<AppStateValue>(
     () => ({
+      loading,
+      session,
       account,
       tree,
       nodes,
       relationships,
       memories,
-      isOnboarded,
+      isOnboarded: !!session && !!tree,
       draft,
       setDraft,
-      commitOnboarding,
-      completeOnboarding,
+      signUpAndStart,
+      signInAndLoad,
       resetAll,
       addTextMemory,
       getNode,
@@ -210,16 +272,17 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       getRelationshipForNode,
     }),
     [
+      loading,
+      session,
       account,
       tree,
       nodes,
       relationships,
       memories,
-      isOnboarded,
       draft,
       setDraft,
-      commitOnboarding,
-      completeOnboarding,
+      signUpAndStart,
+      signInAndLoad,
       resetAll,
       addTextMemory,
       getNode,

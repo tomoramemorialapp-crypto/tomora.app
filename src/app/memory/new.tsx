@@ -28,12 +28,18 @@ export default function NewMemory() {
   const [visibility, setVisibility] = useState<VisibilityLevel>('family_tree');
 
   const targetNode = selectedNodeId ? getNode(selectedNodeId) : undefined;
-  const canSave = !!targetNode && body.trim().length > 0;
+  const [busy, setBusy] = useState(false);
+  const canSave = !!targetNode && body.trim().length > 0 && !busy;
 
-  const onSave = () => {
+  const onSave = async () => {
     if (!targetNode) return;
-    addTextMemory({ nodeId: targetNode.id, title, body, visibility });
-    router.back();
+    setBusy(true);
+    try {
+      await addTextMemory({ nodeId: targetNode.id, title, body, visibility });
+      router.back();
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -41,7 +47,7 @@ export default function NewMemory() {
       maxWidth={620}
       footer={
         <View style={{ gap: spacing.sm }}>
-          <Button label="Save this memory" variant="gold" disabled={!canSave} onPress={onSave} />
+          <Button label="Save this memory" variant="gold" disabled={!canSave} loading={busy} onPress={onSave} />
           <Button label="Cancel" variant="ghost" onPress={() => router.back()} />
         </View>
       }

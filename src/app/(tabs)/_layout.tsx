@@ -1,8 +1,8 @@
 import { Tabs } from 'expo-router';
-import { Platform, View } from 'react-native';
+import { Platform, View, type ColorValue } from 'react-native';
 import { colors, fonts } from '@/constants/theme';
 
-function Dot({ color, active }: { color: string; active: boolean }) {
+function Dot({ color, active }: { color: ColorValue; active: boolean }) {
   return (
     <View
       style={{

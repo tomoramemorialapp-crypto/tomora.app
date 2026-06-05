@@ -44,21 +44,23 @@ export function TextField({
         autoFocus={autoFocus}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        style={{
-          fontFamily: fonts.body,
-          fontSize: 18,
-          color: colors.ink,
-          backgroundColor: colors.white,
-          borderRadius: radii.md,
-          borderWidth: 1.5,
-          borderColor: focused ? colors.softGold : colors.mistBeige,
-          paddingHorizontal: spacing.md,
-          paddingVertical: multiline ? spacing.md : 14,
-          minHeight: multiline ? 120 : 54,
-          textAlignVertical: multiline ? 'top' : 'center',
-          // @ts-expect-error web-only outline reset
-          outlineStyle: 'none',
-        }}
+        style={
+          {
+            fontFamily: fonts.body,
+            fontSize: 18,
+            color: colors.ink,
+            backgroundColor: colors.white,
+            borderRadius: radii.md,
+            borderWidth: 1.5,
+            borderColor: focused ? colors.softGold : colors.mistBeige,
+            paddingHorizontal: spacing.md,
+            paddingVertical: multiline ? spacing.md : 14,
+            minHeight: multiline ? 120 : 54,
+            textAlignVertical: multiline ? 'top' : 'center',
+            // web-only outline reset
+            outlineStyle: 'none',
+          } as any
+        }
         {...rest}
       />
     </View>

@@ -8,16 +8,13 @@ import { Button } from '@/components/ui/Button';
 import { Body, Caption, Display } from '@/components/ui/Typography';
 import { spacing } from '@/constants/theme';
 import { copy } from '@/constants/copy';
-import { useAppState } from '@/state/AppState';
 import { createId } from '@/lib/relationshipUtils';
 
 export default function Invite() {
   const router = useRouter();
-  const { completeOnboarding } = useAppState();
   const [copied, setCopied] = useState(false);
 
   const finish = () => {
-    completeOnboarding();
     router.replace('/(tabs)');
   };
 

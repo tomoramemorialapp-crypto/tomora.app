@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Animated, Easing, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
@@ -10,16 +10,39 @@ import { spacing } from '@/constants/theme';
 import { copy } from '@/constants/copy';
 import { useAppState } from '@/state/AppState';
 import { relationshipLabel } from '@/lib/relationshipUtils';
+import type { FamilyNode } from '@/types/models';
 
 export default function Reveal() {
   const router = useRouter();
-  const { nodes, relationships } = useAppState();
+  const { draft } = useAppState();
 
-  const selfNode = nodes.find((n) => n.ownerAccountId) ?? nodes[0];
-  const lovedOneNode = nodes.find((n) => n.id !== selfNode?.id);
-  const rel = relationships[0];
+  // Preview nodes built from the local draft (not yet persisted to the DB).
+  const { selfNode, lovedOneNode } = useMemo(() => {
+    const now = new Date().toISOString();
+    const self: FamilyNode = {
+      id: 'preview_self',
+      familyTreeId: 'preview',
+      ownerAccountId: 'preview',
+      displayName: draft.selfName.trim() || 'You',
+      status: 'claimed',
+      isLiving: true,
+      defaultVisibility: 'family_tree',
+      createdAt: now,
+      updatedAt: now,
+    };
+    const loved: FamilyNode = {
+      id: 'preview_loved',
+      familyTreeId: 'preview',
+      displayName: draft.lovedOneName.trim() || 'Loved one',
+      status: draft.lovedOneIsRemembered ? 'managed' : 'placeholder',
+      isLiving: !draft.lovedOneIsRemembered,
+      defaultVisibility: 'family_tree',
+      createdAt: now,
+      updatedAt: now,
+    };
+    return { selfNode: self, lovedOneNode: loved };
+  }, [draft]);
 
-  // copy fades in after the line draws
   const textFade = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(textFade, {
@@ -31,9 +54,8 @@ export default function Reveal() {
     }).start();
   }, [textFade]);
 
-  if (!selfNode || !lovedOneNode) {
-    // safety: nothing committed yet
-    router.replace('/(onboarding)/add-self');
+  if (!draft.lovedOneName.trim()) {
+    router.replace('/(onboarding)/add-loved-one');
     return null;
   }
 
@@ -43,11 +65,7 @@ export default function Reveal() {
       footer={
         <View style={{ gap: spacing.md }}>
           <Button label={copy.reveal.primaryCta} variant="gold" onPress={() => router.push('/(onboarding)/save')} />
-          <Button
-            label={copy.reveal.secondaryCta}
-            variant="ghost"
-            onPress={() => router.push('/(tabs)/family-tree')}
-          />
+          <Button label={copy.reveal.secondaryCta} variant="ghost" onPress={() => router.back()} />
         </View>
       }
     >
@@ -55,7 +73,7 @@ export default function Reveal() {
         <MiniTreeReveal
           selfNode={selfNode}
           lovedOneNode={lovedOneNode}
-          relationshipLabel={rel ? relationshipLabel(rel.relationshipType) : undefined}
+          relationshipLabel={relationshipLabel(draft.lovedOneRelationship)}
         />
 
         <Animated.View style={{ opacity: textFade, alignItems: 'center', gap: spacing.sm }}>

@@ -26,10 +26,12 @@ export function canViewContent({
     return !!familyTreeMembership;
   }
   if (content.visibility === 'selected_people') {
-    return explicitPermission === true;
+    // Requires an explicit grant, which was already checked above.
+    return false;
   }
   if (content.visibility === 'invite_link') {
-    return explicitPermission === true;
+    // Requires possession of the invite link / explicit grant (checked above).
+    return false;
   }
   if (content.visibility === 'private') {
     return content.createdByAccountId === viewer.id;

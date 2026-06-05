@@ -24,8 +24,8 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { account, tree, nodes, memories, resetAll } = useAppState();
 
-  const onReset = () => {
-    resetAll();
+  const onReset = async () => {
+    await resetAll();
     router.replace('/welcome');
   };
 
@@ -65,8 +65,8 @@ export default function ProfileScreen() {
           <LightDivider width={70} />
         </View>
 
-        <Button label="Start over" variant="secondary" onPress={onReset} />
-        <Caption align="center">This clears the demo and returns to the welcome screen.</Caption>
+        <Button label="Sign out" variant="secondary" onPress={onReset} />
+        <Caption align="center">Signs out and returns to the welcome screen. Your Family Tree stays saved.</Caption>
       </View>
     </ScreenContainer>
   );

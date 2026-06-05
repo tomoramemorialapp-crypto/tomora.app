@@ -17,7 +17,7 @@ type Choice = (typeof relationshipChoices)[number];
 
 export default function AddLovedOne() {
   const router = useRouter();
-  const { draft, setDraft, commitOnboarding } = useAppState();
+  const { draft, setDraft } = useAppState();
   const [choice, setChoice] = useState<Choice | undefined>(
     relationshipChoices.find((c) => c.relationshipType === draft.lovedOneRelationship),
   );
@@ -27,14 +27,13 @@ export default function AddLovedOne() {
 
   const onContinue = () => {
     if (!choice) return;
-    const next = {
+    // Persist to the local draft; the tree is saved to Supabase at the Save step
+    // (once the account exists), or right after email confirmation.
+    setDraft({
       lovedOneName: name.trim(),
       lovedOneRelationship: choice.relationshipType as RelationshipType,
       lovedOneIsRemembered: choice.id === 'remembered',
-    };
-    setDraft(next);
-    // pass values explicitly so the commit doesn't read stale draft state
-    commitOnboarding(next);
+    });
     router.push('/(onboarding)/reveal');
   };
 

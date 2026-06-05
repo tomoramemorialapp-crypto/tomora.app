@@ -108,6 +108,54 @@ export async function createInitialTree(input: InitialTreeInput): Promise<TreeBu
   };
 }
 
+export interface AddRelativeInput {
+  treeId: string;
+  accountId: string;
+  /** The node the new relative connects to (usually the signed-in user's node). */
+  fromNodeId: string;
+  name: string;
+  relationshipType: RelationshipType;
+  isRemembered: boolean;
+}
+
+export interface AddRelativeResult {
+  node: FamilyNode;
+  relationship: Relationship;
+}
+
+/** Add a new family member: a node plus an approved relationship to `fromNodeId`. */
+export async function addRelative(input: AddRelativeInput): Promise<AddRelativeResult> {
+  const { treeId, accountId, fromNodeId, name, relationshipType, isRemembered } = input;
+
+  const { data: nodeRow, error: nodeErr } = await supabase
+    .from('nodes')
+    .insert({
+      family_tree_id: treeId,
+      display_name: name.trim() || 'Family member',
+      status: isRemembered ? 'managed' : 'placeholder',
+      is_living: !isRemembered,
+    })
+    .select()
+    .single();
+  if (nodeErr) throw nodeErr;
+
+  const { data: relRow, error: relErr } = await supabase
+    .from('relationships')
+    .insert({
+      family_tree_id: treeId,
+      from_node_id: fromNodeId,
+      to_node_id: nodeRow.id,
+      relationship_type: relationshipType,
+      status: 'approved',
+      created_by_account_id: accountId,
+    })
+    .select()
+    .single();
+  if (relErr) throw relErr;
+
+  return { node: mapNode(nodeRow), relationship: mapRelationship(relRow) };
+}
+
 /** Load the signed-in user's primary tree and all of its content. */
 export async function loadMyTreeBundle(accountId: string): Promise<TreeBundle | null> {
   const { data: trees, error: treeErr } = await supabase

@@ -49,6 +49,12 @@ interface AppStateValue {
   signInAndLoad: (email: string, password: string) => Promise<void>;
   resetAll: () => Promise<void>;
 
+  addRelative: (input: {
+    name: string;
+    relationshipType: RelationshipType;
+    isRemembered: boolean;
+  }) => Promise<FamilyNode>;
+
   addTextMemory: (input: {
     nodeId: string;
     title?: string;
@@ -224,6 +230,29 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setDraftState(emptyDraft);
   }, []);
 
+  const addRelative = useCallback<AppStateValue['addRelative']>(
+    async ({ name, relationshipType, isRemembered }) => {
+      if (!tree || !account) throw new Error('No tree or account loaded.');
+      const selfNode =
+        nodes.find((n) => n.ownerAccountId === account.id) ??
+        nodes.find((n) => n.status === 'claimed') ??
+        nodes[0];
+      if (!selfNode) throw new Error('No anchor node to connect to.');
+      const { node, relationship } = await treeService.addRelative({
+        treeId: tree.id,
+        accountId: account.id,
+        fromNodeId: selfNode.id,
+        name,
+        relationshipType,
+        isRemembered,
+      });
+      setNodes((prev) => [...prev, node]);
+      setRelationships((prev) => [...prev, relationship]);
+      return node;
+    },
+    [account, nodes, tree],
+  );
+
   const addTextMemory = useCallback<AppStateValue['addTextMemory']>(
     async ({ nodeId, title, body, visibility }) => {
       if (!tree || !account) throw new Error('No tree or account loaded.');
@@ -266,6 +295,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       signUpAndStart,
       signInAndLoad,
       resetAll,
+      addRelative,
       addTextMemory,
       getNode,
       getMemoriesForNode,
@@ -284,6 +314,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       signUpAndStart,
       signInAndLoad,
       resetAll,
+      addRelative,
       addTextMemory,
       getNode,
       getMemoriesForNode,

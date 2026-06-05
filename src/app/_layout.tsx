@@ -29,6 +29,10 @@ export default function RootLayout() {
               name="memory/new"
               options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
             />
+            <Stack.Screen
+              name="relative/new"
+              options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+            />
           </Stack>
         </AppStateProvider>
       </SafeAreaProvider>

@@ -44,6 +44,7 @@ export default function FamilyTreeScreen() {
           relationships={relationships}
           selfNodeId={selfNode?.id}
           onSelectNode={(nodeId) => router.push({ pathname: '/node/[nodeId]', params: { nodeId } })}
+          onAddRelative={() => router.push('/relative/new')}
         />
       </View>
     </ScreenContainer>

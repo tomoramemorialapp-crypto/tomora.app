@@ -6,9 +6,11 @@ import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
 import { RelationshipPicker } from '@/components/onboarding/RelationshipPicker';
 import { TextField } from '@/components/ui/TextField';
+import { Toggle } from '@/components/ui/Toggle';
+import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Body, Display, Title } from '@/components/ui/Typography';
-import { spacing } from '@/constants/theme';
+import { colors, spacing } from '@/constants/theme';
 import { copy, relationshipChoices } from '@/constants/copy';
 import { useAppState } from '@/state/AppState';
 import type { RelationshipType } from '@/types/models';
@@ -22,8 +24,10 @@ export default function AddLovedOne() {
     relationshipChoices.find((c) => c.relationshipType === draft.lovedOneRelationship),
   );
   const [name, setName] = useState(draft.lovedOneName);
+  const [isRemembered, setIsRemembered] = useState(draft.lovedOneIsRemembered);
 
   const canContinue = !!choice && name.trim().length > 0;
+  const isPet = choice?.relationshipType === 'pet';
 
   const onContinue = () => {
     if (!choice) return;
@@ -32,7 +36,7 @@ export default function AddLovedOne() {
     setDraft({
       lovedOneName: name.trim(),
       lovedOneRelationship: choice.relationshipType as RelationshipType,
-      lovedOneIsRemembered: choice.id === 'remembered',
+      lovedOneIsRemembered: isRemembered,
     });
     router.push('/(onboarding)/reveal');
   };
@@ -43,25 +47,48 @@ export default function AddLovedOne() {
       footer={<Button label={copy.addLovedOne.cta} variant="gold" disabled={!canContinue} onPress={onContinue} />}
     >
       <View style={{ gap: spacing.lg }}>
-        <OnboardingProgress step={3} total={6} />
+        <OnboardingProgress step={2} total={5} />
         <View style={{ gap: spacing.xs }}>
           <Display style={{ fontSize: 32 }}>{copy.addLovedOne.prompt}</Display>
           <Body style={{ fontSize: 17 }}>{copy.addLovedOne.body}</Body>
         </View>
 
-        <RelationshipPicker selectedId={choice?.id} onSelect={setChoice} />
+        <RelationshipPicker
+          selectedId={choice?.id}
+          onSelect={(next) => {
+            setChoice(next);
+            if (next.relationshipType === 'pet') setIsRemembered(false);
+          }}
+        />
 
         {choice ? (
-          <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
-            <Title style={{ fontSize: 22 }}>{copy.addLovedOne.namePrompt}</Title>
-            <TextField
-              value={name}
-              onChangeText={setName}
-              placeholder={choice.label}
-              autoFocus
-              returnKeyType="done"
-              onSubmitEditing={() => canContinue && onContinue()}
-            />
+          <View style={{ gap: spacing.md, marginTop: spacing.sm }}>
+            <View style={{ gap: spacing.sm }}>
+              <Title style={{ fontSize: 22 }}>{copy.addLovedOne.namePrompt}</Title>
+              <TextField
+                value={name}
+                onChangeText={setName}
+                placeholder={choice.label}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={() => canContinue && onContinue()}
+              />
+            </View>
+
+            {!isPet ? (
+              <Card style={{ backgroundColor: colors.candlelight, borderColor: colors.softGold }}>
+                <Toggle
+                  value={isRemembered}
+                  onValueChange={setIsRemembered}
+                  label="In loving memory"
+                  description="Turn this on if they’ve passed away. Their node is kept by you and never needs to be claimed."
+                />
+              </Card>
+            ) : (
+              <Body style={{ fontSize: 15, color: colors.deepUmber }}>
+                Pets are cared for in your Family Tree and never need to be claimed.
+              </Body>
+            )}
           </View>
         ) : null}
       </View>

@@ -55,6 +55,11 @@ interface AppStateValue {
     isRemembered: boolean;
   }) => Promise<FamilyNode>;
 
+  updateTreePrivacy: (patch: {
+    defaultVisibility: VisibilityLevel;
+    publicSharingEnabled: boolean;
+  }) => Promise<void>;
+
   addTextMemory: (input: {
     nodeId: string;
     title?: string;
@@ -253,6 +258,15 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     [account, nodes, tree],
   );
 
+  const updateTreePrivacy = useCallback<AppStateValue['updateTreePrivacy']>(
+    async (patch) => {
+      if (!tree) return;
+      const updated = await treeService.updateTreePrivacy(tree.id, patch);
+      setTree(updated);
+    },
+    [tree],
+  );
+
   const addTextMemory = useCallback<AppStateValue['addTextMemory']>(
     async ({ nodeId, title, body, visibility }) => {
       if (!tree || !account) throw new Error('No tree or account loaded.');
@@ -296,6 +310,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       signInAndLoad,
       resetAll,
       addRelative,
+      updateTreePrivacy,
       addTextMemory,
       getNode,
       getMemoriesForNode,
@@ -315,6 +330,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       signInAndLoad,
       resetAll,
       addRelative,
+      updateTreePrivacy,
       addTextMemory,
       getNode,
       getMemoriesForNode,

@@ -6,7 +6,9 @@ import type {
   Memory,
   Relationship,
   RelationshipType,
+  VisibilityLevel,
 } from '@/types/models';
+import { isLivingFor, nodeStatusFor } from '@/lib/relationshipUtils';
 import { mapAccount, mapMemory, mapNode, mapRelationship, mapTree } from './mappers';
 
 /** Ensure the signed-in user's account row exists (id == auth user id). */
@@ -79,8 +81,8 @@ export async function createInitialTree(input: InitialTreeInput): Promise<TreeBu
     .insert({
       family_tree_id: treeRow.id,
       display_name: lovedOneName.trim() || 'Loved one',
-      status: isRemembered ? 'managed' : 'placeholder',
-      is_living: !isRemembered,
+      status: nodeStatusFor(relationshipType, isRemembered),
+      is_living: isLivingFor(relationshipType, isRemembered),
     })
     .select()
     .single();
@@ -132,8 +134,8 @@ export async function addRelative(input: AddRelativeInput): Promise<AddRelativeR
     .insert({
       family_tree_id: treeId,
       display_name: name.trim() || 'Family member',
-      status: isRemembered ? 'managed' : 'placeholder',
-      is_living: !isRemembered,
+      status: nodeStatusFor(relationshipType, isRemembered),
+      is_living: isLivingFor(relationshipType, isRemembered),
     })
     .select()
     .single();
@@ -154,6 +156,24 @@ export async function addRelative(input: AddRelativeInput): Promise<AddRelativeR
   if (relErr) throw relErr;
 
   return { node: mapNode(nodeRow), relationship: mapRelationship(relRow) };
+}
+
+/** Update a tree's privacy settings (default visibility + public sharing). */
+export async function updateTreePrivacy(
+  treeId: string,
+  patch: { defaultVisibility: VisibilityLevel; publicSharingEnabled: boolean },
+): Promise<FamilyTree> {
+  const { data, error } = await supabase
+    .from('family_trees')
+    .update({
+      default_visibility: patch.defaultVisibility,
+      public_sharing_enabled: patch.publicSharingEnabled,
+    })
+    .eq('id', treeId)
+    .select()
+    .single();
+  if (error) throw error;
+  return mapTree(data);
 }
 
 /** Load the signed-in user's primary tree and all of its content. */

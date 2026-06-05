@@ -9,7 +9,7 @@ import { Body, Display } from '@/components/ui/Typography';
 import { spacing } from '@/constants/theme';
 import { copy } from '@/constants/copy';
 import { useAppState } from '@/state/AppState';
-import { relationshipLabel } from '@/lib/relationshipUtils';
+import { generationOffset, nodeStatusFor, isLivingFor, relationshipLabel } from '@/lib/relationshipUtils';
 import type { FamilyNode } from '@/types/models';
 
 export default function Reveal() {
@@ -34,8 +34,8 @@ export default function Reveal() {
       id: 'preview_loved',
       familyTreeId: 'preview',
       displayName: draft.lovedOneName.trim() || 'Loved one',
-      status: draft.lovedOneIsRemembered ? 'managed' : 'placeholder',
-      isLiving: !draft.lovedOneIsRemembered,
+      status: nodeStatusFor(draft.lovedOneRelationship, draft.lovedOneIsRemembered),
+      isLiving: isLivingFor(draft.lovedOneRelationship, draft.lovedOneIsRemembered),
       defaultVisibility: 'family_tree',
       createdAt: now,
       updatedAt: now,
@@ -64,16 +64,14 @@ export default function Reveal() {
       center
       showBack
       footer={
-        <View style={{ gap: spacing.md }}>
-          <Button label={copy.reveal.primaryCta} variant="gold" onPress={() => router.push('/(onboarding)/save')} />
-          <Button label={copy.reveal.secondaryCta} variant="ghost" onPress={() => router.back()} />
-        </View>
+        <Button label={copy.reveal.primaryCta} variant="gold" onPress={() => router.push('/(onboarding)/save')} />
       }
     >
       <View style={{ alignItems: 'center', gap: spacing.xl }}>
         <MiniTreeReveal
           selfNode={selfNode}
           lovedOneNode={lovedOneNode}
+          offset={generationOffset(draft.lovedOneRelationship)}
           relationshipLabel={relationshipLabel(draft.lovedOneRelationship)}
         />
 

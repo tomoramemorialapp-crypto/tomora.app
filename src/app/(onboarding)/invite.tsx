@@ -1,56 +1,48 @@
-import { useState } from 'react';
-import { Platform, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
 import { Button } from '@/components/ui/Button';
-import { Body, Caption, Display } from '@/components/ui/Typography';
+import { ShareSheet } from '@/components/ui/ShareSheet';
+import { Body, Display } from '@/components/ui/Typography';
 import { spacing } from '@/constants/theme';
 import { copy } from '@/constants/copy';
 import { createId } from '@/lib/relationshipUtils';
 
 export default function Invite() {
   const router = useRouter();
-  const [copied, setCopied] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const link = useMemo(() => `https://tomora.app/invite/${createId('inv')}`, []);
 
-  const finish = () => {
-    router.replace('/(tabs)');
-  };
-
-  const copyLink = async () => {
-    const link = `https://tomora.app/invite/${createId('inv')}`;
-    try {
-      if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
-        await navigator.clipboard.writeText(link);
-      }
-    } catch {
-      // clipboard may be unavailable; the reassurance still shows
-    }
-    setCopied(true);
-  };
+  const finish = () => router.replace('/(tabs)');
 
   return (
-    <ScreenContainer
-      showBack
-      footer={
-        <View style={{ gap: spacing.md }}>
-          <Button label={copy.invite.inviteNow} variant="gold" onPress={finish} />
-          <Button label={copied ? 'Private link copied' : copy.invite.copyLink} variant="secondary" onPress={copyLink} />
-          <Button label={copy.invite.skip} variant="ghost" onPress={finish} />
+    <>
+      <ScreenContainer
+        showBack
+        footer={
+          <View style={{ gap: spacing.md }}>
+            <Button label={copy.invite.inviteNow} variant="gold" onPress={() => setShareOpen(true)} />
+            <Button label={copy.invite.skip} variant="ghost" onPress={finish} />
+          </View>
+        }
+      >
+        <View style={{ gap: spacing.lg }}>
+          <OnboardingProgress step={5} total={5} />
+          <Display style={{ fontSize: 32 }}>{copy.invite.prompt}</Display>
+          <Body style={{ fontSize: 18 }}>{copy.invite.body}</Body>
         </View>
-      }
-    >
-      <View style={{ gap: spacing.lg }}>
-        <OnboardingProgress step={6} total={6} />
-        <Display style={{ fontSize: 32 }}>{copy.invite.prompt}</Display>
-        <Body style={{ fontSize: 18 }}>{copy.invite.body}</Body>
-        {copied ? (
-          <Caption style={{ marginTop: spacing.xs }}>
-            A private link is on your clipboard. Only people you share it with can use it.
-          </Caption>
-        ) : null}
-      </View>
-    </ScreenContainer>
+      </ScreenContainer>
+
+      <ShareSheet
+        visible={shareOpen}
+        onClose={() => setShareOpen(false)}
+        link={link}
+        title={copy.invite.shareTitle}
+        message={copy.invite.shareMessage}
+      />
+    </>
   );
 }

@@ -5,6 +5,8 @@ import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { RelationshipPicker } from '@/components/onboarding/RelationshipPicker';
 import { TextField } from '@/components/ui/TextField';
+import { Toggle } from '@/components/ui/Toggle';
+import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Body, Caption, Display, Title } from '@/components/ui/Typography';
 import { colors, spacing } from '@/constants/theme';
@@ -20,10 +22,12 @@ export default function NewRelative() {
 
   const [choice, setChoice] = useState<Choice | undefined>(undefined);
   const [name, setName] = useState('');
+  const [isRemembered, setIsRemembered] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const canSave = !!choice && name.trim().length > 0 && !busy;
+  const isPet = choice?.relationshipType === 'pet';
 
   const onSave = async () => {
     if (!choice) return;
@@ -33,7 +37,7 @@ export default function NewRelative() {
       await addRelative({
         name: name.trim(),
         relationshipType: choice.relationshipType as RelationshipType,
-        isRemembered: choice.id === 'remembered',
+        isRemembered,
       });
       router.back();
     } catch (e: unknown) {
@@ -60,19 +64,38 @@ export default function NewRelative() {
           <Body style={{ fontSize: 17 }}>Who would you like to add?</Body>
         </View>
 
-        <RelationshipPicker selectedId={choice?.id} onSelect={setChoice} />
+        <RelationshipPicker
+          selectedId={choice?.id}
+          onSelect={(next) => {
+            setChoice(next);
+            if (next.relationshipType === 'pet') setIsRemembered(false);
+          }}
+        />
 
         {choice ? (
-          <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
-            <Title style={{ fontSize: 22 }}>What is their name?</Title>
-            <TextField
-              value={name}
-              onChangeText={setName}
-              placeholder={choice.label}
-              autoFocus
-              returnKeyType="done"
-              onSubmitEditing={() => canSave && onSave()}
-            />
+          <View style={{ gap: spacing.md, marginTop: spacing.sm }}>
+            <View style={{ gap: spacing.sm }}>
+              <Title style={{ fontSize: 22 }}>What is their name?</Title>
+              <TextField
+                value={name}
+                onChangeText={setName}
+                placeholder={choice.label}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={() => canSave && onSave()}
+              />
+            </View>
+
+            {!isPet ? (
+              <Card style={{ backgroundColor: colors.candlelight, borderColor: colors.softGold }}>
+                <Toggle
+                  value={isRemembered}
+                  onValueChange={setIsRemembered}
+                  label="In loving memory"
+                  description="Turn this on if they’ve passed away. Their node never needs to be claimed."
+                />
+              </Card>
+            ) : null}
           </View>
         ) : null}
 

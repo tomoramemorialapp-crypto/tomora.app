@@ -1,8 +1,48 @@
-import type { RelationshipType } from '@/types/models';
+import type { NodeStatus, RelationshipType } from '@/types/models';
 
 /** Generate a small unique id (good enough for mock/local state). */
 export function createId(prefix = 'id'): string {
   return `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+}
+
+/**
+ * Generation of a related node relative to the viewer ("you").
+ *  -1 = an older generation (shown ABOVE you)
+ *   0 = the same generation (shown BESIDE you, to the right)
+ *  +1 = a younger generation (shown BELOW you)
+ */
+export function generationOffset(type: RelationshipType): -1 | 0 | 1 {
+  switch (type) {
+    case 'parent':
+    case 'grandparent':
+    case 'aunt_uncle':
+      return -1;
+    case 'child':
+    case 'grandchild':
+    case 'niece_nephew':
+    case 'pet':
+      return 1;
+    default:
+      // self, sibling, spouse, partner, cousin, friend, caretaker, chosen_family, other
+      return 0;
+  }
+}
+
+/** Whether a node needs a real person to claim it. Pets and the remembered do not. */
+export function needsClaim(type: RelationshipType, isRemembered: boolean): boolean {
+  return !(isRemembered || type === 'pet');
+}
+
+/** Resolve the initial node status for a newly added relative. */
+export function nodeStatusFor(type: RelationshipType, isRemembered: boolean): NodeStatus {
+  if (isRemembered) return 'memory_light';
+  if (type === 'pet') return 'managed';
+  return 'placeholder';
+}
+
+/** Pets are living unless explicitly remembered; the remembered have passed. */
+export function isLivingFor(_type: RelationshipType, isRemembered: boolean): boolean {
+  return !isRemembered;
 }
 
 /**

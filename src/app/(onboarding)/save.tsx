@@ -19,16 +19,15 @@ export default function Save() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [note, setNote] = useState<string | null>(null);
   const [confirmEmail, setConfirmEmail] = useState(false);
 
   const canSave = /\S+@\S+\.\S+/.test(email) && password.length >= 6 && !busy;
 
   const onSave = async () => {
     setError(null);
-    setNote(null);
     setBusy(true);
     try {
       const { needsEmailConfirmation } = await signUpAndStart(email, password);
@@ -72,21 +71,13 @@ export default function Save() {
       footer={
         <View style={{ gap: spacing.md }}>
           <Button label="Save my Family Tree" variant="gold" disabled={!canSave} loading={busy} onPress={onSave} />
-          <Button
-            label={copy.save.google}
-            variant="secondary"
-            onPress={() => setNote('Google & Apple sign-in are coming soon — please continue with email for now.')}
-          />
-          <Button
-            label={copy.save.apple}
-            variant="secondary"
-            onPress={() => setNote('Google & Apple sign-in are coming soon — please continue with email for now.')}
-          />
+          <Button label={`${copy.save.google} · Soon`} variant="secondary" disabled />
+          <Button label={`${copy.save.apple} · Soon`} variant="secondary" disabled />
         </View>
       }
     >
       <View style={{ gap: spacing.lg }}>
-        <OnboardingProgress step={4} total={6} />
+        <OnboardingProgress step={3} total={5} />
         <View style={{ gap: spacing.sm }}>
           <Display style={{ fontSize: 34 }}>{copy.save.prompt}</Display>
           <Body style={{ fontSize: 18 }}>{copy.save.body}</Body>
@@ -102,18 +93,28 @@ export default function Save() {
             autoCapitalize="none"
             autoComplete="email"
           />
-          <TextField
-            label="Password"
-            value={password}
-            onChangeText={setPassword}
-            placeholder="At least 6 characters"
-            secureTextEntry
-            autoCapitalize="none"
-          />
+          <View style={{ gap: spacing.xs }}>
+            <TextField
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              placeholder="At least 6 characters"
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+            />
+            <Button
+              label={showPassword ? 'Hide password' : 'Show password'}
+              variant="ghost"
+              fullWidth={false}
+              onPress={() => setShowPassword((s) => !s)}
+            />
+          </View>
         </View>
 
         {error ? <Caption style={{ color: colors.error, fontSize: 14 }}>{error}</Caption> : null}
-        {note ? <Caption style={{ color: colors.deepUmber, fontSize: 14 }}>{note}</Caption> : null}
+        <Caption style={{ color: colors.deepUmber, fontSize: 14 }}>
+          Google & Apple sign-in are coming soon — continue with email for now.
+        </Caption>
 
         <View style={{ alignItems: 'center', marginTop: spacing.sm, gap: spacing.sm }}>
           <LightDivider width={60} />

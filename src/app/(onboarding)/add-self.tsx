@@ -30,7 +30,7 @@ export default function AddSelf() {
       footer={<Button label={copy.addSelf.cta} variant="gold" disabled={!canContinue} onPress={onContinue} />}
     >
       <View style={{ gap: spacing.lg }}>
-        <OnboardingProgress step={2} total={6} />
+        <OnboardingProgress step={1} total={5} />
         <View style={{ alignItems: 'flex-start', gap: spacing.sm }}>
           <GoldStar size={20} />
           <Display style={{ fontSize: 34 }}>{copy.addSelf.prompt}</Display>

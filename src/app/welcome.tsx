@@ -68,8 +68,9 @@ export default function Welcome() {
       <View style={{ height: spacing.xxl }} />
 
       <View style={{ gap: spacing.md, width: '100%' }}>
-        <Button label={copy.welcome.primaryCta} variant="gold" onPress={() => router.push('/(onboarding)/choose-path')} />
-        <Button label={copy.welcome.secondaryCta} variant="secondary" onPress={() => router.push('/(onboarding)/choose-path')} />
+        <Button label={copy.welcome.primaryCta} variant="gold" onPress={() => router.push('/(onboarding)/add-self')} />
+        <Button label={copy.welcome.secondaryCta} variant="secondary" onPress={() => router.push('/(onboarding)/claim')} />
+        <Button label={copy.welcome.login} variant="ghost" onPress={() => router.push('/login')} />
       </View>
     </ScreenContainer>
   );

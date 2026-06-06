@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { TextField } from '@/components/ui/TextField';
@@ -9,6 +9,7 @@ import { Body, Caption, Display, Title } from '@/components/ui/Typography';
 import { GoldStar } from '@/components/brand/GoldStar';
 import { colors, fonts, radii, spacing } from '@/constants/theme';
 import { copy } from '@/constants/copy';
+import { useAppState } from '@/state/AppState';
 
 type Method = 'code' | 'password' | 'qr';
 
@@ -20,19 +21,32 @@ const METHODS: { id: Method; title: string; subtitle: string }[] = [
 
 export default function Claim() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ code?: string }>();
+  const { session, claimNode } = useAppState();
   const [method, setMethod] = useState<Method>('code');
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState(params.code ?? '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const canSubmit =
     method === 'qr' ? false : method === 'code' ? code.trim().length > 0 : code.trim().length > 0 && password.length > 0;
 
-  const onClaim = () => {
-    setNote(
-      'We’re finishing the claim experience. Share this with the person who invited you and they can re-send your invite link — you’ll land right on your node.',
-    );
+  const onClaim = async () => {
+    if (!session) {
+      setNote('Create your account or sign in first, then come back to claim — your code is saved here.');
+      return;
+    }
+    setBusy(true);
+    setNote(null);
+    try {
+      await claimNode(code, method === 'password' ? password : undefined);
+      router.replace('/(tabs)');
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : 'We couldn’t complete the claim. Please try again.');
+      setBusy(false);
+    }
   };
 
   return (
@@ -40,7 +54,7 @@ export default function Claim() {
       showBack
       footer={
         <View style={{ gap: spacing.md }}>
-          <Button label={copy.claim.cta} variant="gold" disabled={!canSubmit} onPress={onClaim} />
+          <Button label={busy ? 'Claiming…' : copy.claim.cta} variant="gold" disabled={!canSubmit || busy} onPress={onClaim} />
           <Button label={copy.welcome.login} variant="ghost" onPress={() => router.push('/login')} />
         </View>
       }

@@ -15,7 +15,7 @@ import type {
 } from './types';
 
 function mapStatus(s: AppNodeStatus): NodeStatus {
-  if (s === 'archived') return 'managed';
+  if (s === 'archived' || s === 'vacated') return 'managed';
   return s;
 }
 

@@ -69,6 +69,18 @@ export async function updateNodeProfile(input: {
   return mapNode(data);
 }
 
+/** Recent change-history entries across the whole tree (for the Home feed). */
+export async function fetchTreeChangeLog(treeId: string, limit = 30): Promise<ProfileChangeLog[]> {
+  const { data, error } = await supabase
+    .from('node_change_log')
+    .select()
+    .eq('family_tree_id', treeId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []).map(mapChangeLog);
+}
+
 export async function fetchChangeLog(nodeId: string): Promise<ProfileChangeLog[]> {
   const { data, error } = await supabase
     .from('node_change_log')

@@ -18,23 +18,50 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
+          deletion_requested_at: string | null
+          deletion_scheduled_for: string | null
           display_name: string
           id: string
+          invite_code: string | null
+          language: string
+          preferences: Json
+          social_links: Json
+          status: string
+          theme_preference: string
           updated_at: string
+          username: string | null
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          deletion_requested_at?: string | null
+          deletion_scheduled_for?: string | null
           display_name: string
           id: string
+          invite_code?: string | null
+          language?: string
+          preferences?: Json
+          social_links?: Json
+          status?: string
+          theme_preference?: string
           updated_at?: string
+          username?: string | null
         }
         Update: {
           avatar_url?: string | null
           created_at?: string
+          deletion_requested_at?: string | null
+          deletion_scheduled_for?: string | null
           display_name?: string
           id?: string
+          invite_code?: string | null
+          language?: string
+          preferences?: Json
+          social_links?: Json
+          status?: string
+          theme_preference?: string
           updated_at?: string
+          username?: string | null
         }
         Relationships: []
       }
@@ -80,10 +107,12 @@ export type Database = {
         Row: {
           approval_status: string
           body: string | null
+          caption: string | null
           created_at: string
           created_by_account_id: string
           family_tree_id: string
           id: string
+          media: Json
           media_mime: string | null
           media_size_bytes: number | null
           media_url: string | null
@@ -98,10 +127,12 @@ export type Database = {
         Insert: {
           approval_status?: string
           body?: string | null
+          caption?: string | null
           created_at?: string
           created_by_account_id: string
           family_tree_id: string
           id?: string
+          media?: Json
           media_mime?: string | null
           media_size_bytes?: number | null
           media_url?: string | null
@@ -116,10 +147,12 @@ export type Database = {
         Update: {
           approval_status?: string
           body?: string | null
+          caption?: string | null
           created_at?: string
           created_by_account_id?: string
           family_tree_id?: string
           id?: string
+          media?: Json
           media_mime?: string | null
           media_size_bytes?: number | null
           media_url?: string | null
@@ -221,6 +254,7 @@ export type Database = {
           avatar_url: string | null
           birth_date: string | null
           city: string | null
+          claim_password: string | null
           country: string | null
           created_at: string
           death_date: string | null
@@ -228,6 +262,7 @@ export type Database = {
           display_name: string
           family_tree_id: string
           id: string
+          invite_code: string | null
           is_living: boolean | null
           legal_name: string | null
           managed_by_account_id: string | null
@@ -241,6 +276,7 @@ export type Database = {
           avatar_url?: string | null
           birth_date?: string | null
           city?: string | null
+          claim_password?: string | null
           country?: string | null
           created_at?: string
           death_date?: string | null
@@ -248,6 +284,7 @@ export type Database = {
           display_name: string
           family_tree_id: string
           id?: string
+          invite_code?: string | null
           is_living?: boolean | null
           legal_name?: string | null
           managed_by_account_id?: string | null
@@ -261,6 +298,7 @@ export type Database = {
           avatar_url?: string | null
           birth_date?: string | null
           city?: string | null
+          claim_password?: string | null
           country?: string | null
           created_at?: string
           death_date?: string | null
@@ -268,6 +306,7 @@ export type Database = {
           display_name?: string
           family_tree_id?: string
           id?: string
+          invite_code?: string | null
           is_living?: boolean | null
           legal_name?: string | null
           managed_by_account_id?: string | null
@@ -497,6 +536,7 @@ export type Database = {
     }
     Functions: {
       is_tree_member: { Args: { p_tree_id: string }; Returns: boolean }
+      claim_node: { Args: { p_code: string; p_password?: string | null }; Returns: Json }
     }
     Enums: {
       [_ in never]: never

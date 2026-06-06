@@ -20,13 +20,20 @@ const MB = 1024 * 1024;
 /** Media kinds a memory file upload can be. */
 export type UploadMediaKind = 'photo' | 'video' | 'audio' | 'document';
 
-/** Per-memory upload caps (bytes). Photos/audio/files: 10MB. Videos: 100MB. */
+/** Per-file upload caps (bytes). Photos/audio/files: 10MB. Videos: 100MB. */
 export const MEDIA_CAPS: Record<UploadMediaKind, number> = {
   photo: 10 * MB,
   audio: 10 * MB,
   document: 10 * MB,
   video: 100 * MB,
 };
+
+/** Combined media allowance for a single memory (across all files): 100MB. */
+export const MAX_MEDIA_BYTES_PER_MEMORY = 100 * MB;
+/** Text allowance (title + caption + story) for a single memory: 10MB. */
+export const MAX_TEXT_BYTES_PER_MEMORY = 10 * MB;
+/** Total per-memory ceiling: 110MB. */
+export const MAX_MEMORY_BYTES = MAX_MEDIA_BYTES_PER_MEMORY + MAX_TEXT_BYTES_PER_MEMORY;
 
 /** Soft per-account storage quota used by the profile usage tracker. */
 export const STORAGE_QUOTA_BYTES = 1024 * MB; // 1 GB
@@ -66,12 +73,17 @@ export function capFor(kind: UploadMediaKind): number {
   return MEDIA_CAPS[kind];
 }
 
-/** True when the picked file is within the per-memory cap for its kind. */
+/** True when the picked file is within the per-file cap for its kind. */
 export function isWithinCap(file: PickedFile): boolean {
   return file.size <= capFor(file.kind);
 }
 
-function inferKindFromMime(mime?: string): UploadMediaKind {
+/** Sum the byte size of a set of files. */
+export function sumBytes(files: { size: number }[]): number {
+  return files.reduce((s, f) => s + (f.size || 0), 0);
+}
+
+export function inferKindFromMime(mime?: string): UploadMediaKind {
   if (!mime) return 'document';
   if (mime.startsWith('image/')) return 'photo';
   if (mime.startsWith('video/')) return 'video';

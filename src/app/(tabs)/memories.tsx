@@ -13,10 +13,15 @@ import { useAppState } from '@/state/AppState';
 export default function MemoriesScreen() {
   const router = useRouter();
   const { memories, nodes } = useAppState();
-  const lovedOne = nodes.find((n) => !n.ownerAccountId) ?? nodes[0];
+  const selfNode = nodes.find((n) => n.ownerAccountId) ?? nodes[0];
 
+  // From the Memories tab, a new memory defaults to the user, with a picker to
+  // choose someone else.
   const goAdd = () =>
-    router.push(lovedOne ? { pathname: '/memory/new', params: { nodeId: lovedOne.id } } : '/memory/new');
+    router.push({
+      pathname: '/memory/new',
+      params: { pickRecipient: '1', ...(selfNode ? { nodeId: selfNode.id } : {}) },
+    });
 
   return (
     <ScreenContainer

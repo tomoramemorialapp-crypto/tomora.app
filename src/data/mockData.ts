@@ -17,6 +17,10 @@ export const demoAccount: Account = {
   id: 'account_el',
   displayName: 'EL',
   avatarUrl: undefined,
+  socialLinks: {},
+  language: 'en',
+  themePreference: 'system',
+  status: 'active',
   createdAt: now,
   updatedAt: now,
 };
@@ -83,6 +87,7 @@ export const demoMemories: Memory[] = [
     type: 'text',
     title: 'Ylang-ylang',
     body: 'She loved ylang-ylang flowers.',
+    media: [],
     visibility: 'family_tree',
     approvalStatus: 'approved',
     createdAt: now,

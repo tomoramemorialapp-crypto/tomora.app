@@ -1,4 +1,4 @@
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { colors, fonts, shadows } from '@/constants/theme';
 import { GoldStar } from '@/components/brand/GoldStar';
 import { NODE_RADIUS } from '@/lib/kinship/constants';
@@ -11,17 +11,19 @@ function initials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-/** A single light in the kinship canvas. Visual state reflects node status. */
+/**
+ * A single light in the kinship canvas. Visual state reflects node status.
+ * Tap/drag are handled by gesture detectors on the canvas, so this is a plain
+ * presentational view (no Pressable that could swallow taps or fire on drag).
+ */
 export function FamilyTreeNode({
   node,
   selected = false,
   highlighted = false,
-  onPress,
 }: {
   node: RenderNode;
   selected?: boolean;
   highlighted?: boolean;
-  onPress?: () => void;
 }) {
   const size = NODE_RADIUS * 2;
   const isAnchor = !!node.isAnchor;
@@ -47,11 +49,10 @@ export function FamilyTreeNode({
         : colors.mistBeige;
 
   return (
-    <Pressable
-      onPress={onPress}
+    <View
       accessibilityRole="button"
       accessibilityLabel={`${node.displayName}${node.relationshipLabelFromAnchor ? `, ${node.relationshipLabelFromAnchor}` : ''}`}
-      style={({ pressed }) => ({ alignItems: 'center', width: 132, opacity: pressed ? 0.85 : 1 })}
+      style={{ alignItems: 'center', width: 132 }}
     >
       <View
         style={[
@@ -103,6 +104,6 @@ export function FamilyTreeNode({
           {node.relationshipLabelFromAnchor}
         </Text>
       ) : null}
-    </Pressable>
+    </View>
   );
 }

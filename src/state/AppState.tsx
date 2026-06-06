@@ -15,6 +15,7 @@ import type {
   FamilyTree,
   FamilyNode,
   Memory,
+  MemoryMediaItem,
   MemoryType,
   Relationship,
   RelationshipType,
@@ -26,6 +27,10 @@ import * as authService from '@/services/authService';
 import * as treeService from '@/services/treeService';
 import * as memoryService from '@/services/memoryService';
 import * as profileService from '@/services/profileService';
+import * as accountService from '@/services/accountService';
+import * as inviteService from '@/services/inviteService';
+import type { NodeInvite } from '@/services/inviteService';
+import type { AccountSettingsPatch } from '@/services/accountService';
 import type { ChangeLogEntryInput } from '@/services/profileService';
 
 interface OnboardingDraft {
@@ -54,6 +59,13 @@ interface AppStateValue {
   signInAndLoad: (email: string, password: string) => Promise<void>;
   resetAll: () => Promise<void>;
 
+  // account settings + lifecycle
+  updateAccountSettings: (patch: AccountSettingsPatch) => Promise<void>;
+  updateEmail: (email: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
+  requestAccountDeletion: () => Promise<void>;
+  undoAccountDeletion: () => Promise<void>;
+
   addRelative: (input: {
     name: string;
     relationshipType: RelationshipType;
@@ -64,8 +76,28 @@ interface AppStateValue {
   /** Change a node's relationship type to its connected node (creator/guardian only). */
   updateRelationshipType: (relationshipId: string, relationshipType: RelationshipType) => Promise<void>;
 
+  /** Create a new relationship edge between two existing nodes. */
+  createRelationship: (input: {
+    fromNodeId: string;
+    toNodeId: string;
+    relationshipType: RelationshipType;
+  }) => Promise<void>;
+
+  /** Remove a single relationship edge. */
+  deleteRelationship: (relationshipId: string) => Promise<void>;
+
   /** Permanently remove an unclaimed node the user created. */
   deleteNode: (nodeId: string) => Promise<void>;
+
+  /** Create or refresh an invite (code + optional password + link) for a node. */
+  generateNodeInvite: (
+    nodeId: string,
+    opts?: { password?: string | null; regenerate?: boolean },
+  ) => Promise<NodeInvite>;
+  /** Revoke a node's invite. */
+  clearNodeInvite: (nodeId: string) => Promise<void>;
+  /** Claim a node from an invite code (+ optional password), then reload. */
+  claimNode: (code: string, password?: string) => Promise<void>;
 
   updateTreePrivacy: (patch: {
     defaultVisibility: VisibilityLevel;
@@ -95,6 +127,7 @@ interface AppStateValue {
   }) => Promise<void>;
 
   fetchChangeLog: (nodeId: string) => Promise<ProfileChangeLog[]>;
+  fetchTreeChangeLog: () => Promise<ProfileChangeLog[]>;
   getSuggestedEditsForNode: (nodeId: string) => SuggestedEdit[];
 
   addTextMemory: (input: {
@@ -109,10 +142,9 @@ interface AppStateValue {
     type: MemoryType;
     title?: string;
     body?: string;
+    caption?: string;
     mediaUrl?: string;
-    storagePath?: string;
-    mediaSizeBytes?: number;
-    mediaMime?: string;
+    media?: MemoryMediaItem[];
     visibility: VisibilityLevel;
   }) => Promise<Memory>;
 
@@ -120,6 +152,7 @@ interface AppStateValue {
     id: string;
     title?: string;
     body?: string;
+    caption?: string;
     visibility?: VisibilityLevel;
   }) => Promise<Memory>;
 
@@ -132,6 +165,7 @@ interface AppStateValue {
   getMemory: (id: string) => Memory | undefined;
   getMemoriesForNode: (id: string) => Memory[];
   getRelationshipForNode: (id: string) => Relationship | undefined;
+  getRelationshipsForNode: (id: string) => Relationship[];
 }
 
 const emptyDraft: OnboardingDraft = {
@@ -301,6 +335,39 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setDraftState(emptyDraft);
   }, []);
 
+  const updateAccountSettings = useCallback<AppStateValue['updateAccountSettings']>(
+    async (patch) => {
+      if (!account) throw new Error('No account loaded.');
+      const updated = await accountService.updateAccountSettings(account.id, patch);
+      setAccount((prev) => ({ ...updated, email: prev?.email }));
+    },
+    [account],
+  );
+
+  const updateEmail = useCallback<AppStateValue['updateEmail']>(async (email) => {
+    await accountService.updateEmail(email);
+    setAccount((prev) => (prev ? { ...prev, email } : prev));
+  }, []);
+
+  const updatePassword = useCallback<AppStateValue['updatePassword']>(
+    (password) => accountService.updatePassword(password),
+    [],
+  );
+
+  const requestAccountDeletion = useCallback<AppStateValue['requestAccountDeletion']>(async () => {
+    if (!account) throw new Error('No account loaded.');
+    const { account: updated, nodes: updatedNodes } = await accountService.requestAccountDeletion(account.id);
+    setAccount((prev) => ({ ...updated, email: prev?.email }));
+    setNodes((prev) => prev.map((n) => updatedNodes.find((u) => u.id === n.id) ?? n));
+  }, [account]);
+
+  const undoAccountDeletion = useCallback<AppStateValue['undoAccountDeletion']>(async () => {
+    if (!account) throw new Error('No account loaded.');
+    const { account: updated, nodes: updatedNodes } = await accountService.undoAccountDeletion(account.id);
+    setAccount((prev) => ({ ...updated, email: prev?.email }));
+    setNodes((prev) => prev.map((n) => updatedNodes.find((u) => u.id === n.id) ?? n));
+  }, [account]);
+
   const addRelative = useCallback<AppStateValue['addRelative']>(
     async ({ name, relationshipType, isRemembered, tags }) => {
       if (!tree || !account) throw new Error('No tree or account loaded.');
@@ -333,6 +400,26 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  const createRelationship = useCallback<AppStateValue['createRelationship']>(
+    async ({ fromNodeId, toNodeId, relationshipType }) => {
+      if (!tree || !account) throw new Error('No tree or account loaded.');
+      const created = await treeService.createRelationship({
+        treeId: tree.id,
+        accountId: account.id,
+        fromNodeId,
+        toNodeId,
+        relationshipType,
+      });
+      setRelationships((prev) => [...prev, created]);
+    },
+    [tree, account],
+  );
+
+  const deleteRelationship = useCallback<AppStateValue['deleteRelationship']>(async (relationshipId) => {
+    await treeService.deleteRelationship(relationshipId);
+    setRelationships((prev) => prev.filter((r) => r.id !== relationshipId));
+  }, []);
+
   const deleteNode = useCallback<AppStateValue['deleteNode']>(async (nodeId) => {
     await treeService.deleteNode(nodeId);
     setNodes((prev) => prev.filter((n) => n.id !== nodeId));
@@ -340,6 +427,27 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setMemories((prev) => prev.filter((m) => m.nodeId !== nodeId));
     setSuggestedEdits((prev) => prev.filter((e) => e.targetNodeId !== nodeId));
   }, []);
+
+  const generateNodeInvite = useCallback<AppStateValue['generateNodeInvite']>(async (nodeId, opts) => {
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node) throw new Error('Node not found.');
+    const invite = await inviteService.ensureNodeInvite(node, opts);
+    setNodes((prev) => prev.map((n) => (n.id === nodeId ? invite.node : n)));
+    return invite;
+  }, [nodes]);
+
+  const clearNodeInvite = useCallback<AppStateValue['clearNodeInvite']>(async (nodeId) => {
+    const updated = await inviteService.clearNodeInvite(nodeId);
+    setNodes((prev) => prev.map((n) => (n.id === nodeId ? updated : n)));
+  }, []);
+
+  const claimNode = useCallback<AppStateValue['claimNode']>(
+    async (code, password) => {
+      await inviteService.claimNode(code, password);
+      if (session) await loadForUser(session);
+    },
+    [session, loadForUser],
+  );
 
   const updateTreePrivacy = useCallback<AppStateValue['updateTreePrivacy']>(
     async (patch) => {
@@ -405,6 +513,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  const fetchTreeChangeLog = useCallback<AppStateValue['fetchTreeChangeLog']>(
+    () => (tree ? profileService.fetchTreeChangeLog(tree.id) : Promise.resolve([])),
+    [tree],
+  );
+
   const getSuggestedEditsForNode = useCallback(
     (nodeId: string) => suggestedEdits.filter((e) => e.targetNodeId === nodeId),
     [suggestedEdits],
@@ -442,7 +555,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const deleteMemory = useCallback<AppStateValue['deleteMemory']>(
     async (id) => {
       const target = memories.find((m) => m.id === id);
-      await memoryService.deleteMemory({ id, storagePath: target?.storagePath });
+      await memoryService.deleteMemory({ id, storagePath: target?.storagePath, media: target?.media ?? [] });
       setMemories((prev) => prev.filter((m) => m.id !== id));
     },
     [memories],
@@ -467,6 +580,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     (id: string) => relationships.find((r) => r.toNodeId === id || r.fromNodeId === id),
     [relationships],
   );
+  const getRelationshipsForNode = useCallback(
+    (id: string) => relationships.filter((r) => r.toNodeId === id || r.fromNodeId === id),
+    [relationships],
+  );
 
   const value = useMemo<AppStateValue>(
     () => ({
@@ -484,14 +601,25 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       signUpAndStart,
       signInAndLoad,
       resetAll,
+      updateAccountSettings,
+      updateEmail,
+      updatePassword,
+      requestAccountDeletion,
+      undoAccountDeletion,
       addRelative,
       updateRelationshipType,
+      createRelationship,
+      deleteRelationship,
       deleteNode,
+      generateNodeInvite,
+      clearNodeInvite,
+      claimNode,
       updateTreePrivacy,
       updateNodeProfile,
       submitSuggestedEdit,
       reviewSuggestedEdit,
       fetchChangeLog,
+      fetchTreeChangeLog,
       getSuggestedEditsForNode,
       addTextMemory,
       createMemory,
@@ -502,6 +630,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       getMemory,
       getMemoriesForNode,
       getRelationshipForNode,
+      getRelationshipsForNode,
     }),
     [
       loading,
@@ -517,14 +646,25 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       signUpAndStart,
       signInAndLoad,
       resetAll,
+      updateAccountSettings,
+      updateEmail,
+      updatePassword,
+      requestAccountDeletion,
+      undoAccountDeletion,
       addRelative,
       updateRelationshipType,
+      createRelationship,
+      deleteRelationship,
       deleteNode,
+      generateNodeInvite,
+      clearNodeInvite,
+      claimNode,
       updateTreePrivacy,
       updateNodeProfile,
       submitSuggestedEdit,
       reviewSuggestedEdit,
       fetchChangeLog,
+      fetchTreeChangeLog,
       getSuggestedEditsForNode,
       addTextMemory,
       createMemory,
@@ -535,6 +675,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       getMemory,
       getMemoriesForNode,
       getRelationshipForNode,
+      getRelationshipsForNode,
     ],
   );
 

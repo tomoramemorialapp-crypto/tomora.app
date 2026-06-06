@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
-import type { Memory, MemoryType, VisibilityLevel } from '@/types/models';
+import type { Memory, MemoryMediaItem, MemoryType, VisibilityLevel } from '@/types/models';
 import { removeMedia } from '@/lib/media';
-import type { TablesUpdate } from '@/types/database.types';
+import type { Json, TablesUpdate } from '@/types/database.types';
 import { mapMemory } from './mappers';
 
 export interface CreateMemoryInput {
@@ -10,18 +10,22 @@ export interface CreateMemoryInput {
   accountId: string;
   type: MemoryType;
   title?: string;
+  /** Rich-text story (text memories). */
   body?: string;
+  /** Caption for media/link memories. */
+  caption?: string;
   /** External link for `link` memories. */
   mediaUrl?: string;
-  /** Storage path + metadata for device uploads. */
-  storagePath?: string;
-  mediaSizeBytes?: number;
-  mediaMime?: string;
+  /** One or more uploaded media items (photos, videos, audio, files). */
+  media?: MemoryMediaItem[];
   visibility: VisibilityLevel;
 }
 
-/** Save a memory (text, link, or uploaded media) and return the created row. */
+/** Save a memory (text, link, or one/many uploaded media) and return the row. */
 export async function createMemory(input: CreateMemoryInput): Promise<Memory> {
+  const media = input.media ?? [];
+  const totalBytes = media.reduce((s, m) => s + (m.sizeBytes || 0), 0);
+  const first = media[0];
   const { data, error } = await supabase
     .from('memories')
     .insert({
@@ -31,10 +35,13 @@ export async function createMemory(input: CreateMemoryInput): Promise<Memory> {
       type: input.type,
       title: input.title?.trim() || null,
       body: input.body?.trim() || null,
+      caption: input.caption?.trim() || null,
       media_url: input.mediaUrl?.trim() || null,
-      storage_path: input.storagePath ?? null,
-      media_size_bytes: input.mediaSizeBytes ?? null,
-      media_mime: input.mediaMime ?? null,
+      media: media as unknown as Json,
+      // Keep legacy single columns populated from the first item for back-compat.
+      storage_path: first?.storagePath ?? null,
+      media_size_bytes: totalBytes || null,
+      media_mime: first?.mime ?? null,
       visibility: input.visibility,
       approval_status: 'approved',
     })
@@ -60,14 +67,16 @@ export interface UpdateMemoryInput {
   id: string;
   title?: string;
   body?: string;
+  caption?: string;
   visibility?: VisibilityLevel;
 }
 
-/** Edit an existing memory's title, story, or visibility. */
+/** Edit an existing memory's title, story/caption, or visibility. */
 export async function updateMemory(input: UpdateMemoryInput): Promise<Memory> {
   const patch: TablesUpdate<'memories'> = { updated_at: new Date().toISOString() };
   if (input.title !== undefined) patch.title = input.title.trim() || null;
   if (input.body !== undefined) patch.body = input.body.trim() || null;
+  if (input.caption !== undefined) patch.caption = input.caption.trim() || null;
   if (input.visibility !== undefined) patch.visibility = input.visibility;
 
   const { data, error } = await supabase
@@ -80,9 +89,13 @@ export async function updateMemory(input: UpdateMemoryInput): Promise<Memory> {
   return mapMemory(data);
 }
 
-/** Delete a memory and its uploaded media (if any). */
-export async function deleteMemory(memory: Pick<Memory, 'id' | 'storagePath'>): Promise<void> {
-  if (memory.storagePath) await removeMedia(memory.storagePath);
+/** Delete a memory and all of its uploaded media (if any). */
+export async function deleteMemory(memory: Pick<Memory, 'id' | 'storagePath' | 'media'>): Promise<void> {
+  const paths = [
+    ...(memory.media ?? []).map((m) => m.storagePath),
+    ...(memory.storagePath ? [memory.storagePath] : []),
+  ].filter(Boolean) as string[];
+  await Promise.all(paths.map((p) => removeMedia(p)));
   const { error } = await supabase.from('memories').delete().eq('id', memory.id);
   if (error) throw error;
 }

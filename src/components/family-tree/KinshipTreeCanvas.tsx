@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { LayoutChangeEvent, Pressable, View } from 'react-native';
+import { LayoutChangeEvent, Pressable, TextInput, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { runOnJS } from 'react-native-reanimated';
 import { Gesture, GestureDetector, type GestureType } from 'react-native-gesture-handler';
-import type { SharedValue } from 'react-native-reanimated';
 import Svg, { G } from 'react-native-svg';
 
-import { colors, radii, spacing } from '@/constants/theme';
+import { colors, fonts, radii, shadows, spacing } from '@/constants/theme';
 import { Caption } from '@/components/ui/Typography';
 import { GoldStar } from '@/components/brand/GoldStar';
 import type { FamilyNode, Relationship } from '@/types/models';
@@ -33,25 +32,24 @@ const PAD_BOTTOM = 110;
 const NODE_HALF_W = 66;
 const NODE_HALF_H = 36;
 
-const ZOOM = { min: 0.35, max: 2.5, default: 1 };
+const ZOOM = { min: 0.35, max: 2.5, default: 1, focus: 1.4 };
+
+type Transform = { x: number; y: number; k: number };
+type Pt = { x: number; y: number };
 
 function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
 
 /** Orientation-aware raw position for a node. */
-function posFor(node: RenderNode, orientation: FamilyTreeLayoutOrientation): { x: number; y: number } {
+function posFor(node: RenderNode, orientation: FamilyTreeLayoutOrientation): Pt {
   if (orientation === 'horizontal_generational') {
     return { x: node.layout.y, y: node.layout.x };
   }
   return { x: node.layout.x, y: node.layout.y };
 }
 
-function edgePath(
-  p1: { x: number; y: number },
-  p2: { x: number; y: number },
-  orientation: FamilyTreeLayoutOrientation,
-): string {
+function edgePath(p1: Pt, p2: Pt, orientation: FamilyTreeLayoutOrientation): string {
   if (orientation === 'horizontal_generational') {
     const mx = (p1.x + p2.x) / 2;
     return `M ${p1.x} ${p1.y} C ${mx} ${p1.y} ${mx} ${p2.y} ${p2.x} ${p2.y}`;
@@ -61,69 +59,63 @@ function edgePath(
 }
 
 /**
- * A node the user can freely drag around the canvas. The position is local and
- * ephemeral — it is never persisted or shared, and resets on every visit.
+ * A node that can be tapped (to inspect/open) or freely dragged around the
+ * canvas. Drag offsets are local and ephemeral — never persisted or shared, and
+ * reset on every visit. The gesture is memoised on the node id so re-renders
+ * during a drag don't cancel it.
  */
-function DraggableNode({
+const CanvasNode = function CanvasNode({
+  node,
   left,
   top,
-  scaleSV,
+  selected,
+  highlighted,
   canvasPanRef,
-  onCommit,
-  children,
+  onTap,
+  onDragUpdate,
+  onDragEnd,
 }: {
+  node: RenderNode;
   left: number;
   top: number;
-  scaleSV: SharedValue<number>;
+  selected: boolean;
+  highlighted: boolean;
   canvasPanRef: React.MutableRefObject<GestureType | undefined>;
-  onCommit: (dx: number, dy: number) => void;
-  children: React.ReactNode;
+  onTap: (id: string) => void;
+  onDragUpdate: (id: string, dx: number, dy: number) => void;
+  onDragEnd: (id: string, dx: number, dy: number) => void;
 }) {
-  const tx = useSharedValue(0);
-  const ty = useSharedValue(0);
-  const sx = useSharedValue(0);
-  const sy = useSharedValue(0);
-
-  const style = useAnimatedStyle(() => ({
-    transform: [{ translateX: tx.value }, { translateY: ty.value }],
-  }));
-
-  // Pan moves the node; a tap (no movement) falls through to the child Pressable
-  // for selection. Dragging blocks the canvas pan so only the node moves.
-  const gesture = useMemo(
-    () =>
-      Gesture.Pan()
-        .blocksExternalGesture(canvasPanRef)
-        .minDistance(4)
-        .onStart(() => {
-          sx.value = tx.value;
-          sy.value = ty.value;
-        })
-        .onUpdate((e) => {
-          const s = scaleSV.value || 1;
-          tx.value = sx.value + e.translationX / s;
-          ty.value = sy.value + e.translationY / s;
-        })
-        .onEnd(() => {
-          runOnJS(onCommit)(tx.value, ty.value);
-          tx.value = 0;
-          ty.value = 0;
-        }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [onCommit],
-  );
+  const gesture = useMemo(() => {
+    const pan = Gesture.Pan()
+      .blocksExternalGesture(canvasPanRef)
+      .minDistance(6)
+      .onUpdate((e) => {
+        runOnJS(onDragUpdate)(node.id, e.translationX, e.translationY);
+      })
+      .onEnd((e) => {
+        runOnJS(onDragEnd)(node.id, e.translationX, e.translationY);
+      });
+    const tap = Gesture.Tap()
+      .maxDistance(10)
+      .onEnd(() => {
+        runOnJS(onTap)(node.id);
+      });
+    return Gesture.Exclusive(pan, tap);
+  }, [node.id, canvasPanRef, onTap, onDragUpdate, onDragEnd]);
 
   return (
     <GestureDetector gesture={gesture}>
-      <Animated.View style={[{ position: 'absolute', left, top }, style]}>{children}</Animated.View>
+      <View style={{ position: 'absolute', left, top }}>
+        <FamilyTreeNode node={node} selected={selected} highlighted={highlighted} />
+      </View>
     </GestureDetector>
   );
-}
+};
 
 /**
- * Engine-powered Family Tree visualizer with a draggable, zoomable canvas,
- * relationship-degree / branch / tag filtering, and vertical/horizontal
- * generational orientation.
+ * Engine-powered Family Tree visualizer with a state-driven, draggable,
+ * zoomable canvas; name search; relationship-degree / branch / tag filtering;
+ * and vertical/horizontal generational orientation. Opens centred on the user.
  */
 export function KinshipTreeCanvas({
   nodes,
@@ -146,19 +138,26 @@ export function KinshipTreeCanvas({
   const [orientation, setOrientation] = useState<FamilyTreeLayoutOrientation>('vertical_generational');
   const [filter, setFilter] = useState<FamilyTreeFilterState>(DEFAULT_FILTER);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [container, setContainer] = useState({ w: 0, h: height });
+
+  // Camera transform, driven entirely by React state so the controls are
+  // guaranteed to work. Screen = (x, y) + content, scaled about content centre.
+  const [tf, setTf] = useState<Transform>({ x: 0, y: 0, k: ZOOM.default });
+
   // Local, ephemeral per-node drag offsets — never saved, reset on every visit.
-  const [dragOffsets, setDragOffsets] = useState<Record<string, { dx: number; dy: number }>>({});
+  const [dragOffsets, setDragOffsets] = useState<Record<string, Pt>>({});
+  const [liveDrag, setLiveDrag] = useState<{ id: string; dx: number; dy: number } | null>(null);
+
   const canvasPanRef = useRef<GestureType | undefined>(undefined);
 
-  useFocusEffect(useCallback(() => setDragOffsets({}), []));
-
-  const commitDrag = useCallback((id: string, dx: number, dy: number) => {
-    setDragOffsets((prev) => {
-      const cur = prev[id] ?? { dx: 0, dy: 0 };
-      return { ...prev, [id]: { dx: cur.dx + dx, dy: cur.dy + dy } };
-    });
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      setDragOffsets({});
+      setLiveDrag(null);
+    }, []),
+  );
 
   const anchor = anchorNodeId ?? nodes.find((n) => n.ownerAccountId)?.id ?? nodes[0]?.id;
 
@@ -173,7 +172,7 @@ export function KinshipTreeCanvas({
     if (!graph || graph.nodes.length === 0) return null;
     const visibleNodes = graph.nodes.filter((n) => nodeMatchesFilter(n, filter));
     const visibleIds = new Set(visibleNodes.map((n) => n.id));
-    const posMap = new Map<string, { x: number; y: number }>();
+    const posMap = new Map<string, Pt>();
     for (const n of visibleNodes) posMap.set(n.id, posFor(n, orientation));
 
     let minX = Infinity;
@@ -216,123 +215,178 @@ export function KinshipTreeCanvas({
     return [...set];
   }, [graph]);
 
-  // --- Pan / zoom shared values ---
-  const tx = useSharedValue(0);
-  const ty = useSharedValue(0);
-  const scale = useSharedValue(ZOOM.default);
-  const startX = useSharedValue(0);
-  const startY = useSharedValue(0);
-  const startScale = useSharedValue(ZOOM.default);
-
   const contentW = view?.width ?? 1;
   const contentH = view?.contentHeight ?? 1;
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: scale.value }],
-  }));
+  // Keep live geometry + transform in refs so stable gesture callbacks can read
+  // fresh values without being recreated (which would cancel an active drag).
+  const tfRef = useRef(tf);
+  tfRef.current = tf;
+  const geomRef = useRef({ contentW, contentH, cw: container.w, ch: container.h });
+  geomRef.current = { contentW, contentH, cw: container.w, ch: container.h };
+  const panStartRef = useRef<Pt>({ x: 0, y: 0 });
+  const pinchStartRef = useRef<Transform>({ x: 0, y: 0, k: 1 });
 
-  const setView = (nextTx: number, nextTy: number, nextScale: number, animate = true) => {
-    const s = clamp(nextScale, ZOOM.min, ZOOM.max);
-    if (animate) {
-      tx.value = withTiming(nextTx, { duration: 260 });
-      ty.value = withTiming(nextTy, { duration: 260 });
-      scale.value = withTiming(s, { duration: 260 });
-    } else {
-      tx.value = nextTx;
-      ty.value = nextTy;
-      scale.value = s;
-    }
-    startX.value = nextTx;
-    startY.value = nextTy;
-    startScale.value = s;
-  };
+  // --- camera helpers (used by controls + effects; read fresh render scope) ---
+  const applyView = useCallback((x: number, y: number, k: number) => {
+    setTf({ x, y, k: clamp(k, ZOOM.min, ZOOM.max) });
+  }, []);
 
-  const fitView = (animate = true) => {
-    if (!view || container.w === 0) return;
-    const cx = contentW / 2;
-    const cy = contentH / 2;
-    const s = clamp(Math.min(container.w / contentW, container.h / contentH) * 0.88, ZOOM.min, ZOOM.max);
-    setView(container.w / 2 - cx, container.h / 2 - cy, s, animate);
-  };
+  const fitView = useCallback(() => {
+    const { contentW: cW, contentH: cH, cw, ch } = geomRef.current;
+    if (cw === 0) return;
+    const k = clamp(Math.min(cw / cW, ch / cH) * 0.86, ZOOM.min, ZOOM.max);
+    applyView(cw / 2 - cW / 2, ch / 2 - cH / 2, k);
+  }, [applyView]);
 
-  const centerOnAnchor = () => {
-    if (!view || !graph || container.w === 0) return;
-    const p = view.posMap.get(graph.anchorNodeId);
-    if (!p) return;
-    const cx = contentW / 2;
-    const cy = contentH / 2;
-    const s = scale.value;
-    const px = p.x + view.offsetX;
-    const py = p.y + view.offsetY;
-    setView(container.w / 2 - (cx + (px - cx) * s), container.h / 2 - (cy + (py - cy) * s), s);
-  };
+  // Centre a content point (in offset/render space) in the viewport at zoom k.
+  const centerOnPoint = useCallback(
+    (px: number, py: number, k: number) => {
+      const { contentW: cW, contentH: cH, cw, ch } = geomRef.current;
+      if (cw === 0) return;
+      const cx = cW / 2;
+      const cy = cH / 2;
+      applyView(cw / 2 - (cx + (px - cx) * k), ch / 2 - (cy + (py - cy) * k), k);
+    },
+    [applyView],
+  );
 
-  const zoomBy = (factor: number) => {
-    if (container.w === 0) return;
-    const cx = contentW / 2;
-    const cy = contentH / 2;
-    const s0 = scale.value;
-    const s1 = clamp(s0 * factor, ZOOM.min, ZOOM.max);
-    // Keep the viewport center anchored to the same content point.
-    const vX = container.w / 2;
-    const vY = container.h / 2;
-    const pcx = cx + (vX - cx - tx.value) / s0;
-    const pcy = cy + (vY - cy - ty.value) / s0;
-    setView(vX - (cx + (pcx - cx) * s1), vY - (cy + (pcy - cy) * s1), s1);
-  };
+  const centerOnNode = useCallback(
+    (id: string, k?: number) => {
+      if (!view) return;
+      const base = view.posMap.get(id);
+      if (!base) return;
+      const off = dragOffsets[id];
+      const px = base.x + (off?.x ?? 0) + view.offsetX;
+      const py = base.y + (off?.y ?? 0) + view.offsetY;
+      centerOnPoint(px, py, k ?? tfRef.current.k);
+    },
+    [view, dragOffsets, centerOnPoint],
+  );
 
-  // Fit whenever the content, orientation, or container size changes.
-  const fitKey = `${contentW}x${contentH}:${orientation}:${container.w}x${container.h}`;
-  const lastFit = useRef('');
+  const zoomBy = useCallback(
+    (factor: number) => {
+      const { contentW: cW, contentH: cH, cw, ch } = geomRef.current;
+      if (cw === 0) return;
+      const t = tfRef.current;
+      const cx = cW / 2;
+      const cy = cH / 2;
+      const k1 = clamp(t.k * factor, ZOOM.min, ZOOM.max);
+      const vX = cw / 2;
+      const vY = ch / 2;
+      const pcx = cx + (vX - t.x - cx) / t.k;
+      const pcy = cy + (vY - t.y - cy) / t.k;
+      applyView(vX - (cx + (pcx - cx) * k1), vY - (cy + (pcy - cy) * k1), k1);
+    },
+    [applyView],
+  );
+
+  // Centre on the user (anchor) on first paint; refit when content/orientation
+  // changes (filters, layout flip, resize).
+  const viewKey = `${Math.round(contentW)}x${Math.round(contentH)}:${orientation}:${Math.round(container.w)}`;
+  const lastKey = useRef('');
+  const inited = useRef(false);
   useEffect(() => {
     if (!view || container.w === 0) return;
-    if (lastFit.current === fitKey) return;
-    lastFit.current = fitKey;
-    fitView(false);
+    if (lastKey.current === viewKey) return;
+    lastKey.current = viewKey;
+    if (!inited.current && graph) {
+      inited.current = true;
+      centerOnNode(graph.anchorNodeId, ZOOM.default);
+    } else {
+      fitView();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fitKey, view, container.w]);
+  }, [viewKey, view, container.w]);
+
+  // --- stable gesture callbacks (read refs, never recreated) ---
+  const panStart = useCallback(() => {
+    panStartRef.current = { x: tfRef.current.x, y: tfRef.current.y };
+  }, []);
+  const panMove = useCallback((dx: number, dy: number) => {
+    setTf((t) => ({ ...t, x: panStartRef.current.x + dx, y: panStartRef.current.y + dy }));
+  }, []);
+  const pinchStart = useCallback(() => {
+    pinchStartRef.current = { ...tfRef.current };
+  }, []);
+  const pinchMove = useCallback((scale: number) => {
+    const { contentW: cW, contentH: cH, cw, ch } = geomRef.current;
+    if (cw === 0) return;
+    const s = pinchStartRef.current;
+    const k1 = clamp(s.k * scale, ZOOM.min, ZOOM.max);
+    const cx = cW / 2;
+    const cy = cH / 2;
+    const vX = cw / 2;
+    const vY = ch / 2;
+    const pcx = cx + (vX - s.x - cx) / s.k;
+    const pcy = cy + (vY - s.y - cy) / s.k;
+    setTf({ x: vX - (cx + (pcx - cx) * k1), y: vY - (cy + (pcy - cy) * k1), k: k1 });
+  }, []);
+
+  const onTapNode = useCallback((id: string) => {
+    setSelectedId((prev) => (prev === id ? null : id));
+  }, []);
+  const onDragUpdateNode = useCallback((id: string, dx: number, dy: number) => {
+    const k = tfRef.current.k || 1;
+    setLiveDrag({ id, dx: dx / k, dy: dy / k });
+  }, []);
+  const onDragEndNode = useCallback((id: string, dx: number, dy: number) => {
+    const k = tfRef.current.k || 1;
+    setDragOffsets((prev) => {
+      const cur = prev[id] ?? { x: 0, y: 0 };
+      return { ...prev, [id]: { x: cur.x + dx / k, y: cur.y + dy / k } };
+    });
+    setLiveDrag(null);
+  }, []);
 
   const panGesture = useMemo(
     () =>
       Gesture.Pan()
         .withRef(canvasPanRef)
-        .onStart(() => {
-          startX.value = tx.value;
-          startY.value = ty.value;
-        })
-        .onUpdate((e) => {
-          tx.value = startX.value + e.translationX;
-          ty.value = startY.value + e.translationY;
-        }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
+        .onStart(() => runOnJS(panStart)())
+        .onUpdate((e) => runOnJS(panMove)(e.translationX, e.translationY)),
+    [panStart, panMove],
   );
-
   const pinchGesture = useMemo(
     () =>
       Gesture.Pinch()
-        .onStart(() => {
-          startScale.value = scale.value;
-        })
-        .onUpdate((e) => {
-          scale.value = clamp(startScale.value * e.scale, ZOOM.min, ZOOM.max);
-        }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
+        .onStart(() => runOnJS(pinchStart)())
+        .onUpdate((e) => runOnJS(pinchMove)(e.scale)),
+    [pinchStart, pinchMove],
   );
-
   const composed = useMemo(() => Gesture.Simultaneous(panGesture, pinchGesture), [panGesture, pinchGesture]);
 
-  // Edges re-routed to follow any committed drag offsets.
+  const offsetFor = useCallback(
+    (id: string): Pt => {
+      const committed = dragOffsets[id];
+      const live = liveDrag && liveDrag.id === id ? { x: liveDrag.dx, y: liveDrag.dy } : null;
+      return {
+        x: (committed?.x ?? 0) + (live?.x ?? 0),
+        y: (committed?.y ?? 0) + (live?.y ?? 0),
+      };
+    },
+    [dragOffsets, liveDrag],
+  );
+
+  // Edges re-routed to follow committed + live drag offsets.
   const draggedEdges = useMemo<RenderEdge[]>(() => {
     if (!graph || !view) return [];
-    const pos = (id: string) => {
+    const pos = (id: string): Pt => {
       const base = view.posMap.get(id)!;
-      const off = dragOffsets[id];
-      return off ? { x: base.x + off.dx, y: base.y + off.dy } : base;
+      const off = offsetFor(id);
+      return { x: base.x + off.x, y: base.y + off.y };
     };
     return view.edges.map((e) => ({ ...e, path: edgePath(pos(e.fromNodeId), pos(e.toNodeId), orientation) }));
-  }, [graph, view, dragOffsets, orientation]);
+  }, [graph, view, offsetFor, orientation]);
+
+  const searchResults = useMemo(() => {
+    if (!view) return [];
+    const q = searchQuery.trim().toLowerCase();
+    return view.visibleNodes
+      .filter((n) => n.status !== 'placeholder' && n.nodeType !== 'placeholder')
+      .filter((n) => (q ? n.displayName.toLowerCase().includes(q) : true))
+      .slice(0, 8);
+  }, [view, searchQuery]);
 
   if (!graph || !view) {
     return (
@@ -363,11 +417,27 @@ export function KinshipTreeCanvas({
     setContainer((prev) => (prev.w === width && prev.h === h ? prev : { w: width, h }));
   };
 
+  const onPickSearchResult = (id: string) => {
+    setSearchOpen(false);
+    setSearchQuery('');
+    setSelectedId(id);
+    centerOnNode(id, ZOOM.focus);
+  };
+
   return (
     <View style={{ height, borderRadius: radii.lg, overflow: 'hidden', backgroundColor: colors.paper }} onLayout={onLayout}>
       <GestureDetector gesture={composed}>
         <View style={{ flex: 1, overflow: 'hidden' }}>
-          <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: contentW, height: contentH }, animatedStyle]}>
+          <View
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              width: contentW,
+              height: contentH,
+              transform: [{ translateX: tf.x }, { translateY: tf.y }, { scale: tf.k }],
+            }}
+          >
             <Svg width={contentW} height={contentH} style={{ position: 'absolute', left: 0, top: 0 }}>
               <G transform={`translate(${view.offsetX}, ${view.offsetY})`}>
                 {draggedEdges.map((edge) => (
@@ -378,26 +448,25 @@ export function KinshipTreeCanvas({
 
             {view.visibleNodes.map((node) => {
               const p = view.posMap.get(node.id)!;
-              const off = dragOffsets[node.id];
+              const off = offsetFor(node.id);
               return (
-                <DraggableNode
+                <CanvasNode
                   key={node.id}
-                  left={p.x + (off?.dx ?? 0) + view.offsetX - NODE_HALF_W}
-                  top={p.y + (off?.dy ?? 0) + view.offsetY - NODE_HALF_H}
-                  scaleSV={scale}
+                  node={node}
+                  left={p.x + off.x + view.offsetX - NODE_HALF_W}
+                  top={p.y + off.y + view.offsetY - NODE_HALF_H}
+                  selected={node.id === selectedId}
+                  highlighted={
+                    highlightedEdges.size > 0 && node.kinshipPathFromAnchor.includes(selectedId ?? '')
+                  }
                   canvasPanRef={canvasPanRef}
-                  onCommit={(dx, dy) => commitDrag(node.id, dx, dy)}
-                >
-                  <FamilyTreeNode
-                    node={node}
-                    selected={node.id === selectedId}
-                    highlighted={highlightedEdges.size > 0 && node.kinshipPathFromAnchor.includes(selectedId ?? '')}
-                    onPress={() => setSelectedId((prev) => (prev === node.id ? null : node.id))}
-                  />
-                </DraggableNode>
+                  onTap={onTapNode}
+                  onDragUpdate={onDragUpdateNode}
+                  onDragEnd={onDragEndNode}
+                />
               );
             })}
-          </Animated.View>
+          </View>
         </View>
       </GestureDetector>
 
@@ -406,8 +475,8 @@ export function KinshipTreeCanvas({
         filterActive={isFilterActive(filter)}
         onZoomIn={() => zoomBy(1.25)}
         onZoomOut={() => zoomBy(1 / 1.25)}
-        onFit={() => fitView(true)}
-        onCenter={centerOnAnchor}
+        onFit={fitView}
+        onSearch={() => setSearchOpen((v) => !v)}
         onToggleOrientation={() =>
           setOrientation((o) =>
             o === 'vertical_generational' ? 'horizontal_generational' : 'vertical_generational',
@@ -438,6 +507,67 @@ export function KinshipTreeCanvas({
           <GoldStar size={14} color={colors.paper} />
           <Caption style={{ color: colors.paper, fontWeight: '700', letterSpacing: 0.4 }}>Add family</Caption>
         </Pressable>
+      ) : null}
+
+      {searchOpen ? (
+        <View
+          style={[
+            {
+              position: 'absolute',
+              left: spacing.sm,
+              right: 64,
+              bottom: spacing.sm,
+              backgroundColor: colors.paper,
+              borderRadius: radii.lg,
+              borderWidth: 1,
+              borderColor: colors.softGold,
+              padding: spacing.sm,
+              gap: spacing.xs,
+            },
+            shadows.card,
+          ]}
+        >
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search a name…"
+            placeholderTextColor={colors.ashTaupe}
+            autoFocus
+            style={{
+              fontFamily: fonts.body,
+              fontSize: 16,
+              color: colors.ink,
+              backgroundColor: colors.mistBeige,
+              borderRadius: radii.md,
+              paddingHorizontal: spacing.sm,
+              paddingVertical: spacing.sm,
+            }}
+          />
+          {searchResults.length === 0 ? (
+            <Caption style={{ paddingHorizontal: spacing.xs, paddingVertical: spacing.xs }}>No matches.</Caption>
+          ) : (
+            searchResults.map((n) => (
+              <Pressable
+                key={n.id}
+                onPress={() => onPickSearchResult(n.id)}
+                accessibilityRole="button"
+                style={({ pressed }) => ({
+                  paddingHorizontal: spacing.sm,
+                  paddingVertical: spacing.sm,
+                  borderRadius: radii.md,
+                  backgroundColor: pressed ? colors.mistBeige : 'transparent',
+                })}
+              >
+                <Caption style={{ color: colors.ink, fontSize: 15 }}>{n.displayName}</Caption>
+                {n.relationshipLabelFromAnchor ? (
+                  <Caption style={{ color: colors.deepUmber, fontSize: 12 }}>
+                    {n.relationshipLabelFromAnchor}
+                  </Caption>
+                ) : null}
+              </Pressable>
+            ))
+          )}
+        </View>
       ) : null}
 
       {selected ? (

@@ -50,6 +50,7 @@ const statusCopy: Record<NodeStatus, { label: string; tone: Tone }> = {
   memorial_pending: { label: 'Memory Light pending', tone: 'memorial' },
   memory_light: { label: 'Memory Light', tone: 'memorial' },
   disputed: { label: 'Under review', tone: 'neutral' },
+  vacated: { label: 'Vacated', tone: 'neutral' },
   archived: { label: 'Archived', tone: 'neutral' },
 };
 

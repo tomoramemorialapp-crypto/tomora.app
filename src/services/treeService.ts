@@ -204,6 +204,36 @@ export async function updateRelationshipType(
   return mapRelationship(data);
 }
 
+/** Create a relationship edge between two existing nodes. */
+export async function createRelationship(input: {
+  treeId: string;
+  accountId: string;
+  fromNodeId: string;
+  toNodeId: string;
+  relationshipType: RelationshipType;
+}): Promise<Relationship> {
+  const { data, error } = await supabase
+    .from('relationships')
+    .insert({
+      family_tree_id: input.treeId,
+      from_node_id: input.fromNodeId,
+      to_node_id: input.toNodeId,
+      relationship_type: input.relationshipType,
+      status: 'approved',
+      created_by_account_id: input.accountId,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return mapRelationship(data);
+}
+
+/** Remove a single relationship edge. */
+export async function deleteRelationship(relationshipId: string): Promise<void> {
+  const { error } = await supabase.from('relationships').delete().eq('id', relationshipId);
+  if (error) throw error;
+}
+
 /**
  * Permanently remove a node the user created (not yet claimed). Dependent
  * relationships and memories are deleted first since they have no cascade.

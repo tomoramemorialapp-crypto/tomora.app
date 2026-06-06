@@ -47,7 +47,7 @@ export function CanvasControls({
   onZoomIn,
   onZoomOut,
   onFit,
-  onCenter,
+  onSearch,
   onToggleOrientation,
   onOpenFilters,
 }: {
@@ -56,7 +56,7 @@ export function CanvasControls({
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFit: () => void;
-  onCenter: () => void;
+  onSearch: () => void;
   onToggleOrientation: () => void;
   onOpenFilters: () => void;
 }) {
@@ -64,10 +64,10 @@ export function CanvasControls({
     <>
       {/* Zoom + view cluster, bottom-right */}
       <View style={{ position: 'absolute', right: spacing.sm, bottom: spacing.sm, gap: spacing.sm, alignItems: 'center' }}>
+        <ControlButton glyph="⌕" label="Search by name" onPress={onSearch} />
         <ControlButton glyph="+" label="Zoom in" onPress={onZoomIn} />
         <ControlButton glyph="−" label="Zoom out" onPress={onZoomOut} />
         <ControlButton glyph="⤢" label="Fit Family Tree" onPress={onFit} />
-        <ControlButton glyph="◎" label="Center on me" onPress={onCenter} />
       </View>
 
       {/* View options, top-left */}

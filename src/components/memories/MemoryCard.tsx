@@ -3,10 +3,11 @@ import { Linking, Pressable, View } from 'react-native';
 import { Image } from 'expo-image';
 
 import { colors, radii, spacing } from '@/constants/theme';
-import type { Memory } from '@/types/models';
+import type { Memory, MemoryMediaItem } from '@/types/models';
 import { Card } from '@/components/ui/Card';
 import { Body, Caption, Title } from '@/components/ui/Typography';
 import { VisibilityBadge } from '@/components/ui/Badge';
+import { RichTextView } from '@/components/ui/RichText';
 import { formatBytes, getSignedUrl } from '@/lib/media';
 
 function formatDate(iso: string): string {
@@ -36,20 +37,11 @@ function useSignedUrl(storagePath?: string): string | null {
   return url;
 }
 
-function MediaPreview({ memory }: { memory: Memory }) {
-  const signed = useSignedUrl(memory.storagePath);
+/** Render a single stored media item (photo inline, others as an openable row). */
+function MediaItemView({ item }: { item: MemoryMediaItem }) {
+  const signed = useSignedUrl(item.storagePath);
 
-  if (memory.type === 'link' && memory.mediaUrl) {
-    return (
-      <Pressable onPress={() => Linking.openURL(memory.mediaUrl!)}>
-        <Caption style={{ color: colors.guardianGold, fontWeight: '700' }} numberOfLines={1}>
-          {memory.mediaUrl} ›
-        </Caption>
-      </Pressable>
-    );
-  }
-
-  if (memory.type === 'photo' && signed) {
+  if (item.kind === 'photo' && signed) {
     return (
       <Image
         source={{ uri: signed }}
@@ -60,28 +52,61 @@ function MediaPreview({ memory }: { memory: Memory }) {
     );
   }
 
-  if ((memory.type === 'video' || memory.type === 'audio' || memory.type === 'document') && memory.storagePath) {
-    const label = memory.type === 'video' ? 'Video' : memory.type === 'audio' ? 'Audio' : 'File';
+  const label = item.kind === 'video' ? 'Video' : item.kind === 'audio' ? 'Audio' : item.kind === 'photo' ? 'Photo' : 'File';
+  return (
+    <Pressable
+      onPress={() => signed && Linking.openURL(signed)}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: spacing.sm,
+        borderRadius: radii.md,
+        borderWidth: 1,
+        borderColor: colors.mistBeige,
+        backgroundColor: colors.white,
+      }}
+    >
+      <Body numberOfLines={1} style={{ fontWeight: '600', flex: 1, marginRight: spacing.sm }}>
+        {item.name ?? label}
+        {item.sizeBytes ? ` · ${formatBytes(item.sizeBytes)}` : ''}
+      </Body>
+      <Caption style={{ color: colors.guardianGold, fontWeight: '700' }}>{signed ? 'Open ›' : 'Loading…'}</Caption>
+    </Pressable>
+  );
+}
+
+function MediaPreview({ memory }: { memory: Memory }) {
+  if (memory.type === 'link' && memory.mediaUrl) {
     return (
-      <Pressable
-        onPress={() => signed && Linking.openURL(signed)}
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: spacing.sm,
-          borderRadius: radii.md,
-          borderWidth: 1,
-          borderColor: colors.mistBeige,
-          backgroundColor: colors.white,
-        }}
-      >
-        <Body style={{ fontWeight: '600' }}>
-          {label}
-          {memory.mediaSizeBytes ? ` · ${formatBytes(memory.mediaSizeBytes)}` : ''}
-        </Body>
-        <Caption style={{ color: colors.guardianGold, fontWeight: '700' }}>{signed ? 'Open ›' : 'Loading…'}</Caption>
+      <Pressable onPress={() => Linking.openURL(memory.mediaUrl!)}>
+        <Caption style={{ color: colors.guardianGold, fontWeight: '700' }} numberOfLines={1}>
+          {memory.mediaUrl} ›
+        </Caption>
       </Pressable>
+    );
+  }
+
+  if (memory.media.length > 0) {
+    return (
+      <View style={{ gap: spacing.sm }}>
+        {memory.media.map((m, i) => (
+          <MediaItemView key={`${m.storagePath}-${i}`} item={m} />
+        ))}
+      </View>
+    );
+  }
+
+  if (memory.storagePath) {
+    return (
+      <MediaItemView
+        item={{
+          storagePath: memory.storagePath,
+          sizeBytes: memory.mediaSizeBytes ?? 0,
+          mime: memory.mediaMime,
+          kind: memory.type === 'video' || memory.type === 'audio' || memory.type === 'photo' ? memory.type : 'document',
+        }}
+      />
     );
   }
 
@@ -105,7 +130,8 @@ export function MemoryCard({
           <VisibilityBadge visibility={memory.visibility} />
         </View>
         <MediaPreview memory={memory} />
-        {memory.body ? <Body>{memory.body}</Body> : null}
+        {memory.caption ? <Body>{memory.caption}</Body> : null}
+        {memory.body ? <RichTextView value={memory.body} /> : null}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Caption>{formatDate(memory.createdAt)}</Caption>
           {editable && onEdit ? (

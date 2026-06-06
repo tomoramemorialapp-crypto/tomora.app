@@ -113,6 +113,15 @@ export default function LifeProfile() {
             />
           </View>
         </View>
+        {canEdit && !isSelf && node.status !== 'claimed' ? (
+          <View style={{ alignSelf: 'stretch', marginTop: spacing.sm }}>
+            <Button
+              label="Invite to claim"
+              variant="gold"
+              onPress={() => router.push({ pathname: '/node/invite', params: { nodeId: node.id } })}
+            />
+          </View>
+        ) : null}
         {canEdit && pendingSuggestions > 0 ? (
           <Pressable
             onPress={() => router.push({ pathname: '/node/history', params: { nodeId: node.id } })}

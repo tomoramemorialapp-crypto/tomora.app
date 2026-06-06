@@ -12,13 +12,14 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Body, Caption, Display } from '@/components/ui/Typography';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { VisibilitySelector } from '@/components/ui/VisibilitySelector';
+import { DateValueInput } from '@/components/ui/DateValueInput';
 import { SuggestChangeModal } from '@/components/profile/SuggestChangeModal';
+import { ConnectionsEditor } from '@/components/profile/ConnectionsEditor';
 import { colors, radii, spacing } from '@/constants/theme';
 import { useAppState } from '@/state/AppState';
-import type { RelationshipType, VisibilityLevel } from '@/types/models';
+import type { VisibilityLevel } from '@/types/models';
 import { capFor, formatBytes, getSignedUrl, isWithinCap, pickMedia, uploadMedia } from '@/lib/media';
 import type {
-  CertaintyLevel,
   DateValue,
   GenderSexField,
   NodeProfile,
@@ -36,26 +37,7 @@ import {
 } from '@/lib/profile';
 import type { ChangeLogEntryInput } from '@/services/profileService';
 
-const CERTAINTY: CertaintyLevel[] = ['exact', 'approximate', 'unknown', 'disputed'];
 const GENDER_DISPLAY: GenderSexField['displayPreference'][] = ['show_gender', 'show_sex', 'show_both', 'hide'];
-
-/** Relationship options offered when re-classifying a connected node. */
-const RELATIONSHIP_OPTIONS: { id: RelationshipType; label: string }[] = [
-  { id: 'parent', label: 'Parent' },
-  { id: 'child', label: 'Child' },
-  { id: 'sibling', label: 'Sibling' },
-  { id: 'grandparent', label: 'Grandparent' },
-  { id: 'grandchild', label: 'Grandchild' },
-  { id: 'aunt_uncle', label: 'Aunt / Uncle' },
-  { id: 'niece_nephew', label: 'Niece / Nephew' },
-  { id: 'cousin', label: 'Cousin' },
-  { id: 'spouse', label: 'Spouse' },
-  { id: 'partner', label: 'Partner' },
-  { id: 'friend', label: 'Friend' },
-  { id: 'pet', label: 'Pet' },
-  { id: 'chosen_family', label: 'Chosen family' },
-  { id: 'other', label: 'Not sure yet' },
-];
 
 function listToString(v?: string[]): string {
   return (v ?? []).join(', ');
@@ -67,16 +49,6 @@ function stringToList(s: string): string[] {
     .filter(Boolean);
 }
 
-/** Parse a free-text date into a structured DateValue. */
-function parseDate(text: string, certainty: CertaintyLevel): DateValue | undefined {
-  const t = text.trim();
-  if (!t) return undefined;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return { value: t, certainty };
-  if (/^\d{4}-\d{2}$/.test(t)) return { monthYearOnly: t, certainty };
-  if (/^\d{4}$/.test(t)) return { yearOnly: Number(t), certainty };
-  return { displayText: t, certainty };
-}
-
 function placeHasValue(p: PlaceReference): boolean {
   return !!(p.displayName || p.city || p.country || p.address);
 }
@@ -84,14 +56,12 @@ function placeHasValue(p: PlaceReference): boolean {
 export default function EditProfile() {
   const router = useRouter();
   const { nodeId } = useLocalSearchParams<{ nodeId: string }>();
-  const { getNode, account, updateNodeProfile, getRelationshipForNode, updateRelationshipType, deleteNode } =
-    useAppState();
+  const { getNode, account, updateNodeProfile, deleteNode } = useAppState();
 
   const node = getNode(String(nodeId));
   const scope = node ? editScopeFor(node, account?.id) : 'suggest';
   const canEdit = scope === 'owner' || scope === 'guardian';
   const isSelf = !!node?.ownerAccountId;
-  const rel = node ? getRelationshipForNode(node.id) : undefined;
   /** Creator may delete unclaimed nodes they steward (not their own self node). */
   const canDelete = scope === 'guardian' && !isSelf;
 
@@ -102,10 +72,8 @@ export default function EditProfile() {
   const [photo, setPhoto] = useState(profile.profilePhoto?.value ?? '');
   const [altNames, setAltNames] = useState(listToString(profile.alternateNames?.value));
 
-  const [dobText, setDobText] = useState(formatDateValue(profile.dateOfBirth?.value));
-  const [dobCertainty, setDobCertainty] = useState<CertaintyLevel>(profile.dateOfBirth?.value?.certainty ?? 'exact');
-  const [dodText, setDodText] = useState(formatDateValue(profile.dateOfDeath?.value));
-  const [dodCertainty, setDodCertainty] = useState<CertaintyLevel>(profile.dateOfDeath?.value?.certainty ?? 'exact');
+  const [dob, setDob] = useState<DateValue | undefined>(profile.dateOfBirth?.value);
+  const [dod, setDod] = useState<DateValue | undefined>(profile.dateOfDeath?.value);
 
   const [pobName, setPobName] = useState(profile.placeOfBirth?.value?.displayName ?? '');
   const [pobCity, setPobCity] = useState(profile.placeOfBirth?.value?.city ?? '');
@@ -140,8 +108,6 @@ export default function EditProfile() {
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
-  const [relType, setRelType] = useState<RelationshipType | undefined>(rel?.relationshipType);
-  const [relBusy, setRelBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -164,19 +130,6 @@ export default function EditProfile() {
       setPhotoError('Could not upload that photo. Please try again.');
     } finally {
       setPhotoBusy(false);
-    }
-  };
-
-  const onChangeRelationship = async (next: RelationshipType) => {
-    setRelType(next);
-    if (!rel || next === rel.relationshipType) return;
-    setRelBusy(true);
-    try {
-      await updateRelationshipType(rel.id, next);
-    } catch (e) {
-      console.warn('[tomora] relationship update failed', e);
-    } finally {
-      setRelBusy(false);
     }
   };
 
@@ -244,9 +197,7 @@ export default function EditProfile() {
     apply('profilePhoto', photo.trim(), !photo.trim());
     apply('alternateNames', stringToList(altNames), stringToList(altNames).length === 0);
 
-    const dob = parseDate(dobText, dobCertainty);
     apply('dateOfBirth', dob, !dob);
-    const dod = parseDate(dodText, dodCertainty);
     apply('dateOfDeath', dod, !dod);
 
     const pob: PlaceReference = {
@@ -406,12 +357,10 @@ export default function EditProfile() {
       <Card style={sectionGap}>
         <SectionHeader title="Life Details" />
         <View style={{ gap: spacing.md, marginTop: spacing.sm }}>
-          <TextField label="Date of birth" value={dobText} onChangeText={setDobText} placeholder="1965-04-12 or “Around 1965”" autoCapitalize="none" />
-          <CertaintyRow value={dobCertainty} onChange={setDobCertainty} />
+          <DateValueInput label="Date of birth" value={dob} onChange={setDob} />
           <VisibilitySelector value={vis.dateOfBirth ?? 'private'} onChange={setFieldVis('dateOfBirth')} label="Birth date visibility" />
 
-          <TextField label="Date of death" value={dodText} onChangeText={setDodText} placeholder="Leave blank if living" autoCapitalize="none" />
-          {dodText.trim() ? <CertaintyRow value={dodCertainty} onChange={setDodCertainty} /> : null}
+          <DateValueInput label="Date of death (leave blank if living)" value={dod} onChange={setDod} />
 
           <TextField label="Place of birth" value={pobName} onChangeText={setPobName} placeholder="City, Country" />
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
@@ -475,21 +424,8 @@ export default function EditProfile() {
         </View>
       </Card>
 
-      {/* Relationship — only for connected, non-self nodes */}
-      {rel && !isSelf ? (
-        <Card style={sectionGap}>
-          <SectionHeader title="Relationship" />
-          <Caption style={{ marginTop: spacing.xs }}>How is this person connected to you?</Caption>
-          <View style={{ marginTop: spacing.sm }}>
-            <ChipRow
-              options={RELATIONSHIP_OPTIONS.map((o) => ({ id: o.id, label: o.label }))}
-              value={(relType ?? rel.relationshipType) as string}
-              onChange={(v) => onChangeRelationship(v as RelationshipType)}
-            />
-          </View>
-          {relBusy ? <Caption style={{ marginTop: spacing.xs }}>Updating…</Caption> : null}
-        </Card>
-      ) : null}
+      {/* Connections — relink to specific people across the tree (non-self) */}
+      {!isSelf ? <ConnectionsEditor node={node} /> : null}
 
       {/* Danger zone — delete an unclaimed node you created */}
       {canDelete ? (
@@ -550,17 +486,6 @@ function genderDisplayLabel(g: GenderSexField['displayPreference']): string {
     default:
       return 'Hide';
   }
-}
-
-function CertaintyRow({ value, onChange }: { value: CertaintyLevel; onChange: (v: CertaintyLevel) => void }) {
-  return (
-    <ChipRow
-      label="Certainty"
-      options={CERTAINTY.map((c) => ({ id: c, label: c[0].toUpperCase() + c.slice(1) }))}
-      value={value}
-      onChange={(v) => onChange(v as CertaintyLevel)}
-    />
-  );
 }
 
 function ChipRow({

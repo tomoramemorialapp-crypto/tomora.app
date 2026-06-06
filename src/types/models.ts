@@ -19,7 +19,22 @@ export type NodeStatus =
   | 'memorial_pending'
   | 'memory_light'
   | 'disputed'
+  | 'vacated'
   | 'archived';
+
+/** Lifecycle of an account itself (used by the deletion grace period). */
+export type AccountStatus = 'active' | 'vacated';
+
+export type ThemePreference = 'system' | 'light' | 'dark';
+
+export interface SocialLinks {
+  website?: string;
+  instagram?: string;
+  facebook?: string;
+  x?: string;
+  linkedin?: string;
+  [key: string]: string | undefined;
+}
 
 export type RelationshipStatus =
   | 'proposed'
@@ -63,7 +78,17 @@ export interface Account {
   id: string;
   email?: string;
   displayName: string;
+  username?: string;
   avatarUrl?: string;
+  socialLinks: SocialLinks;
+  language: string;
+  themePreference: ThemePreference;
+  inviteCode?: string;
+  status: AccountStatus;
+  /** When the user requested deletion (start of the 30-day grace period). */
+  deletionRequestedAt?: string;
+  /** When the account + owned data will be permanently purged. */
+  deletionScheduledFor?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -97,6 +122,10 @@ export interface FamilyNode {
   profile: import('./profile').NodeProfile;
   /** Free-form family tags used for filtering the Family Tree. */
   tags: string[];
+  /** Invite code for an unclaimed node (used to claim it). */
+  inviteCode?: string;
+  /** Optional claim password the inviter set on an unclaimed node. */
+  claimPassword?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -114,6 +143,15 @@ export interface Relationship {
   updatedAt: string;
 }
 
+/** A single uploaded media item inside a memory (a memory can hold several). */
+export interface MemoryMediaItem {
+  storagePath: string;
+  sizeBytes: number;
+  mime?: string;
+  kind: 'photo' | 'video' | 'audio' | 'document';
+  name?: string;
+}
+
 export interface Memory {
   id: string;
   familyTreeId: string;
@@ -122,14 +160,19 @@ export interface Memory {
   createdByAccountId: string;
   type: MemoryType;
   title?: string;
+  /** Rich-text story body (used by `text` memories). */
   body?: string;
+  /** Short caption shown for media/link memories (everything except a Story). */
+  caption?: string;
   /** External link (for `link` memories) or a resolvable media URL. */
   mediaUrl?: string;
-  /** Path in the private `media` storage bucket for device uploads. */
+  /** Multiple uploaded media items (photos, videos, audio, files). */
+  media: MemoryMediaItem[];
+  /** Legacy single-file path (kept for back-compat with older memories). */
   storagePath?: string;
-  /** Size of the uploaded file in bytes (used for the storage tracker). */
+  /** Total uploaded media bytes across this memory (used by the storage tracker). */
   mediaSizeBytes?: number;
-  /** MIME type of the uploaded file. */
+  /** MIME type of the legacy single uploaded file. */
   mediaMime?: string;
   visibility: VisibilityLevel;
   approvalStatus: ApprovalStatus;

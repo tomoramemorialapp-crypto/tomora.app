@@ -99,8 +99,7 @@ export async function pickMedia(kind: UploadMediaKind): Promise<PickedFile | nul
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: kind === 'photo' ? ['images'] : ['videos'],
       quality: 0.9,
-      allowsEditing: kind === 'photo' && Platform.OS !== 'web',
-      aspect: kind === 'photo' ? [1, 1] : undefined,
+      allowsEditing: false,
     });
     if (result.canceled || !result.assets?.length) return null;
     const a = result.assets[0];

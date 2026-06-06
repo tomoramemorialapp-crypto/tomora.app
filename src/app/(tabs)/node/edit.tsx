@@ -173,13 +173,7 @@ function EditProfileEditor({ nodeId }: { nodeId: string }) {
         setPhotoError(`That image is ${formatBytes(picked.size)} — the limit is ${formatBytes(capFor('photo'))}.`);
         return;
       }
-      if (Platform.OS === 'web') {
-        setCropUri(picked.uri);
-        return;
-      }
-      setPhotoBusy(true);
-      const uploaded = await uploadMedia(account.id, picked);
-      setPhoto(uploaded.storagePath);
+      setCropUri(picked.uri);
     } catch (e) {
       console.warn('[tomora] photo pick failed', e);
       setPhotoError('Could not open that photo. Please try again.');

@@ -17,7 +17,6 @@ import { FamilyTreeEdge } from './FamilyTreeEdge';
 import { RelationshipTooltip } from './RelationshipTooltip';
 import { CanvasControls } from './CanvasControls';
 import { FamilyTreeFilterSheet } from './FamilyTreeFilterSheet';
-import { ParentLineageLegend } from './ParentLineageLegend';
 import {
   DEFAULT_FILTER,
   isFilterActive,
@@ -73,6 +72,7 @@ const CanvasNode = function CanvasNode({
   left,
   top,
   highlighted,
+  minimalView,
   canvasPanRef,
   onTap,
   onDragUpdate,
@@ -82,6 +82,7 @@ const CanvasNode = function CanvasNode({
   left: number;
   top: number;
   highlighted: boolean;
+  minimalView: boolean;
   canvasPanRef: React.MutableRefObject<GestureType | undefined>;
   onTap: (id: string) => void;
   onDragUpdate: (id: string, dx: number, dy: number) => void;
@@ -108,7 +109,7 @@ const CanvasNode = function CanvasNode({
   return (
     <GestureDetector gesture={gesture}>
       <View style={{ position: 'absolute', left, top }}>
-        <FamilyTreeNode node={node} highlighted={highlighted} />
+        <FamilyTreeNode node={node} highlighted={highlighted} showRelationshipLabel={!minimalView} />
       </View>
     </GestureDetector>
   );
@@ -132,6 +133,7 @@ export function KinshipTreeCanvas({
   onCompleteUnknown,
   onAddRelative,
   onAddRelativeFromNode,
+  onMinimalViewChange,
 }: {
   nodes: FamilyNode[];
   relationships: Relationship[];
@@ -147,6 +149,7 @@ export function KinshipTreeCanvas({
   onCompleteUnknown?: (node: RenderNode) => void;
   onAddRelative?: () => void;
   onAddRelativeFromNode?: (nodeId: string) => void;
+  onMinimalViewChange?: (minimal: boolean) => void;
 }) {
   const appNodeIds = useMemo(() => new Set(nodes.map((n) => n.id)), [nodes]);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -155,6 +158,7 @@ export function KinshipTreeCanvas({
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [minimalView, setMinimalView] = useState(false);
   const [container, setContainer] = useState({ w: 0, h: height });
 
   // Camera transform, driven entirely by React state so the controls are
@@ -495,6 +499,20 @@ export function KinshipTreeCanvas({
     centerOnNode(homeAnchor, ZOOM.default);
   };
 
+  const onToggleMinimalView = () => {
+    setMinimalView((v) => {
+      const next = !v;
+      if (next) {
+        setSearchOpen(false);
+        setSearchQuery('');
+        setFilterOpen(false);
+        setDetailsOpen(false);
+      }
+      onMinimalViewChange?.(next);
+      return next;
+    });
+  };
+
   return (
     <View style={{ height, borderRadius: radii.lg, overflow: 'hidden', backgroundColor: colors.paper }} onLayout={onLayout}>
       <GestureDetector gesture={composed}>
@@ -527,6 +545,7 @@ export function KinshipTreeCanvas({
                   left={p.x + off.x + view.offsetX - NODE_HALF_W}
                   top={p.y + off.y + view.offsetY - NODE_HALF_H}
                   highlighted={node.id === anchor && detailsOpen}
+                  minimalView={minimalView}
                   canvasPanRef={canvasPanRef}
                   onTap={onTapNode}
                   onDragUpdate={onDragUpdateNode}
@@ -538,11 +557,7 @@ export function KinshipTreeCanvas({
         </View>
       </GestureDetector>
 
-      <View style={{ position: 'absolute', left: spacing.sm, top: spacing.sm + 52, zIndex: 2 }}>
-        <ParentLineageLegend />
-      </View>
-
-      {viewingFromOther ? (
+      {viewingFromOther && !minimalView ? (
         <Pressable
           onPress={onReturnHome}
           accessibilityRole="button"
@@ -570,6 +585,7 @@ export function KinshipTreeCanvas({
       <CanvasControls
         orientation={orientation}
         filterActive={isFilterActive(filter)}
+        minimalView={minimalView}
         onZoomIn={() => zoomBy(1.25)}
         onZoomOut={() => zoomBy(1 / 1.25)}
         onFit={fitView}
@@ -580,9 +596,10 @@ export function KinshipTreeCanvas({
           )
         }
         onOpenFilters={() => setFilterOpen(true)}
+        onToggleMinimalView={onToggleMinimalView}
       />
 
-      {onAddRelative ? (
+      {onAddRelative && !minimalView ? (
         <Pressable
           onPress={onAddRelative}
           accessibilityRole="button"
@@ -606,7 +623,7 @@ export function KinshipTreeCanvas({
         </Pressable>
       ) : null}
 
-      {searchOpen ? (
+      {searchOpen && !minimalView ? (
         <View
           style={[
             {
@@ -667,7 +684,7 @@ export function KinshipTreeCanvas({
         </View>
       ) : null}
 
-      {detailsOpen && anchorNode ? (
+      {detailsOpen && anchorNode && !minimalView ? (
         <View style={{ position: 'absolute', left: spacing.md, right: spacing.md, bottom: spacing.md }}>
           <RelationshipTooltip
             name={anchorNode.displayName}

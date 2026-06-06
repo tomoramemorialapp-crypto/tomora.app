@@ -22,10 +22,12 @@ export function FamilyTreeNode({
   node,
   selected = false,
   highlighted = false,
+  showRelationshipLabel = true,
 }: {
   node: RenderNode;
   selected?: boolean;
   highlighted?: boolean;
+  showRelationshipLabel?: boolean;
 }) {
   const size = NODE_RADIUS * 2;
   const isAnchor = !!node.isAnchor;
@@ -109,7 +111,7 @@ export function FamilyTreeNode({
       >
         {node.displayName}
       </Text>
-      {node.relationshipLabelFromAnchor && !isAnchor ? (
+      {showRelationshipLabel && node.relationshipLabelFromAnchor && !isAnchor ? (
         <Text numberOfLines={1} style={{ fontFamily: fonts.body, fontSize: 12, color: colors.deepUmber }}>
           {node.relationshipLabelFromAnchor}
         </Text>

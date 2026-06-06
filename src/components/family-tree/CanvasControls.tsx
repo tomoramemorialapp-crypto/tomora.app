@@ -44,41 +44,53 @@ function ControlButton({
 export function CanvasControls({
   orientation,
   filterActive,
+  minimalView,
   onZoomIn,
   onZoomOut,
   onFit,
   onSearch,
   onToggleOrientation,
   onOpenFilters,
+  onToggleMinimalView,
 }: {
   orientation: FamilyTreeLayoutOrientation;
   filterActive: boolean;
+  minimalView: boolean;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFit: () => void;
   onSearch: () => void;
   onToggleOrientation: () => void;
   onOpenFilters: () => void;
+  onToggleMinimalView: () => void;
 }) {
   return (
     <>
       {/* Zoom + view cluster, bottom-right */}
       <View style={{ position: 'absolute', right: spacing.sm, bottom: spacing.sm, gap: spacing.sm, alignItems: 'center' }}>
-        <ControlButton glyph="⌕" label="Search by name" onPress={onSearch} />
+        {!minimalView ? <ControlButton glyph="⌕" label="Search by name" onPress={onSearch} /> : null}
         <ControlButton glyph="+" label="Zoom in" onPress={onZoomIn} />
         <ControlButton glyph="−" label="Zoom out" onPress={onZoomOut} />
         <ControlButton glyph="⤢" label="Fit Family Tree" onPress={onFit} />
+        <ControlButton
+          glyph={minimalView ? '⊞' : '⊡'}
+          label={minimalView ? 'Exit minimal view' : 'Minimal view'}
+          onPress={onToggleMinimalView}
+          active={minimalView}
+        />
       </View>
 
       {/* View options, top-left */}
-      <View style={{ position: 'absolute', left: spacing.sm, top: spacing.sm, flexDirection: 'row', gap: spacing.sm }}>
-        <ControlButton
-          glyph={orientation === 'vertical_generational' ? '⇅' : '⇄'}
-          label="Toggle layout orientation"
-          onPress={onToggleOrientation}
-        />
-        <ControlButton glyph="⛃" label="Filters" onPress={onOpenFilters} active={filterActive} />
-      </View>
+      {!minimalView ? (
+        <View style={{ position: 'absolute', left: spacing.sm, top: spacing.sm, flexDirection: 'row', gap: spacing.sm }}>
+          <ControlButton
+            glyph={orientation === 'vertical_generational' ? '⇅' : '⇄'}
+            label="Toggle layout orientation"
+            onPress={onToggleOrientation}
+          />
+          <ControlButton glyph="⛃" label="Filters" onPress={onOpenFilters} active={filterActive} />
+        </View>
+      ) : null}
     </>
   );
 }

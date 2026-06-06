@@ -14,6 +14,7 @@ import {
   type FamilyTreeFilterState,
   type LifeStatus,
 } from './canvasFilters';
+import { FamilyTreeLegend } from './FamilyTreeLegend';
 
 const STATUS_OPTIONS: { id: NodeStatus; label: string }[] = [
   { id: 'claimed', label: 'Claimed' },
@@ -194,6 +195,8 @@ export function FamilyTreeFilterSheet({
             onValueChange={(v) => onChange({ ...filter, showPlaceholders: v })}
             label="Show placeholder & unknown links"
           />
+
+          <FamilyTreeLegend />
         </ScrollView>
 
         <Button label="Done" variant="gold" onPress={onClose} />

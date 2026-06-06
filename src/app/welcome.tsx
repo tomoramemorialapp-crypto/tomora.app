@@ -8,9 +8,15 @@ import { TomoraEmblem } from '@/components/brand/TomoraEmblem';
 import { TomoraLogo } from '@/components/brand/TomoraLogo';
 import { LightDivider } from '@/components/brand/LightDivider';
 import { AppFooter } from '@/components/brand/AppFooter';
-import { Body, Display } from '@/components/ui/Typography';
+import { Body, Caption } from '@/components/ui/Typography';
 import { colors, spacing } from '@/constants/theme';
 import { copy } from '@/constants/copy';
+
+// Brand lockup proportions (emblem → wordmark → divider → tagline), per brand sketch.
+const EMBLEM_SIZE = 176;
+const WORDMARK_HEIGHT = 48;
+const WORDMARK_WIDTH = WORDMARK_HEIGHT * (2626 / 400);
+const DIVIDER_LINE = Math.round(WORDMARK_WIDTH * 0.36);
 
 export default function Welcome() {
   const router = useRouter();
@@ -36,31 +42,45 @@ export default function Welcome() {
 
   return (
     <ScreenContainer center>
-      <Animated.View style={{ alignItems: 'center', opacity: fade, transform: [{ translateY: rise }], gap: spacing.lg }}>
-        <View style={{ alignItems: 'center', justifyContent: 'center', height: 200 }}>
-          <Animated.View
+      <Animated.View style={{ alignItems: 'center', opacity: fade, transform: [{ translateY: rise }] }}>
+        {/* Brand lockup — emblem, wordmark, divider, tagline */}
+        <View style={{ alignItems: 'center', width: '100%', maxWidth: WORDMARK_WIDTH + 40 }}>
+          <View style={{ alignItems: 'center', justifyContent: 'center', height: EMBLEM_SIZE + 48, marginBottom: spacing.lg }}>
+            <Animated.View
+              style={{
+                position: 'absolute',
+                width: EMBLEM_SIZE * 1.45,
+                height: EMBLEM_SIZE * 1.45,
+                borderRadius: EMBLEM_SIZE,
+                backgroundColor: colors.candlelight,
+                opacity: glow.interpolate({ inputRange: [0.4, 1], outputRange: [0.25, 0.6] }),
+                transform: [{ scale: glow.interpolate({ inputRange: [0.4, 1], outputRange: [0.92, 1.08] }) }],
+              }}
+            />
+            <TomoraEmblem size={EMBLEM_SIZE} glow={false} />
+          </View>
+
+          <TomoraLogo size={WORDMARK_HEIGHT} showEmblem={false} layout="vertical" />
+
+          <View style={{ marginTop: spacing.md }}>
+            <LightDivider width={DIVIDER_LINE} />
+          </View>
+
+          <Caption
+            align="center"
             style={{
-              position: 'absolute',
-              width: 220,
-              height: 220,
-              borderRadius: 200,
-              backgroundColor: colors.candlelight,
-              opacity: glow.interpolate({ inputRange: [0.4, 1], outputRange: [0.25, 0.6] }),
-              transform: [{ scale: glow.interpolate({ inputRange: [0.4, 1], outputRange: [0.92, 1.08] }) }],
+              marginTop: spacing.sm,
+              fontSize: 11,
+              letterSpacing: 3.2,
+              color: colors.ink,
+              fontWeight: '500',
             }}
-          />
-          <TomoraEmblem size={132} glow={false} />
+          >
+            {copy.welcome.tagline}
+          </Caption>
         </View>
 
-        <TomoraLogo size={56} showEmblem={false} />
-
-        <Display align="center" style={{ fontSize: 44 }}>
-          {copy.welcome.tagline}
-        </Display>
-
-        <LightDivider width={90} />
-
-        <Body align="center" style={{ maxWidth: 360, fontSize: 18 }}>
+        <Body align="center" style={{ maxWidth: 360, fontSize: 18, marginTop: spacing.xl }}>
           {copy.welcome.body}
         </Body>
       </Animated.View>

@@ -12,7 +12,7 @@ export const brand = {
 
 export const copy = {
   welcome: {
-    tagline: 'Always with you.',
+    tagline: 'ALWAYS WITH YOU',
     body: 'Create a private Family Tree for the people, memories, and moments you want to keep close.',
     primaryCta: 'Start my Family Tree',
     secondaryCta: 'I was invited',

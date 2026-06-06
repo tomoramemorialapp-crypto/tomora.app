@@ -6,6 +6,8 @@ interface ExplainParams {
   path: string[];
   nodes: KinshipNode[];
   edges: RelationshipEdge[];
+  /** When false, the anchor node gets no "You" label (viewing from someone else's perspective). */
+  labelAnchorAsYou?: boolean;
 }
 
 function deltaAlong(edge: RelationshipEdge, from: string, to: string): number {
@@ -79,8 +81,8 @@ function isNamed(node?: KinshipNode): boolean {
 
 /** Short relationship label, e.g. "Maternal grandmother", "Cousin on your father’s side". */
 export function getRelationshipLabel(params: ExplainParams): string {
-  const { anchorNodeId, targetNodeId, path, nodes, edges } = params;
-  if (targetNodeId === anchorNodeId) return 'You';
+  const { anchorNodeId, targetNodeId, path, nodes, edges, labelAnchorAsYou = true } = params;
+  if (targetNodeId === anchorNodeId) return labelAnchorAsYou ? 'You' : '';
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const target = byId.get(targetNodeId);
   if (!target) return 'Family member';

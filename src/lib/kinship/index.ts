@@ -101,6 +101,8 @@ export function resolveKinshipGraph(input: ResolveKinshipInput): KinshipRenderGr
   const branchMap = classifyBranches({ anchorNodeId, nodes: filteredNodes, edges: filteredEdges, paths });
 
   // 7. enrich + scope nodes
+  const labelAnchorAsYou =
+    !options?.homeAnchorNodeId || anchorNodeId === options.homeAnchorNodeId;
   const includedIds = new Set<string>();
   const enriched: KinshipNode[] = [];
   for (const n of filteredNodes) {
@@ -123,6 +125,7 @@ export function resolveKinshipGraph(input: ResolveKinshipInput): KinshipRenderGr
         path,
         nodes: filteredNodes.map((x) => ({ ...x, branchType: branchMap.get(x.id) ?? x.branchType })),
         edges: filteredEdges,
+        labelAnchorAsYou,
       }),
     };
     enriched.push(enrichedNode);

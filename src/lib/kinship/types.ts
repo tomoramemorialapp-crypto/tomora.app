@@ -161,6 +161,8 @@ export interface ResolveKinshipOptions {
   maxGenerationsDown?: number;
   includePrivatePlaceholders?: boolean;
   autoCreatePlaceholders?: boolean;
+  /** When set, only this node is labelled "You" as the anchor; other anchors use display name only. */
+  homeAnchorNodeId?: string;
 }
 
 export interface ResolveKinshipInput {

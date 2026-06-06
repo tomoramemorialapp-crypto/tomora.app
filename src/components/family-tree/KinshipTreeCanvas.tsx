@@ -28,6 +28,7 @@ import {
   type FamilyTreeFilterState,
   type FamilyTreeLayoutOrientation,
 } from './canvasFilters';
+import { resolveTreeNodeTap, TREE_DRAG_THRESHOLD } from '@/lib/kinship/treeInteractions';
 
 const PAD_X = 90;
 const PAD_TOP = 70;
@@ -71,7 +72,6 @@ const CanvasNode = function CanvasNode({
   node,
   left,
   top,
-  selected,
   highlighted,
   canvasPanRef,
   onTap,
@@ -81,7 +81,6 @@ const CanvasNode = function CanvasNode({
   node: RenderNode;
   left: number;
   top: number;
-  selected: boolean;
   highlighted: boolean;
   canvasPanRef: React.MutableRefObject<GestureType | undefined>;
   onTap: (id: string) => void;
@@ -91,7 +90,7 @@ const CanvasNode = function CanvasNode({
   const gesture = useMemo(() => {
     const pan = Gesture.Pan()
       .blocksExternalGesture(canvasPanRef)
-      .minDistance(6)
+      .minDistance(TREE_DRAG_THRESHOLD)
       .onUpdate((e) => {
         runOnJS(onDragUpdate)(node.id, e.translationX, e.translationY);
       })
@@ -99,7 +98,7 @@ const CanvasNode = function CanvasNode({
         runOnJS(onDragEnd)(node.id, e.translationX, e.translationY);
       });
     const tap = Gesture.Tap()
-      .maxDistance(10)
+      .maxDistance(TREE_DRAG_THRESHOLD)
       .onEnd(() => {
         runOnJS(onTap)(node.id);
       });
@@ -109,7 +108,7 @@ const CanvasNode = function CanvasNode({
   return (
     <GestureDetector gesture={gesture}>
       <View style={{ position: 'absolute', left, top }}>
-        <FamilyTreeNode node={node} selected={selected} highlighted={highlighted} />
+        <FamilyTreeNode node={node} highlighted={highlighted} />
       </View>
     </GestureDetector>
   );
@@ -124,6 +123,8 @@ export function KinshipTreeCanvas({
   nodes,
   relationships,
   anchorNodeId,
+  homeAnchorNodeId,
+  onAnchorChange,
   mode = 'full',
   height = 460,
   onSelectNode,
@@ -134,7 +135,11 @@ export function KinshipTreeCanvas({
 }: {
   nodes: FamilyNode[];
   relationships: Relationship[];
+  /** Perspective node — labels and layout are computed from here. */
   anchorNodeId?: string;
+  /** Signed-in user's node — used for "View from me" and contextual copy. */
+  homeAnchorNodeId?: string;
+  onAnchorChange?: (nodeId: string) => void;
   mode?: LayoutMode;
   height?: number;
   onSelectNode?: (nodeId: string) => void;
@@ -144,7 +149,7 @@ export function KinshipTreeCanvas({
   onAddRelativeFromNode?: (nodeId: string) => void;
 }) {
   const appNodeIds = useMemo(() => new Set(nodes.map((n) => n.id)), [nodes]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [orientation, setOrientation] = useState<FamilyTreeLayoutOrientation>('vertical_generational');
   const [filter, setFilter] = useState<FamilyTreeFilterState>(DEFAULT_FILTER);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -169,13 +174,19 @@ export function KinshipTreeCanvas({
     }, []),
   );
 
-  const anchor = anchorNodeId ?? nodes.find((n) => n.ownerAccountId)?.id ?? nodes[0]?.id;
+  const anchor = anchorNodeId ?? homeAnchorNodeId ?? nodes.find((n) => n.ownerAccountId)?.id ?? nodes[0]?.id;
+  const homeAnchor = homeAnchorNodeId ?? nodes.find((n) => n.ownerAccountId)?.id ?? anchor;
 
   const graph = useMemo(() => {
     if (!anchor || nodes.length === 0) return null;
     const data = buildKinshipGraphFromApp({ nodes, relationships, anchorNodeId: anchor });
-    return resolveKinshipGraph({ anchorNodeId: anchor, nodes: data.nodes, edges: data.edges, options: { mode } });
-  }, [anchor, nodes, relationships, mode]);
+    return resolveKinshipGraph({
+      anchorNodeId: anchor,
+      nodes: data.nodes,
+      edges: data.edges,
+      options: { mode, homeAnchorNodeId: homeAnchor },
+    });
+  }, [anchor, homeAnchor, nodes, relationships, mode]);
 
   // Apply filters -> visible node ids, positions, bounds, and rerouted edges.
   const view = useMemo(() => {
@@ -343,9 +354,19 @@ export function KinshipTreeCanvas({
     setTf({ x: vX - (cx + (pcx - cx) * k1), y: vY - (cy + (pcy - cy) * k1), k: k1 });
   }, []);
 
-  const onTapNode = useCallback((id: string) => {
-    setSelectedId((prev) => (prev === id ? null : id));
-  }, []);
+  const onTapNode = useCallback(
+    (id: string) => {
+      const action = resolveTreeNodeTap(id, anchor);
+      if (action.type === 'reanchor') {
+        setDetailsOpen(false);
+        onAnchorChange?.(action.nodeId);
+        centerOnNode(action.nodeId, ZOOM.focus);
+        return;
+      }
+      setDetailsOpen((open) => !open);
+    },
+    [anchor, centerOnNode, onAnchorChange],
+  );
   const onDragUpdateNode = useCallback((id: string, dx: number, dy: number) => {
     const k = tfRef.current.k || 1;
     setLiveDrag({ id, dx: dx / k, dy: dy / k });
@@ -410,6 +431,26 @@ export function KinshipTreeCanvas({
       .slice(0, 8);
   }, [view, searchQuery]);
 
+  const homePerspectiveExplanation = useMemo(() => {
+    if (!homeAnchor || anchor === homeAnchor || nodes.length === 0) return undefined;
+    const data = buildKinshipGraphFromApp({ nodes, relationships, anchorNodeId: homeAnchor });
+    const homeGraph = resolveKinshipGraph({
+      anchorNodeId: homeAnchor,
+      nodes: data.nodes,
+      edges: data.edges,
+      options: { mode },
+    });
+    const target = homeGraph.nodes.find((n) => n.id === anchor);
+    if (!target) return undefined;
+    return getRelationshipExplanation({
+      anchorNodeId: homeAnchor,
+      targetNodeId: anchor,
+      path: target.kinshipPathFromAnchor,
+      nodes: homeGraph.nodes,
+      edges: homeGraph.edges,
+    });
+  }, [homeAnchor, anchor, nodes, relationships, mode]);
+
   if (!graph || !view) {
     return (
       <View style={{ alignItems: 'center', padding: spacing.xl }}>
@@ -418,21 +459,17 @@ export function KinshipTreeCanvas({
     );
   }
 
-  const selected = view.visibleNodes.find((n) => n.id === selectedId) ?? null;
+  const anchorNode = view.visibleNodes.find((n) => n.id === anchor) ?? null;
+  const viewingFromOther = anchor !== homeAnchor;
+  const anchorDisplayName =
+    nodes.find((n) => n.id === anchor)?.displayName ?? anchorNode?.displayName ?? 'This person';
 
-  const highlightedEdges = new Set<string>();
-  if (selected) {
-    const path = selected.kinshipPathFromAnchor;
-    for (let i = 0; i < path.length - 1; i++) {
-      const a = path[i];
-      const b = path[i + 1];
-      for (const e of graph.edges) {
-        if ((e.fromNodeId === a && e.toNodeId === b) || (e.fromNodeId === b && e.toNodeId === a)) {
-          highlightedEdges.add(e.id);
-        }
-      }
-    }
-  }
+  const anchorExplanation =
+    detailsOpen && anchorNode
+      ? viewingFromOther
+        ? homePerspectiveExplanation
+        : 'This is your place in the Family Tree. Tap another light to view connections from their perspective.'
+      : undefined;
 
   const onLayout = (e: LayoutChangeEvent) => {
     const { width, height: h } = e.nativeEvent.layout;
@@ -442,8 +479,20 @@ export function KinshipTreeCanvas({
   const onPickSearchResult = (id: string) => {
     setSearchOpen(false);
     setSearchQuery('');
-    setSelectedId(id);
+    if (id !== anchor) {
+      onAnchorChange?.(id);
+      setDetailsOpen(false);
+    } else {
+      setDetailsOpen(true);
+    }
     centerOnNode(id, ZOOM.focus);
+  };
+
+  const onReturnHome = () => {
+    if (!homeAnchor) return;
+    onAnchorChange?.(homeAnchor);
+    setDetailsOpen(false);
+    centerOnNode(homeAnchor, ZOOM.default);
   };
 
   return (
@@ -463,7 +512,7 @@ export function KinshipTreeCanvas({
             <Svg width={contentW} height={contentH} style={{ position: 'absolute', left: 0, top: 0 }}>
               <G transform={`translate(${view.offsetX}, ${view.offsetY})`}>
                 {draggedEdges.map((edge) => (
-                  <FamilyTreeEdge key={edge.id} edge={edge} highlighted={highlightedEdges.has(edge.id)} />
+                  <FamilyTreeEdge key={edge.id} edge={edge} highlighted={false} />
                 ))}
               </G>
             </Svg>
@@ -477,10 +526,7 @@ export function KinshipTreeCanvas({
                   node={node}
                   left={p.x + off.x + view.offsetX - NODE_HALF_W}
                   top={p.y + off.y + view.offsetY - NODE_HALF_H}
-                  selected={node.id === selectedId}
-                  highlighted={
-                    highlightedEdges.size > 0 && node.kinshipPathFromAnchor.includes(selectedId ?? '')
-                  }
+                  highlighted={node.id === anchor && detailsOpen}
                   canvasPanRef={canvasPanRef}
                   onTap={onTapNode}
                   onDragUpdate={onDragUpdateNode}
@@ -495,6 +541,31 @@ export function KinshipTreeCanvas({
       <View style={{ position: 'absolute', left: spacing.sm, top: spacing.sm + 52, zIndex: 2 }}>
         <ParentLineageLegend />
       </View>
+
+      {viewingFromOther ? (
+        <Pressable
+          onPress={onReturnHome}
+          accessibilityRole="button"
+          accessibilityLabel="View Family Tree from your perspective"
+          style={({ pressed }) => ({
+            position: 'absolute',
+            left: spacing.sm,
+            top: spacing.sm,
+            zIndex: 2,
+            backgroundColor: colors.paper,
+            borderRadius: radii.pill,
+            borderWidth: 1,
+            borderColor: colors.softGold,
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.xs,
+            opacity: pressed ? 0.9 : 1,
+          })}
+        >
+          <Caption style={{ color: colors.deepUmber, fontSize: 13 }}>
+            Viewing from {anchorDisplayName.split(' ')[0]} · Return to me
+          </Caption>
+        </Pressable>
+      ) : null}
 
       <CanvasControls
         orientation={orientation}
@@ -596,41 +667,35 @@ export function KinshipTreeCanvas({
         </View>
       ) : null}
 
-      {selected ? (
+      {detailsOpen && anchorNode ? (
         <View style={{ position: 'absolute', left: spacing.md, right: spacing.md, bottom: spacing.md }}>
           <RelationshipTooltip
-            name={selected.displayName}
-            label={selected.relationshipLabelFromAnchor}
-            explanation={getRelationshipExplanation({
-              anchorNodeId: graph.anchorNodeId,
-              targetNodeId: selected.id,
-              path: selected.kinshipPathFromAnchor,
-              nodes: graph.nodes,
-              edges: graph.edges,
-            })}
+            name={anchorNode.displayName}
+            label={viewingFromOther ? undefined : 'You'}
+            explanation={anchorExplanation}
             onOpenProfile={
-              appNodeIds.has(selected.id) && onSelectNode ? () => onSelectNode(selected.id) : undefined
+              appNodeIds.has(anchorNode.id) && onSelectNode ? () => onSelectNode(anchorNode.id) : undefined
             }
             onOpenMemorial={
-              appNodeIds.has(selected.id) &&
-              (selected.nodeType === 'deceased' ||
-                selected.status === 'memory_light' ||
-                selected.status === 'memorial_pending') &&
+              appNodeIds.has(anchorNode.id) &&
+              (anchorNode.nodeType === 'deceased' ||
+                anchorNode.status === 'memory_light' ||
+                anchorNode.status === 'memorial_pending') &&
               onOpenMemorial
-                ? () => onOpenMemorial(selected.id)
+                ? () => onOpenMemorial(anchorNode.id)
                 : undefined
             }
             onCompleteUnknown={
-              selected.nodeType === 'placeholder' && !appNodeIds.has(selected.id) && onCompleteUnknown
-                ? () => onCompleteUnknown(selected)
+              anchorNode.nodeType === 'placeholder' && !appNodeIds.has(anchorNode.id) && onCompleteUnknown
+                ? () => onCompleteUnknown(anchorNode)
                 : undefined
             }
             onAddRelative={
-              appNodeIds.has(selected.id) && selected.nodeType !== 'placeholder' && onAddRelativeFromNode
-                ? () => onAddRelativeFromNode(selected.id)
+              appNodeIds.has(anchorNode.id) && anchorNode.nodeType !== 'placeholder' && onAddRelativeFromNode
+                ? () => onAddRelativeFromNode(anchorNode.id)
                 : undefined
             }
-            onClose={() => setSelectedId(null)}
+            onClose={() => setDetailsOpen(false)}
           />
         </View>
       ) : null}

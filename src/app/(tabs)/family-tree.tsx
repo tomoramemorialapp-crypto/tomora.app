@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
@@ -17,6 +17,13 @@ export default function FamilyTreeScreen() {
   const [materializeError, setMaterializeError] = useState<string | null>(null);
 
   const selfNode = nodes.find((n) => n.ownerAccountId) ?? nodes[0];
+  const [viewAnchorId, setViewAnchorId] = useState<string | undefined>(selfNode?.id);
+
+  useEffect(() => {
+    if (selfNode?.id) {
+      setViewAnchorId((prev) => prev ?? selfNode.id);
+    }
+  }, [selfNode?.id]);
 
   // Give the canvas as much room as possible (the header + tab bar take ~300px).
   const canvasHeight = Math.max(460, Math.round(height) - 300);
@@ -30,8 +37,8 @@ export default function FamilyTreeScreen() {
         </View>
         <Display style={{ fontSize: 32 }}>Your Family Tree</Display>
         <Body style={{ fontSize: 16 }}>
-          Tap a light to see how you’re connected. Solid gold lines are biological parents; dashed are step-parents; dotted
-          grey are parents-in-law.
+          Tap someone to view the tree from their perspective. Tap them again for profile actions. Drag lights to tidy the
+          layout — solid gold lines are biological parents; dashed are step-parents.
         </Body>
         {materializeError ? <Caption style={{ color: colors.error }}>{materializeError}</Caption> : null}
       </View>
@@ -39,7 +46,9 @@ export default function FamilyTreeScreen() {
       <KinshipTreeCanvas
         nodes={nodes}
         relationships={relationships}
-        anchorNodeId={selfNode?.id}
+        anchorNodeId={viewAnchorId}
+        homeAnchorNodeId={selfNode?.id}
+        onAnchorChange={setViewAnchorId}
         height={canvasHeight}
         onSelectNode={(nodeId) => router.push({ pathname: '/node/[nodeId]', params: { nodeId } })}
         onOpenMemorial={(nodeId) => router.push({ pathname: '/memorial/[nodeId]', params: { nodeId } })}

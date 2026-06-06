@@ -1,13 +1,14 @@
 /**
- * Computes upcoming life events for the Home feed: birthdays and death
- * anniversaries derived from each node's profile, plus relevant holidays
- * (Mother's Day, Father's Day, etc.). Pure and deterministic for a given `now`.
+ * Computes upcoming life events for the Home feed: birthdays (including
+ * celebrations of life for those who have passed), death anniversaries, and
+ * relevant holidays (Mother's Day, Father's Day, etc.). Pure and deterministic
+ * for a given `now`.
  */
 
-import type { FamilyNode } from '@/types/models';
+import type { FamilyNode, Relationship, RelationshipType } from '@/types/models';
 import type { DateValue } from '@/types/profile';
 
-export type OccasionKind = 'birthday' | 'death_anniversary' | 'holiday';
+export type OccasionKind = 'birthday' | 'death_anniversary' | 'wedding_anniversary' | 'holiday';
 
 /** Family = tied to a specific person/node. Public = generic/international holiday. */
 export type OccasionScope = 'family' | 'public';
@@ -21,6 +22,8 @@ export interface UpcomingEvent {
   date: string; // ISO date of the next occurrence
   daysUntil: number;
   nodeId?: string;
+  partnerNodeId?: string;
+  relationshipId?: string;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -48,6 +51,26 @@ function birthYearOf(d?: DateValue): number | undefined {
   const iso = d.value ?? d.monthYearOnly;
   const m = iso ? /^(\d{4})/.exec(iso) : null;
   return m ? Number(m[1]) : undefined;
+}
+
+function monthDayOfIso(iso?: string): { month: number; day: number } | null {
+  if (!iso) return null;
+  if (/^\d{4}$/.test(iso)) return { month: 1, day: 1 };
+  const m = /^(\d{4})-(\d{2})(?:-(\d{2}))?/.exec(iso);
+  if (!m) return null;
+  const month = Number(m[2]);
+  const day = m[3] ? Number(m[3]) : 1;
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  return { month, day };
+}
+
+function yearOfIso(iso?: string): number | undefined {
+  const m = iso ? /^(\d{4})/.exec(iso) : null;
+  return m ? Number(m[1]) : undefined;
+}
+
+function isPartnershipType(type: RelationshipType): boolean {
+  return type === 'spouse' || type === 'partner';
 }
 
 /** Next date (today or future) matching month/day, relative to `now`. */
@@ -92,39 +115,51 @@ function ordinal(n: number): string {
   return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
 }
 
+/** True when a node is remembered / no longer living. */
+export function nodeIsInMemory(node: FamilyNode): boolean {
+  return node.isLiving === false || node.status === 'memory_light' || node.status === 'memorial_pending';
+}
+
 /** Build the list of upcoming events within `withinDays`, sorted soonest-first. */
 export function getUpcomingEvents(
   nodes: FamilyNode[],
-  opts: { withinDays?: number; now?: Date } = {},
+  opts: { withinDays?: number; now?: Date; relationships?: Relationship[] } = {},
 ): UpcomingEvent[] {
   const now = opts.now ?? new Date();
   const withinDays = opts.withinDays ?? 120;
   const events: UpcomingEvent[] = [];
+  const nodeById = new Map(nodes.map((n) => [n.id, n]));
 
   for (const node of nodes) {
-    const isDeceased = node.isLiving === false || node.status === 'memory_light' || node.status === 'memorial_pending';
+    const inMemory = nodeIsInMemory(node);
 
-    if (!isDeceased) {
-      const md = monthDayOf(node.profile?.dateOfBirth?.value);
-      if (md) {
-        const date = nextAnnual(now, md.month, md.day);
-        const byear = birthYearOf(node.profile?.dateOfBirth?.value);
-        const turning = byear ? date.getFullYear() - byear : undefined;
-        events.push({
-          id: `bday-${node.id}`,
-          kind: 'birthday',
-          scope: 'family',
-          title: `${node.displayName}'s birthday`,
-          subtitle: turning && turning > 0 ? `Turning ${turning}` : undefined,
-          date: date.toISOString(),
-          daysUntil: daysBetween(now, date),
-          nodeId: node.id,
-        });
-      }
-    } else {
-      const md = monthDayOf(node.profile?.dateOfDeath?.value);
-      if (md) {
-        const date = nextAnnual(now, md.month, md.day);
+    const birthMd = monthDayOf(node.profile?.dateOfBirth?.value);
+    if (birthMd) {
+      const date = nextAnnual(now, birthMd.month, birthMd.day);
+      const byear = birthYearOf(node.profile?.dateOfBirth?.value);
+      const turning = byear ? date.getFullYear() - byear : undefined;
+      events.push({
+        id: `bday-${node.id}`,
+        kind: 'birthday',
+        scope: 'family',
+        title: `${node.displayName}'s birthday`,
+        subtitle: inMemory
+          ? turning && turning > 0
+            ? `Celebrating ${turning} years of life`
+            : 'A celebration of life'
+          : turning && turning > 0
+            ? `Turning ${turning}`
+            : undefined,
+        date: date.toISOString(),
+        daysUntil: daysBetween(now, date),
+        nodeId: node.id,
+      });
+    }
+
+    if (inMemory) {
+      const deathMd = monthDayOf(node.profile?.dateOfDeath?.value);
+      if (deathMd) {
+        const date = nextAnnual(now, deathMd.month, deathMd.day);
         const dyear = birthYearOf(node.profile?.dateOfDeath?.value);
         const years = dyear ? date.getFullYear() - dyear : undefined;
         events.push({
@@ -139,6 +174,40 @@ export function getUpcomingEvents(
         });
       }
     }
+  }
+
+  const seenPairs = new Set<string>();
+  for (const rel of opts.relationships ?? []) {
+    if (!isPartnershipType(rel.relationshipType) || !rel.weddingDate) continue;
+    const pairKey = [rel.fromNodeId, rel.toNodeId].sort().join('+');
+    if (seenPairs.has(pairKey)) continue;
+    seenPairs.add(pairKey);
+
+    const weddingMd = monthDayOfIso(rel.weddingDate);
+    if (!weddingMd) continue;
+
+    const a = nodeById.get(rel.fromNodeId);
+    const b = nodeById.get(rel.toNodeId);
+    if (!a || !b) continue;
+
+    const date = nextAnnual(now, weddingMd.month, weddingMd.day);
+    const weddingYear = yearOfIso(rel.weddingDate);
+    const years = weddingYear ? date.getFullYear() - weddingYear : undefined;
+    const isSpouse = rel.relationshipType === 'spouse';
+    const label = isSpouse ? 'wedding anniversary' : 'anniversary';
+
+    events.push({
+      id: `wedding-${rel.id}`,
+      kind: 'wedding_anniversary',
+      scope: 'family',
+      title: `${a.displayName} & ${b.displayName}'s ${label}`,
+      subtitle: years && years > 0 ? `${ordinal(years)} ${label}` : undefined,
+      date: date.toISOString(),
+      daysUntil: daysBetween(now, date),
+      nodeId: a.id,
+      partnerNodeId: b.id,
+      relationshipId: rel.id,
+    });
   }
 
   for (const h of HOLIDAYS) {
@@ -161,8 +230,14 @@ export function getUpcomingEvents(
 }
 
 /** Look up a single occasion by its stable id (e.g. `bday-{nodeId}`). */
-export function findOccasionById(eventId: string, nodes: FamilyNode[], now?: Date): UpcomingEvent | undefined {
-  return getUpcomingEvents(nodes, { withinDays: 366, now }).find((e) => e.id === eventId);
+export function findOccasionById(
+  eventId: string,
+  nodes: FamilyNode[],
+  opts: { now?: Date; relationships?: Relationship[] } = {},
+): UpcomingEvent | undefined {
+  return getUpcomingEvents(nodes, { withinDays: 366, now: opts.now, relationships: opts.relationships }).find(
+    (e) => e.id === eventId,
+  );
 }
 
 /** Friendly relative label for an event's distance in days. */

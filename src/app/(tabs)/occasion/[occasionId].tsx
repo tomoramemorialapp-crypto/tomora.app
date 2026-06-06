@@ -11,7 +11,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { MemoryCard } from '@/components/memories/MemoryCard';
 import { Body, Caption, Display, Title } from '@/components/ui/Typography';
 import { colors, radii, spacing } from '@/constants/theme';
-import { findOccasionById, whenLabel } from '@/lib/occasions';
+import { findOccasionById, nodeIsInMemory, whenLabel } from '@/lib/occasions';
 import { useAppState } from '@/state/AppState';
 import { useT } from '@/i18n';
 
@@ -28,20 +28,21 @@ export default function OccasionPageScreen() {
   const router = useRouter();
   const t = useT();
   const { occasionId } = useLocalSearchParams<{ occasionId: string }>();
-  const { nodes, getNode, visibleMemories } = useAppState();
+  const { nodes, relationships, getNode, visibleMemories } = useAppState();
 
   const event = useMemo(
-    () => (occasionId ? findOccasionById(occasionId, nodes) : undefined),
-    [occasionId, nodes],
+    () => (occasionId ? findOccasionById(occasionId, nodes, { relationships }) : undefined),
+    [occasionId, nodes, relationships],
   );
   const node = event?.nodeId ? getNode(event.nodeId) : undefined;
 
   const relatedMemories = useMemo(() => {
     if (!event?.nodeId) return [];
+    const ids = new Set([event.nodeId, event.partnerNodeId].filter(Boolean) as string[]);
     return visibleMemories.filter(
-      (m) => m.nodeId === event.nodeId || m.taggedNodeIds.includes(event.nodeId!),
+      (m) => (m.nodeId ? ids.has(m.nodeId) : false) || m.taggedNodeIds.some((id) => ids.has(id)),
     );
-  }, [event?.nodeId, visibleMemories]);
+  }, [event?.nodeId, event?.partnerNodeId, visibleMemories]);
 
   if (!event) {
     return (
@@ -51,7 +52,8 @@ export default function OccasionPageScreen() {
     );
   }
 
-  const memorial = event.kind === 'death_anniversary';
+  const memorial =
+    event.kind === 'death_anniversary' || (event.kind === 'birthday' && !!node && nodeIsInMemory(node));
 
   return (
     <ScreenContainer showBack maxWidth={640}>

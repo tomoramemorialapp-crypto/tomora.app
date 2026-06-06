@@ -163,6 +163,8 @@ export interface Relationship {
   relationshipType: RelationshipType;
   status: RelationshipStatus;
   visibility: VisibilityLevel;
+  /** ISO date (YYYY-MM-DD or YYYY-MM) for spouse/partner connections. */
+  weddingDate?: string;
   createdByAccountId: string;
   createdAt: string;
   updatedAt: string;

@@ -21,6 +21,7 @@ export const DEFAULT_OCCASION_FILTER: OccasionFilterState = {
 export const KIND_LABELS: Record<OccasionKind, string> = {
   birthday: 'Birthdays',
   death_anniversary: 'Remembrance',
+  wedding_anniversary: 'Wedding anniversaries',
   holiday: 'Holidays & events',
 };
 
@@ -36,7 +37,7 @@ export const SORT_LABELS: Record<OccasionSort, string> = {
   kind: 'By type, then date',
 };
 
-const KIND_ORDER: OccasionKind[] = ['birthday', 'death_anniversary', 'holiday'];
+const KIND_ORDER: OccasionKind[] = ['birthday', 'death_anniversary', 'wedding_anniversary', 'holiday'];
 
 export function isOccasionFilterActive(filter: OccasionFilterState): boolean {
   return filter.kinds.length > 0 || filter.scopes.length > 0 || filter.tags.length > 0;
@@ -47,11 +48,14 @@ export function availableOccasionTags(events: UpcomingEvent[], nodes: FamilyNode
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
   const set = new Set<string>();
   for (const e of events) {
-    if (!e.nodeId) continue;
-    const node = nodeMap.get(e.nodeId);
-    for (const t of node?.tags ?? []) {
-      const trimmed = t.trim();
-      if (trimmed) set.add(trimmed);
+    const ids = e.partnerNodeId ? [e.nodeId, e.partnerNodeId] : e.nodeId ? [e.nodeId] : [];
+    for (const id of ids) {
+      if (!id) continue;
+      const node = nodeMap.get(id);
+      for (const t of node?.tags ?? []) {
+        const trimmed = t.trim();
+        if (trimmed) set.add(trimmed);
+      }
     }
   }
   return [...set].sort((a, b) => a.localeCompare(b));
@@ -68,9 +72,10 @@ export function filterOccasions(
     if (filter.kinds.length > 0 && !filter.kinds.includes(e.kind)) return false;
     if (filter.scopes.length > 0 && !filter.scopes.includes(e.scope)) return false;
     if (filter.tags.length > 0) {
-      if (!e.nodeId) return false;
-      const nodeTags = nodeMap.get(e.nodeId)?.tags ?? [];
-      if (!filter.tags.some((t) => nodeTags.includes(t))) return false;
+      const tagIds = e.partnerNodeId ? [e.nodeId, e.partnerNodeId] : e.nodeId ? [e.nodeId] : [];
+      if (tagIds.length === 0) return false;
+      const nodeTags = new Set(tagIds.flatMap((id) => (id ? nodeMap.get(id)?.tags ?? [] : [])));
+      if (!filter.tags.some((t) => nodeTags.has(t))) return false;
     }
     return true;
   });

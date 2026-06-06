@@ -535,6 +535,7 @@ export type Database = {
           to_node_id: string
           updated_at: string
           visibility: string
+          wedding_date: string | null
         }
         Insert: {
           created_at?: string
@@ -547,6 +548,7 @@ export type Database = {
           to_node_id: string
           updated_at?: string
           visibility?: string
+          wedding_date?: string | null
         }
         Update: {
           created_at?: string
@@ -559,6 +561,7 @@ export type Database = {
           to_node_id?: string
           updated_at?: string
           visibility?: string
+          wedding_date?: string | null
         }
         Relationships: [
           {

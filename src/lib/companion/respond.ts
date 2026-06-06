@@ -115,7 +115,7 @@ function searchMemories(ctx: CompanionContext, query: string): string {
 }
 
 function upcomingOccasions(ctx: CompanionContext): string {
-  const events = getUpcomingEvents(ctx.nodes, { withinDays: 60 }).slice(0, 6);
+  const events = getUpcomingEvents(ctx.nodes, { withinDays: 60, relationships: ctx.relationships }).slice(0, 6);
   if (events.length === 0) {
     return 'No upcoming birthdays or remembrances in the next two months. Add dates to Life Profiles and they will appear here.';
   }

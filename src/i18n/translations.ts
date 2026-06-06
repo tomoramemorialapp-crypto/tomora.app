@@ -75,7 +75,7 @@ export const en = {
   // Occasions
   'occasions.kicker': 'Moments together',
   'occasions.title': 'Occasions',
-  'occasions.subtitle': 'Birthdays, remembrances, and the days worth gathering for.',
+  'occasions.subtitle': 'Birthdays — including celebrations of life — remembrances, and the days worth gathering for.',
   'occasions.noDatesTitle': 'No dates yet',
   'occasions.noDatesBody': "Add birthdays and dates to your family's Life Profiles and they'll gather here.",
   'occasions.notify': 'Notify me when it starts',

@@ -204,6 +204,21 @@ export async function updateRelationshipType(
   return mapRelationship(data);
 }
 
+/** Set or clear the wedding / partnership date on a spouse or partner connection. */
+export async function updateRelationshipWeddingDate(
+  relationshipId: string,
+  weddingDate: string | null,
+): Promise<Relationship> {
+  const { data, error } = await supabase
+    .from('relationships')
+    .update({ wedding_date: weddingDate })
+    .eq('id', relationshipId)
+    .select()
+    .single();
+  if (error) throw error;
+  return mapRelationship(data);
+}
+
 /** Create a relationship edge between two existing nodes. */
 export async function createRelationship(input: {
   treeId: string;

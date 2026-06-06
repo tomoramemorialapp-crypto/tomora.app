@@ -43,7 +43,7 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
   );
 }
 
-const QUICK_KINDS: OccasionKind[] = ['birthday', 'death_anniversary', 'holiday'];
+const QUICK_KINDS: OccasionKind[] = ['birthday', 'death_anniversary', 'wedding_anniversary', 'holiday'];
 
 export function OccasionToolbar({
   filter,

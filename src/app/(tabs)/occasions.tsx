@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/Button';
 import { colors, radii, spacing } from '@/constants/theme';
 import { useAppState } from '@/state/AppState';
 import { useT } from '@/i18n';
-import { getUpcomingEvents, whenLabel, type UpcomingEvent } from '@/lib/occasions';
+import { getUpcomingEvents, nodeIsInMemory, whenLabel, type UpcomingEvent } from '@/lib/occasions';
 import { getCalendarIds, getNotifyIds, setCalendarAdded, setNotify } from '@/lib/occasionPrefs';
 import {
   DEFAULT_OCCASION_FILTER,
@@ -31,6 +31,7 @@ import {
 const EVENT_EMOJI: Record<UpcomingEvent['kind'], string> = {
   birthday: '🎂',
   death_anniversary: '🕯️',
+  wedding_anniversary: '💍',
   holiday: '✦',
 };
 
@@ -80,8 +81,8 @@ function BellToggle({ on, onPress }: { on: boolean; onPress: () => void }) {
 export default function OccasionsScreen() {
   const router = useRouter();
   const t = useT();
-  const { nodes, getNode } = useAppState();
-  const allEvents = useMemo(() => getUpcomingEvents(nodes, { withinDays: 366 }), [nodes]);
+  const { nodes, relationships, getNode } = useAppState();
+  const allEvents = useMemo(() => getUpcomingEvents(nodes, { withinDays: 366, relationships }), [nodes, relationships]);
   const availableTags = useMemo(() => availableOccasionTags(allEvents, nodes), [allEvents, nodes]);
 
   const [filter, setFilter] = useState<OccasionFilterState>(DEFAULT_OCCASION_FILTER);
@@ -135,6 +136,7 @@ export default function OccasionsScreen() {
         <View style={{ gap: spacing.sm, marginBottom: spacing.lg }}>
           {events.map((e) => {
             const node = e.nodeId ? getNode(e.nodeId) : undefined;
+            const inMemory = node ? nodeIsInMemory(node) : false;
             const soon = e.daysUntil <= 7;
             const isFamily = e.scope === 'family';
             return (
@@ -152,7 +154,7 @@ export default function OccasionsScreen() {
                     <Avatar
                       name={node.displayName}
                       size={44}
-                      memorial={e.kind === 'death_anniversary'}
+                      memorial={inMemory && (e.kind === 'death_anniversary' || e.kind === 'birthday')}
                       uri={node.profile?.profilePhoto?.value ?? node.avatarUrl}
                     />
                   ) : (

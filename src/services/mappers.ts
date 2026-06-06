@@ -113,6 +113,7 @@ export function mapRelationship(row: Tables<'relationships'>): Relationship {
     relationshipType: row.relationship_type as RelationshipType,
     status: row.status as RelationshipStatus,
     visibility: row.visibility as VisibilityLevel,
+    weddingDate: row.wedding_date ?? undefined,
     createdByAccountId: row.created_by_account_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

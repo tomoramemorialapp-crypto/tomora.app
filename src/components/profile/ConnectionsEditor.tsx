@@ -2,12 +2,14 @@ import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { DateValueInput, dateValueToStorageIso, isoToDateValue } from '@/components/ui/DateValueInput';
 import { Dropdown } from '@/components/ui/Dropdown';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Body, Caption } from '@/components/ui/Typography';
 import { colors, radii, spacing } from '@/constants/theme';
 import { useAppState } from '@/state/AppState';
 import type { FamilyNode, RelationshipType } from '@/types/models';
+import type { DateValue } from '@/types/profile';
 
 /** Relationship options, phrased as "[other] is this person's [label]". */
 const OPTIONS: { id: RelationshipType; label: string }[] = [
@@ -58,9 +60,19 @@ function labelFor(type: RelationshipType): string {
  * or attach a niece to the right sibling. Edges are shown from this node's
  * perspective ("[other] is this person's …").
  */
+function isPartnership(type: RelationshipType): boolean {
+  return type === 'spouse' || type === 'partner';
+}
+
 export function ConnectionsEditor({ node }: { node: FamilyNode }) {
-  const { nodes, getRelationshipsForNode, createRelationship, deleteRelationship, updateRelationshipType } =
-    useAppState();
+  const {
+    nodes,
+    getRelationshipsForNode,
+    createRelationship,
+    deleteRelationship,
+    updateRelationshipType,
+    updateRelationshipWeddingDate,
+  } = useAppState();
 
   const rels = getRelationshipsForNode(node.id);
   const nodeById = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
@@ -94,6 +106,15 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
     setBusy(true);
     try {
       await deleteRelationship(relId);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onChangeWeddingDate = async (relId: string, value: DateValue | undefined) => {
+    setBusy(true);
+    try {
+      await updateRelationshipWeddingDate(relId, dateValueToStorageIso(value));
     } finally {
       setBusy(false);
     }
@@ -150,6 +171,15 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
                   is {node.displayName}’s {labelFor(perspectiveType(rel)).toLowerCase()}
                 </Caption>
                 <TypeChips value={perspectiveType(rel)} onChange={(t) => onChangeType(rel.id, isSource, t)} />
+                {isPartnership(perspectiveType(rel)) ? (
+                  <View style={{ marginTop: spacing.sm }}>
+                    <DateValueInput
+                      label="Wedding date"
+                      value={isoToDateValue(rel.weddingDate)}
+                      onChange={(d) => onChangeWeddingDate(rel.id, d)}
+                    />
+                  </View>
+                ) : null}
               </View>
             );
           })

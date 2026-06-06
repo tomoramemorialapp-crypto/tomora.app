@@ -48,6 +48,24 @@ export function dateValueToParts(d?: DateValue): DateParts {
   return {};
 }
 
+/** Parse a stored ISO date string (YYYY-MM-DD, YYYY-MM, or YYYY) into a DateValue. */
+export function isoToDateValue(iso?: string): DateValue | undefined {
+  if (!iso) return undefined;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return { value: iso, certainty: 'exact' };
+  if (/^\d{4}-\d{2}$/.test(iso)) return { monthYearOnly: iso, certainty: 'exact' };
+  if (/^\d{4}$/.test(iso)) return { yearOnly: Number(iso), certainty: 'exact' };
+  return undefined;
+}
+
+/** Serialize a DateValue to a compact ISO string for storage (or null when empty). */
+export function dateValueToStorageIso(d?: DateValue): string | null {
+  if (!d) return null;
+  if (d.value) return d.value;
+  if (d.monthYearOnly) return d.monthYearOnly;
+  if (d.yearOnly) return String(d.yearOnly);
+  return null;
+}
+
 /** Compose editable parts back into a structured DateValue (or undefined). */
 export function partsToDateValue(p: DateParts, certainty: CertaintyLevel): DateValue | undefined {
   const day = p.day && p.day >= 1 && p.day <= 31 ? p.day : undefined;

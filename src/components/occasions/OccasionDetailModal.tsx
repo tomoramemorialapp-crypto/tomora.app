@@ -6,13 +6,14 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Toggle } from '@/components/ui/Toggle';
 import { Body, Caption, Title } from '@/components/ui/Typography';
-import type { UpcomingEvent } from '@/lib/occasions';
+import { nodeIsInMemory, type UpcomingEvent } from '@/lib/occasions';
 import type { FamilyNode } from '@/types/models';
 import { addToCalendar, googleCalendarUrl } from '@/lib/calendar';
 
 const KIND_LABEL: Record<UpcomingEvent['kind'], string> = {
   birthday: 'Birthday',
   death_anniversary: 'Remembrance',
+  wedding_anniversary: 'Wedding anniversary',
   holiday: 'Holiday',
 };
 
@@ -67,7 +68,8 @@ export function OccasionDetailModal({
 }) {
   if (!event) return null;
   const isFamily = event.scope === 'family';
-  const memorial = event.kind === 'death_anniversary';
+  const memorial =
+    event.kind === 'death_anniversary' || (event.kind === 'birthday' && !!node && nodeIsInMemory(node));
 
   const handleCalendarToggle = (on: boolean) => {
     onToggleCalendar(on);

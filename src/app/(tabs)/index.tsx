@@ -31,15 +31,19 @@ function timeAgo(iso: string): string {
 const EVENT_EMOJI: Record<UpcomingEvent['kind'], string> = {
   birthday: '🎂',
   death_anniversary: '🕯️',
+  wedding_anniversary: '💍',
   holiday: '✦',
 };
 
 export default function Home() {
   const router = useRouter();
   const t = useT();
-  const { account, nodes, visibleMemories, getNode, unreadNotificationCount } = useAppState();
+  const { account, nodes, relationships, visibleMemories, getNode, unreadNotificationCount } = useAppState();
 
-  const events = useMemo(() => getUpcomingEvents(nodes, { withinDays: 120 }).slice(0, 6), [nodes]);
+  const events = useMemo(
+    () => getUpcomingEvents(nodes, { withinDays: 120, relationships }).slice(0, 6),
+    [nodes, relationships],
+  );
 
   // The feed is memories only; updates (changes, invites, requests, disputes,
   // new members) live in the Notifications tab.

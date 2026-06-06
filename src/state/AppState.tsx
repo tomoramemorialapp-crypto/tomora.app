@@ -99,6 +99,9 @@ interface AppStateValue {
   /** Change a node's relationship type to its connected node (creator/guardian only). */
   updateRelationshipType: (relationshipId: string, relationshipType: RelationshipType) => Promise<void>;
 
+  /** Set or clear the wedding date on a spouse or partner connection. */
+  updateRelationshipWeddingDate: (relationshipId: string, weddingDate: string | null) => Promise<void>;
+
   /** Create a new relationship edge between two existing nodes. */
   createRelationship: (input: {
     fromNodeId: string;
@@ -519,6 +522,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  const updateRelationshipWeddingDate = useCallback<AppStateValue['updateRelationshipWeddingDate']>(
+    async (relationshipId, weddingDate) => {
+      const updated = await treeService.updateRelationshipWeddingDate(relationshipId, weddingDate);
+      setRelationships((prev) => prev.map((r) => (r.id === relationshipId ? updated : r)));
+    },
+    [],
+  );
+
   const createRelationship = useCallback<AppStateValue['createRelationship']>(
     async ({ fromNodeId, toNodeId, relationshipType }) => {
       if (!tree || !account) throw new Error('No tree or account loaded.');
@@ -836,6 +847,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       addRelative,
       materializeUnknown,
       updateRelationshipType,
+      updateRelationshipWeddingDate,
       createRelationship,
       deleteRelationship,
       deleteNode,
@@ -897,6 +909,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       addRelative,
       materializeUnknown,
       updateRelationshipType,
+      updateRelationshipWeddingDate,
       createRelationship,
       deleteRelationship,
       deleteNode,

@@ -1,3 +1,4 @@
+import type { RelationshipDetail } from '@/lib/relationshipDetail';
 import type {
   Account,
   FamilyTree,
@@ -111,6 +112,7 @@ export function mapRelationship(row: Tables<'relationships'>): Relationship {
     fromNodeId: row.from_node_id,
     toNodeId: row.to_node_id,
     relationshipType: row.relationship_type as RelationshipType,
+    relationshipDetail: (row.relationship_detail as RelationshipDetail | null) ?? undefined,
     status: row.status as RelationshipStatus,
     visibility: row.visibility as VisibilityLevel,
     weddingDate: row.wedding_date ?? undefined,

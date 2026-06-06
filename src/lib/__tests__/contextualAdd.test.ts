@@ -37,6 +37,10 @@ describe('composeContextualRelationship', () => {
   it('maps spouse + parent to parent-in-law, not biological parent', () => {
     expect(composeContextualRelationship('spouse', 'parent')).toBe('parent_in_law');
   });
+
+  it('maps spouse + parent_in_law to parent-in-law for the partner', () => {
+    expect(composeContextualRelationship('spouse', 'parent_in_law')).toBe('parent_in_law');
+  });
 });
 
 describe('inferContextualRelationships', () => {

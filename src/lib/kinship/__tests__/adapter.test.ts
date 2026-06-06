@@ -101,4 +101,20 @@ describe('buildKinshipGraphFromApp', () => {
     expect(stepEdge?.fromRole).toBe('step_parent');
     expect(inLawEdge?.fromRole).toBe('parent_in_law');
   });
+
+  it('maps child-in-law edges to in-law parent_child lineage', () => {
+    const mgf = node('mgf', 'Rufino');
+    const father = node('father', 'Emmanuel');
+
+    const graph = buildKinshipGraphFromApp({
+      anchorNodeId: 'father',
+      nodes: [mgf, father],
+      relationships: [rel('r1', 'mgf', 'father', 'child_in_law')],
+    });
+
+    const edge = graph.edges.find((e) => e.fromNodeId === 'mgf' && e.toNodeId === 'father');
+    expect(edge?.type).toBe('parent_child');
+    expect(edge?.fromRole).toBe('parent_in_law');
+    expect(edge?.metadata?.lineage).toBe('in_law');
+  });
 });

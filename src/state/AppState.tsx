@@ -102,6 +102,12 @@ interface AppStateValue {
   /** Change a node's relationship type to its connected node (creator/guardian only). */
   updateRelationshipType: (relationshipId: string, relationshipType: RelationshipType) => Promise<void>;
 
+  /** Change relationship type and/or gender-specific detail on an edge. */
+  updateRelationship: (
+    relationshipId: string,
+    updates: { relationshipType?: RelationshipType; relationshipDetail?: import('@/lib/relationshipDetail').RelationshipDetail | null },
+  ) => Promise<void>;
+
   /** Set or clear the wedding date on a spouse or partner connection. */
   updateRelationshipWeddingDate: (relationshipId: string, weddingDate: string | null) => Promise<void>;
 
@@ -110,6 +116,7 @@ interface AppStateValue {
     fromNodeId: string;
     toNodeId: string;
     relationshipType: RelationshipType;
+    relationshipDetail?: import('@/lib/relationshipDetail').RelationshipDetail;
   }) => Promise<void>;
 
   /** Remove a single relationship edge. */
@@ -546,7 +553,15 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const updateRelationshipType = useCallback<AppStateValue['updateRelationshipType']>(
     async (relationshipId, relationshipType) => {
-      const updated = await treeService.updateRelationshipType(relationshipId, relationshipType);
+      const updated = await treeService.updateRelationship(relationshipId, { relationshipType });
+      setRelationships((prev) => prev.map((r) => (r.id === relationshipId ? updated : r)));
+    },
+    [],
+  );
+
+  const updateRelationship = useCallback<AppStateValue['updateRelationship']>(
+    async (relationshipId, updates) => {
+      const updated = await treeService.updateRelationship(relationshipId, updates);
       setRelationships((prev) => prev.map((r) => (r.id === relationshipId ? updated : r)));
     },
     [],
@@ -561,7 +576,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   );
 
   const createRelationship = useCallback<AppStateValue['createRelationship']>(
-    async ({ fromNodeId, toNodeId, relationshipType }) => {
+    async ({ fromNodeId, toNodeId, relationshipType, relationshipDetail }) => {
       if (!tree || !account) throw new Error('No tree or account loaded.');
       const created = await treeService.createRelationship({
         treeId: tree.id,
@@ -569,6 +584,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         fromNodeId,
         toNodeId,
         relationshipType,
+        relationshipDetail,
       });
       setRelationships((prev) => [...prev, created]);
     },
@@ -877,6 +893,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       addRelative,
       materializeUnknown,
       updateRelationshipType,
+      updateRelationship,
       updateRelationshipWeddingDate,
       createRelationship,
       deleteRelationship,
@@ -939,6 +956,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       addRelative,
       materializeUnknown,
       updateRelationshipType,
+      updateRelationship,
       updateRelationshipWeddingDate,
       createRelationship,
       deleteRelationship,

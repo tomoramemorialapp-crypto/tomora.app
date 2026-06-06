@@ -53,6 +53,7 @@ function toIntent(type: RelationshipType): RelationshipToAnchor | 'friend' | 'ch
       return 'parent';
     case 'step_parent':
     case 'parent_in_law':
+    case 'child_in_law':
       return null;
     case 'child':
       return 'child';
@@ -89,6 +90,7 @@ function roleLabelFor(type: RelationshipType): string {
     parent: 'Parent',
     step_parent: 'Step-parent',
     parent_in_law: 'Parent-in-law',
+    child_in_law: 'Child-in-law',
     child: 'Child',
     sibling: 'Sibling',
     grandparent: 'Grandparent',
@@ -140,17 +142,21 @@ function applyStoredRelationship(params: {
   if (
     rel.relationshipType === 'parent' ||
     rel.relationshipType === 'step_parent' ||
-    rel.relationshipType === 'parent_in_law'
+    rel.relationshipType === 'parent_in_law' ||
+    rel.relationshipType === 'child_in_law'
   ) {
-    const lineage = parentLineageFromRelationshipType(rel.relationshipType);
+    const lineage =
+      rel.relationshipType === 'child_in_law' ? 'in_law' : parentLineageFromRelationshipType(rel.relationshipType);
     const fromRole = parentRoleForLineage(lineage);
-    const id = `edge:parent_child:${targetId}->${sourceId}:${fromRole}`;
+    const parentId = rel.relationshipType === 'child_in_law' ? sourceId : targetId;
+    const childId = rel.relationshipType === 'child_in_law' ? targetId : sourceId;
+    const id = `edge:parent_child:${parentId}->${childId}:${fromRole}`;
     if (!hasEdge(existingEdges, id)) {
       existingEdges.push({
         id,
         familyTreeId,
-        fromNodeId: targetId,
-        toNodeId: sourceId,
+        fromNodeId: parentId,
+        toNodeId: childId,
         type: 'parent_child',
         status: 'confirmed',
         visibility: mapVisibility(rel.visibility),

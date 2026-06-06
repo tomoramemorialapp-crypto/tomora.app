@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import type { RelationshipDetail } from '@/lib/relationshipDetail';
 import type {
   Account,
   FamilyTree,
@@ -189,19 +190,33 @@ export async function addRelative(input: AddRelativeInput): Promise<AddRelativeR
   return { node: mapNode(nodeRow), relationship: mapRelationship(relRow) };
 }
 
-/** Change the relationship type between an existing relationship's endpoints. */
-export async function updateRelationshipType(
+/** Change the relationship type and/or gender-specific detail on an edge. */
+export async function updateRelationship(
   relationshipId: string,
-  relationshipType: RelationshipType,
+  updates: { relationshipType?: RelationshipType; relationshipDetail?: RelationshipDetail | null },
 ): Promise<Relationship> {
+  const patch: {
+    relationship_type?: RelationshipType;
+    relationship_detail?: RelationshipDetail | null;
+  } = {};
+  if (updates.relationshipType !== undefined) patch.relationship_type = updates.relationshipType;
+  if (updates.relationshipDetail !== undefined) patch.relationship_detail = updates.relationshipDetail;
   const { data, error } = await supabase
     .from('relationships')
-    .update({ relationship_type: relationshipType })
+    .update(patch)
     .eq('id', relationshipId)
     .select()
     .single();
   if (error) throw error;
   return mapRelationship(data);
+}
+
+/** @deprecated Prefer updateRelationship — kept for call sites that only change type. */
+export async function updateRelationshipType(
+  relationshipId: string,
+  relationshipType: RelationshipType,
+): Promise<Relationship> {
+  return updateRelationship(relationshipId, { relationshipType });
 }
 
 /** Set or clear the wedding / partnership date on a spouse or partner connection. */
@@ -226,6 +241,7 @@ export async function createRelationship(input: {
   fromNodeId: string;
   toNodeId: string;
   relationshipType: RelationshipType;
+  relationshipDetail?: RelationshipDetail;
 }): Promise<Relationship> {
   const { data, error } = await supabase
     .from('relationships')
@@ -234,6 +250,7 @@ export async function createRelationship(input: {
       from_node_id: input.fromNodeId,
       to_node_id: input.toNodeId,
       relationship_type: input.relationshipType,
+      relationship_detail: input.relationshipDetail ?? null,
       status: 'approved',
       created_by_account_id: input.accountId,
     })

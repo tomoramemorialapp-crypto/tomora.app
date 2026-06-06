@@ -7,34 +7,17 @@
  */
 
 import type { FamilyNode, Relationship, RelationshipType } from '@/types/models';
+import { INVERSE_RELATIONSHIP_TYPE } from '@/lib/relationshipDetail';
 import { relationshipLabel, relationshipPath } from '@/lib/relationshipUtils';
 
-export const INVERSE_RELATIONSHIP: Record<RelationshipType, RelationshipType> = {
-  self: 'self',
-  parent: 'child',
-  step_parent: 'child',
-  parent_in_law: 'child',
-  child: 'parent',
-  sibling: 'sibling',
-  grandparent: 'grandchild',
-  grandchild: 'grandparent',
-  aunt_uncle: 'niece_nephew',
-  niece_nephew: 'aunt_uncle',
-  cousin: 'cousin',
-  spouse: 'spouse',
-  partner: 'partner',
-  friend: 'friend',
-  pet: 'caretaker',
-  caretaker: 'pet',
-  chosen_family: 'chosen_family',
-  other: 'other',
-};
+export const INVERSE_RELATIONSHIP = INVERSE_RELATIONSHIP_TYPE;
 
 /** Choices when adding relative to someone other than the anchor user. */
 export const contextRelationshipChoices = [
   { id: 'parent', label: 'Their biological parent', relationshipType: 'parent' as const },
   { id: 'step_parent', label: 'Their step-parent', relationshipType: 'step_parent' as const },
   { id: 'parent_in_law', label: 'Their parent-in-law', relationshipType: 'parent_in_law' as const },
+  { id: 'child_in_law', label: 'Their child-in-law', relationshipType: 'child_in_law' as const },
   { id: 'child', label: 'Their child', relationshipType: 'child' as const },
   { id: 'sibling', label: 'Their sibling', relationshipType: 'sibling' as const },
   { id: 'spouse', label: 'Their spouse', relationshipType: 'spouse' as const },
@@ -80,16 +63,29 @@ export function composeContextualRelationship(
     spouse: {
       sibling: 'aunt_uncle',
       parent: 'parent_in_law',
+      parent_in_law: 'parent_in_law',
       child: 'child',
+      child_in_law: 'child_in_law',
       spouse: 'self',
       partner: 'self',
     },
     partner: {
       sibling: 'aunt_uncle',
       parent: 'parent_in_law',
+      parent_in_law: 'parent_in_law',
       child: 'child',
+      child_in_law: 'child_in_law',
       spouse: 'self',
       partner: 'self',
+    },
+    parent_in_law: {
+      child: 'child_in_law',
+      spouse: 'parent_in_law',
+      partner: 'parent_in_law',
+    },
+    child_in_law: {
+      parent: 'parent_in_law',
+      parent_in_law: 'parent_in_law',
     },
     aunt_uncle: {
       sibling: 'parent',

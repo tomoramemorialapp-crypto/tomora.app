@@ -530,6 +530,7 @@ export type Database = {
           family_tree_id: string
           from_node_id: string
           id: string
+          relationship_detail: string | null
           relationship_type: string
           status: string
           to_node_id: string
@@ -543,6 +544,7 @@ export type Database = {
           family_tree_id: string
           from_node_id: string
           id?: string
+          relationship_detail?: string | null
           relationship_type: string
           status?: string
           to_node_id: string
@@ -556,6 +558,7 @@ export type Database = {
           family_tree_id?: string
           from_node_id?: string
           id?: string
+          relationship_detail?: string | null
           relationship_type?: string
           status?: string
           to_node_id?: string

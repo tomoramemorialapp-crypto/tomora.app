@@ -44,12 +44,37 @@ export type RelationshipStatus =
   | 'rejected'
   | 'disputed';
 
+export type RelationshipDetail =
+  | 'father'
+  | 'mother'
+  | 'stepfather'
+  | 'stepmother'
+  | 'father_in_law'
+  | 'mother_in_law'
+  | 'son'
+  | 'daughter'
+  | 'son_in_law'
+  | 'daughter_in_law'
+  | 'brother'
+  | 'sister'
+  | 'grandfather'
+  | 'grandmother'
+  | 'grandson'
+  | 'granddaughter'
+  | 'uncle'
+  | 'aunt'
+  | 'nephew'
+  | 'niece'
+  | 'husband'
+  | 'wife';
+
 export type RelationshipType =
   | 'self'
   | 'parent'
   | 'step_parent'
   | 'parent_in_law'
   | 'child'
+  | 'child_in_law'
   | 'sibling'
   | 'grandparent'
   | 'grandchild'
@@ -163,6 +188,8 @@ export interface Relationship {
   fromNodeId: string;
   toNodeId: string;
   relationshipType: RelationshipType;
+  /** Gender-specific label from `from` node's perspective (e.g. father-in-law, son-in-law). */
+  relationshipDetail?: RelationshipDetail;
   status: RelationshipStatus;
   visibility: VisibilityLevel;
   /** ISO date (YYYY-MM-DD or YYYY-MM) for spouse/partner connections. */

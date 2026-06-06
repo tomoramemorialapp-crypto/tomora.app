@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -7,6 +7,19 @@ import { Dropdown } from '@/components/ui/Dropdown';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Body, Caption } from '@/components/ui/Typography';
 import { colors, radii, spacing } from '@/constants/theme';
+import {
+  INVERSE_RELATIONSHIP_TYPE,
+  connectionCaption,
+  detailOptionsForType,
+  isValidDetailForType,
+  perspectiveDetail,
+  perspectiveType,
+  relationshipTypeSupportsDetail,
+  storedDetail,
+  suggestDetailForType,
+  suggestInLawType,
+  type RelationshipDetail,
+} from '@/lib/relationshipDetail';
 import { useAppState } from '@/state/AppState';
 import type { FamilyNode, RelationshipType } from '@/types/models';
 import type { DateValue } from '@/types/profile';
@@ -17,6 +30,7 @@ const OPTIONS: { id: RelationshipType; label: string }[] = [
   { id: 'step_parent', label: 'Step-parent' },
   { id: 'parent_in_law', label: 'Parent-in-law' },
   { id: 'child', label: 'Child' },
+  { id: 'child_in_law', label: 'Child-in-law (spouse of child)' },
   { id: 'sibling', label: 'Sibling' },
   { id: 'spouse', label: 'Spouse' },
   { id: 'partner', label: 'Partner' },
@@ -32,32 +46,6 @@ const OPTIONS: { id: RelationshipType; label: string }[] = [
   { id: 'other', label: 'Not sure yet' },
 ];
 
-/** The reverse of a relationship, used to flip perspective on stored edges. */
-const INVERSE: Record<RelationshipType, RelationshipType> = {
-  self: 'self',
-  parent: 'child',
-  step_parent: 'child',
-  parent_in_law: 'child',
-  child: 'parent',
-  sibling: 'sibling',
-  grandparent: 'grandchild',
-  grandchild: 'grandparent',
-  aunt_uncle: 'niece_nephew',
-  niece_nephew: 'aunt_uncle',
-  cousin: 'cousin',
-  spouse: 'spouse',
-  partner: 'partner',
-  friend: 'friend',
-  pet: 'caretaker',
-  caretaker: 'pet',
-  chosen_family: 'chosen_family',
-  other: 'other',
-};
-
-function labelFor(type: RelationshipType): string {
-  return OPTIONS.find((o) => o.id === type)?.label ?? 'Connection';
-}
-
 /**
  * Edit how a node connects to the rest of the Family Tree: relink to specific
  * people (e.g. a sibling tied only to one parent), mark two parents as spouses,
@@ -71,10 +59,11 @@ function isPartnership(type: RelationshipType): boolean {
 export function ConnectionsEditor({ node }: { node: FamilyNode }) {
   const {
     nodes,
+    relationships,
     getRelationshipsForNode,
     createRelationship,
     deleteRelationship,
-    updateRelationshipType,
+    updateRelationship,
     updateRelationshipWeddingDate,
   } = useAppState();
 
@@ -84,23 +73,62 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
   const [adding, setAdding] = useState(false);
   const [newTargetId, setNewTargetId] = useState<string | undefined>(undefined);
   const [newType, setNewType] = useState<RelationshipType>('parent');
+  const [newDetail, setNewDetail] = useState<RelationshipDetail | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Nodes available to connect to (exclude self + already-connected).
   const connectedIds = new Set(
     rels.map((r) => (r.fromNodeId === node.id ? r.toNodeId : r.fromNodeId)),
   );
   const candidates = nodes.filter((n) => n.id !== node.id && !connectedIds.has(n.id));
 
-  // Perspective type for an edge: direct when this node is the source, else inverse.
-  const perspectiveType = (rel: (typeof rels)[number]): RelationshipType =>
-    rel.fromNodeId === node.id ? rel.relationshipType : INVERSE[rel.relationshipType];
+  const newTarget = newTargetId ? nodeById.get(newTargetId) : undefined;
+  const inLawHint =
+    newTargetId && suggestInLawType(node.id, newTargetId, relationships);
 
-  const onChangeType = async (relId: string, isSource: boolean, next: RelationshipType) => {
+  useEffect(() => {
+    if (!newTargetId || !newTarget) return;
+    const suggested = suggestInLawType(node.id, newTargetId, relationships);
+    const type = suggested ?? newType;
+    if (suggested) setNewType(suggested);
+    setNewDetail(suggestDetailForType(type, newTarget));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-suggest when target or graph changes
+  }, [newTargetId, relationships, node.id]);
+
+  const onChangeType = async (
+    relId: string,
+    isSource: boolean,
+    next: RelationshipType,
+    other?: FamilyNode,
+    currentDetail?: RelationshipDetail,
+  ) => {
     setBusy(true);
     try {
-      await updateRelationshipType(relId, isSource ? next : INVERSE[next]);
+      const storedType = isSource ? next : INVERSE_RELATIONSHIP_TYPE[next];
+      let detail = currentDetail;
+      if (detail && !isValidDetailForType(next, detail)) {
+        detail = other ? suggestDetailForType(next, other) : undefined;
+      }
+      await updateRelationship(relId, {
+        relationshipType: storedType,
+        relationshipDetail: storedDetail(isSource, detail) ?? null,
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onChangeDetail = async (
+    relId: string,
+    isSource: boolean,
+    type: RelationshipType,
+    detail: RelationshipDetail | undefined,
+  ) => {
+    setBusy(true);
+    try {
+      await updateRelationship(relId, {
+        relationshipDetail: storedDetail(isSource, detail) ?? null,
+      });
     } finally {
       setBusy(false);
     }
@@ -132,11 +160,16 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
     setBusy(true);
     setError(null);
     try {
-      await createRelationship({ fromNodeId: node.id, toNodeId: newTargetId, relationshipType: newType });
-      // Only dismiss the form once the connection actually persisted.
+      await createRelationship({
+        fromNodeId: node.id,
+        toNodeId: newTargetId,
+        relationshipType: newType,
+        relationshipDetail: newDetail,
+      });
       setAdding(false);
       setNewTargetId(undefined);
       setNewType('parent');
+      setNewDetail(undefined);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not add this connection. Please try again.');
     } finally {
@@ -148,8 +181,8 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
     <Card style={{ marginBottom: spacing.lg }}>
       <SectionHeader title="Connections" />
       <Caption style={{ marginTop: spacing.xs }}>
-        Choose exactly who {node.displayName} connects to — for example, a sibling tied only to one parent, or two
-        parents shown as spouses.
+        Choose exactly who {node.displayName} connects to — for example, a sibling tied only to one parent, a
+        father-in-law, or two parents shown as spouses.
       </Caption>
 
       <View style={{ gap: spacing.md, marginTop: spacing.md }}>
@@ -160,6 +193,10 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
             const otherId = rel.fromNodeId === node.id ? rel.toNodeId : rel.fromNodeId;
             const other = nodeById.get(otherId);
             const isSource = rel.fromNodeId === node.id;
+            const pType = perspectiveType(rel, node.id);
+            const pDetail = perspectiveDetail(rel, node.id);
+            const inLawSuggestion = other ? suggestInLawType(node.id, other.id, relationships) : null;
+
             return (
               <View
                 key={rel.id}
@@ -172,10 +209,36 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
                   </Pressable>
                 </View>
                 <Caption style={{ marginTop: 2, marginBottom: 6 }}>
-                  is {node.displayName}’s {labelFor(perspectiveType(rel)).toLowerCase()}
+                  {connectionCaption(node.displayName, pType, pDetail)}
                 </Caption>
-                <TypeChips value={perspectiveType(rel)} onChange={(t) => onChangeType(rel.id, isSource, t)} />
-                {isPartnership(perspectiveType(rel)) ? (
+                {inLawSuggestion && inLawSuggestion !== pType ? (
+                  <Caption style={{ color: colors.guardianGold, marginBottom: 6 }}>
+                    This connection may be a{' '}
+                    {inLawSuggestion === 'parent_in_law' ? 'parent-in-law' : 'child-in-law'} — consider updating the
+                    relationship type below.
+                  </Caption>
+                ) : null}
+                <Dropdown
+                  label={`Relationship — they are ${node.displayName}'s…`}
+                  value={pType}
+                  onChange={(v) => onChangeType(rel.id, isSource, v as RelationshipType, other, pDetail)}
+                  options={OPTIONS.map((o) => ({ value: o.id, label: o.label }))}
+                  placeholder="Choose a relationship"
+                />
+                {relationshipTypeSupportsDetail(pType) ? (
+                  <View style={{ marginTop: spacing.sm }}>
+                    <Dropdown
+                      label="Specific term"
+                      value={pDetail ?? ''}
+                      onChange={(v) =>
+                        onChangeDetail(rel.id, isSource, pType, (v || undefined) as RelationshipDetail | undefined)
+                      }
+                      options={detailOptionsForType(pType).map((o) => ({ value: o.id, label: o.label }))}
+                      placeholder="Choose father, mother, son, daughter…"
+                    />
+                  </View>
+                ) : null}
+                {isPartnership(pType) ? (
                   <View style={{ marginTop: spacing.sm }}>
                     <DateValueInput
                       label="Wedding date"
@@ -208,13 +271,34 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
                 searchable
               />
             )}
+            {inLawHint ? (
+              <Caption style={{ color: colors.guardianGold }}>
+                Based on your spouse connections, this looks like a{' '}
+                {inLawHint === 'parent_in_law' ? 'parent-in-law' : 'child-in-law'} relationship.
+              </Caption>
+            ) : null}
             <Dropdown
-              label={`Relationship — they are ${node.displayName}’s…`}
+              label={`Relationship — they are ${node.displayName}'s…`}
               value={newType}
-              onChange={(v) => setNewType(v as RelationshipType)}
+              onChange={(v) => {
+                const t = v as RelationshipType;
+                setNewType(t);
+                if (newTarget) {
+                  setNewDetail(suggestDetailForType(t, newTarget));
+                }
+              }}
               options={OPTIONS.map((o) => ({ value: o.id, label: o.label }))}
               placeholder="Choose a relationship"
             />
+            {relationshipTypeSupportsDetail(newType) && newTarget ? (
+              <Dropdown
+                label="Specific term"
+                value={newDetail ?? ''}
+                onChange={(v) => setNewDetail((v || undefined) as RelationshipDetail | undefined)}
+                options={detailOptionsForType(newType).map((o) => ({ value: o.id, label: o.label }))}
+                placeholder="Choose father, mother, son, daughter…"
+              />
+            ) : null}
             {error ? <Caption style={{ color: colors.error }}>{error}</Caption> : null}
             <View style={{ gap: spacing.sm }}>
               <Button
@@ -238,33 +322,5 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
         ) : null}
       </View>
     </Card>
-  );
-}
-
-function TypeChips({ value, onChange }: { value: RelationshipType; onChange: (t: RelationshipType) => void }) {
-  return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-      {OPTIONS.map((o) => (
-        <Chip key={o.id} label={o.label} active={o.id === value} onPress={() => onChange(o.id)} />
-      ))}
-    </View>
-  );
-}
-
-function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={{
-        backgroundColor: active ? 'rgba(184,135,47,0.14)' : colors.white,
-        borderColor: active ? colors.guardianGold : colors.mistBeige,
-        borderWidth: 1.5,
-        borderRadius: radii.pill,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-      }}
-    >
-      <Body style={{ fontSize: 13, color: active ? colors.guardianGold : colors.charcoal }}>{label}</Body>
-    </Pressable>
   );
 }

@@ -479,7 +479,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         email,
         password,
         normalized,
-        pendingClaim ? { next: 'claim' } : undefined,
+        pendingClaim ? { next: 'claim' } : { next: 'onboarding' },
       );
       if (!result.session) {
         // Email confirmation required — username is kept in draft until hydrate.

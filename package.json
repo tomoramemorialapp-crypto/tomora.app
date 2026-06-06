@@ -47,7 +47,8 @@
     "lint": "expo lint",
     "test": "vitest run",
     "db:check": "node scripts/check-supabase-migrations.mjs",
-    "db:apply-pending": "node scripts/apply-pending-migrations.mjs"
+    "db:apply-pending": "node scripts/apply-pending-migrations.mjs",
+    "auth:config": "node scripts/print-supabase-auth-config.mjs"
   },
   "private": true
 }

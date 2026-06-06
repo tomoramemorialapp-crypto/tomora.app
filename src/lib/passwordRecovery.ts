@@ -89,4 +89,8 @@ export function capturePasswordRecoveryFromCurrentUrl(nextParam?: string): boole
 // the callback URL is not whitelisted; hash still carries type=recovery.
 if (Platform.OS === 'web' && typeof window !== 'undefined') {
   capturePasswordRecoveryFromCurrentUrl();
+  // Forward email-verification / OAuth returns that landed on `/` to `/auth/callback`.
+  void import('@/lib/authUrl').then(({ redirectAuthReturnToCallbackIfNeeded }) => {
+    redirectAuthReturnToCallbackIfNeeded();
+  });
 }

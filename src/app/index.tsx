@@ -1,6 +1,7 @@
-import { useLayoutEffect } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Redirect } from 'expo-router';
+import { redirectAuthReturnToCallbackIfNeeded } from '@/lib/authUrl';
 import {
   capturePasswordRecoveryFromCurrentUrl,
   isPasswordRecoveryPendingSync,
@@ -12,10 +13,23 @@ import { colors, spacing } from '@/constants/theme';
 /** Entry point — wait for the session check, then route accordingly. */
 export default function Index() {
   const { loading, isOnboarded, passwordRecoveryPending } = useAppState();
+  const [forwardingAuth, setForwardingAuth] = useState(false);
 
   useLayoutEffect(() => {
     capturePasswordRecoveryFromCurrentUrl();
+    if (redirectAuthReturnToCallbackIfNeeded()) {
+      setForwardingAuth(true);
+    }
   }, []);
+
+  if (forwardingAuth) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.ivory, alignItems: 'center', justifyContent: 'center', gap: spacing.lg }}>
+        <TomoraEmblem size={96} />
+        <ActivityIndicator color={colors.guardianGold} />
+      </View>
+    );
+  }
 
   if (passwordRecoveryPending || isPasswordRecoveryPendingSync()) {
     return <Redirect href="/reset-password" />;

@@ -67,18 +67,21 @@ export default function AuthCallback() {
     (async () => {
       try {
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
-          const params = new URLSearchParams(window.location.search);
-          const code = params.get('code');
+          const search = new URLSearchParams(window.location.search.replace(/^\?/, ''));
+          const code = search.get('code');
           if (code) {
             const { error } = await supabase.auth.exchangeCodeForSession(code);
             if (error) throw error;
           }
         }
 
-        const session = await authService.getSession();
+        let session = await authService.getSession();
         if (!session && Platform.OS === 'web') {
-          // detectSessionInUrl may still be processing hash tokens — brief wait.
-          await new Promise((r) => setTimeout(r, 400));
+          // PKCE / hash tokens — detectSessionInUrl may finish shortly after mount.
+          for (let i = 0; i < 6 && !session; i++) {
+            await new Promise((r) => setTimeout(r, 250));
+            session = await authService.getSession();
+          }
         }
       } catch (e) {
         if (!cancelled) {
@@ -140,7 +143,11 @@ export default function AuthCallback() {
     setResendBusy(true);
     setResendNote(null);
     try {
-      await authService.resendEmailConfirmation(email, next === 'claim' ? { next: 'claim' } : undefined);
+      const nextHint = typeof next === 'string' ? next : next?.[0];
+      await authService.resendEmailConfirmation(
+        email,
+        nextHint === 'claim' ? { next: 'claim' } : { next: 'onboarding' },
+      );
       setResendNote('A new confirmation link is on its way. Check your inbox.');
     } catch (e) {
       setResendNote(e instanceof Error ? e.message : 'Could not resend the email. Please try again.');

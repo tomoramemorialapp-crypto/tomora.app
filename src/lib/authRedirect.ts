@@ -12,6 +12,10 @@ export type AuthCallbackIntent = {
 
 const LOCAL_DEV_HOSTS = new Set(['localhost', '127.0.0.1']);
 
+export function isLocalDevHost(hostname: string): boolean {
+  return LOCAL_DEV_HOSTS.has(hostname);
+}
+
 /** Best-effort public origin for the running app (web) or configured base URL. */
 export function getAppOrigin(): string {
   if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.origin) {
@@ -21,14 +25,16 @@ export function getAppOrigin(): string {
 }
 
 /**
- * Origin used in redirect URLs sent to Supabase Auth.
- * Production uses EXPO_PUBLIC_APP_URL; local dev uses the live window origin.
+ * Origin used in redirect URLs sent to Supabase Auth (emailRedirectTo, OAuth, reset).
+ * - Web on localhost → live dev origin (e.g. http://localhost:8081)
+ * - Web on production / preview → window.location.origin (never localhost)
+ * - Native → EXPO_PUBLIC_APP_URL
  */
 export function getAuthRedirectOrigin(): string {
   if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.hostname) {
     const current = window.location.origin.replace(/\/$/, '');
-    if (LOCAL_DEV_HOSTS.has(window.location.hostname)) return current;
-    if (current === APP_BASE_URL) return APP_BASE_URL;
+    if (isLocalDevHost(window.location.hostname)) return current;
+    // Deployed web (tomora.app, Vercel preview, etc.) — match the URL the user is on.
     return current;
   }
   return APP_BASE_URL;

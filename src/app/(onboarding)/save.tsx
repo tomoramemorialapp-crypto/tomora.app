@@ -67,7 +67,7 @@ export default function Save() {
     setResendNote(null);
     setResendBusy(true);
     try {
-      await authService.resendEmailConfirmation(email);
+      await authService.resendEmailConfirmation(email, { next: 'onboarding' });
       setResendNote('Verification email sent. Check your inbox and spam folder.');
     } catch (e: unknown) {
       setResendNote(e instanceof Error ? e.message : 'Could not resend. Please try again in a little while.');

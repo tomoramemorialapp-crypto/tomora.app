@@ -267,7 +267,7 @@ export default function YouScreen() {
 
         <Caption align="center">Signed in as {session?.user?.email ?? 'your account'}.</Caption>
 
-        <AppFooter />
+        <AppFooter warnSignOut />
       </View>
 
       <ShareSheet

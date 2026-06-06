@@ -396,7 +396,7 @@ export default function AccountSettings() {
         </View>
       </Card>
 
-      <AppFooter />
+      <AppFooter warnSignOut />
     </ScreenContainer>
   );
 }

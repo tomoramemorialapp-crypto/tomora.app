@@ -10,6 +10,11 @@ export const brand = {
     'A private Family Tree for the people you love, the memories you share, and the lives that continue to guide you.',
 };
 
+export const footer = {
+  clearCache: 'Clear cache to update',
+  clearingCache: 'Clearing…',
+};
+
 export const copy = {
   welcome: {
     tagline: 'ALWAYS WITH YOU',

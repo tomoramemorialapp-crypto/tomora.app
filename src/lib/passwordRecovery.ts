@@ -3,8 +3,23 @@ import { Platform } from 'react-native';
 
 const STORAGE_KEY = 'tomora:password-recovery-pending';
 
+/** In-memory flag for the current page load (survives if sessionStorage is unavailable). */
+let recoveryPendingMemory = false;
+
+/** Drop any persisted Supabase session so URL recovery tokens are not ignored. */
+export function clearSupabaseAuthStorageSync(): void {
+  if (Platform.OS !== 'web' || typeof localStorage === 'undefined') return;
+  const keys: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key?.startsWith('sb-')) keys.push(key);
+  }
+  keys.forEach((key) => localStorage.removeItem(key));
+}
+
 /** Mark that the user opened a password-reset link and must set a new password. */
 export async function markPasswordRecoveryPending(): Promise<void> {
+  recoveryPendingMemory = true;
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
     window.sessionStorage.setItem(STORAGE_KEY, '1');
     return;
@@ -13,6 +28,7 @@ export async function markPasswordRecoveryPending(): Promise<void> {
 }
 
 export async function isPasswordRecoveryPending(): Promise<boolean> {
+  if (recoveryPendingMemory) return true;
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
     return window.sessionStorage.getItem(STORAGE_KEY) === '1';
   }
@@ -21,6 +37,7 @@ export async function isPasswordRecoveryPending(): Promise<boolean> {
 
 /** Synchronous check for web only — used before async hydration on cold start. */
 export function isPasswordRecoveryPendingSync(): boolean {
+  if (recoveryPendingMemory) return true;
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
     return window.sessionStorage.getItem(STORAGE_KEY) === '1';
   }
@@ -28,6 +45,7 @@ export function isPasswordRecoveryPendingSync(): boolean {
 }
 
 export async function clearPasswordRecoveryPending(): Promise<void> {
+  recoveryPendingMemory = false;
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
     window.sessionStorage.removeItem(STORAGE_KEY);
     return;
@@ -35,11 +53,12 @@ export async function clearPasswordRecoveryPending(): Promise<void> {
   await AsyncStorage.removeItem(STORAGE_KEY);
 }
 
-function readUrlParams(): { search: URLSearchParams; hash: URLSearchParams } | null {
+function readUrlParams(): { search: URLSearchParams; hash: URLSearchParams; hashRaw: string } | null {
   if (Platform.OS !== 'web' || typeof window === 'undefined') return null;
   const search = new URLSearchParams(window.location.search.replace(/^\?/, ''));
-  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-  return { search, hash };
+  const hashRaw = window.location.hash.replace(/^#/, '');
+  const hash = new URLSearchParams(hashRaw);
+  return { search, hash, hashRaw };
 }
 
 /** True when the current URL is a Supabase password-recovery return. */
@@ -48,6 +67,7 @@ export function urlIndicatesPasswordRecovery(nextParam?: string): boolean {
   const params = readUrlParams();
   if (!params) return false;
   return (
+    params.hashRaw.includes('type=recovery') ||
     params.hash.get('type') === 'recovery' ||
     params.search.get('type') === 'recovery' ||
     params.search.get('next') === 'reset-password'
@@ -56,13 +76,11 @@ export function urlIndicatesPasswordRecovery(nextParam?: string): boolean {
 
 /**
  * Capture recovery intent from the URL before Supabase clears hash tokens.
- * Call synchronously as early as possible on any auth return route.
+ * Clears any stale persisted session so recovery tokens in the URL take effect.
  */
 export function capturePasswordRecoveryFromCurrentUrl(nextParam?: string): boolean {
   if (!urlIndicatesPasswordRecovery(nextParam)) return false;
-  if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    window.sessionStorage.setItem(STORAGE_KEY, '1');
-  }
+  clearSupabaseAuthStorageSync();
   void markPasswordRecoveryPending();
   return true;
 }

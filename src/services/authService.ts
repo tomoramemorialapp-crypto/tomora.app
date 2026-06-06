@@ -110,7 +110,13 @@ export async function signInWithIdentifier(identifier: string, password: string)
 }
 
 export async function signOut(): Promise<void> {
-  await supabase.auth.signOut();
+  try {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  } catch {
+    // Network or server errors can leave a stale local session — always clear on device.
+    await supabase.auth.signOut({ scope: 'local' });
+  }
 }
 
 export async function getSession(): Promise<Session | null> {

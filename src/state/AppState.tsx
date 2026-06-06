@@ -479,6 +479,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   );
 
   const resetAll = useCallback(async () => {
+    await clearPasswordRecoveryPending();
     await authService.signOut();
     clearStoredDraft();
     setSession(null);

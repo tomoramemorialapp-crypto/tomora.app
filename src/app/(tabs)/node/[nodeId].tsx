@@ -16,6 +16,7 @@ import { copy } from '@/constants/copy';
 import { useAppState } from '@/state/AppState';
 import { goBack } from '@/lib/navigation';
 import { relationshipPath } from '@/lib/relationshipUtils';
+import { formatPreviousNamesList } from '@/lib/previousNames';
 import { editScopeFor, formatDateValue, formatGenderSex, formatPlace, resolvePersonName } from '@/lib/profile';
 
 export default function LifeProfile() {
@@ -66,6 +67,12 @@ export default function LifeProfile() {
     ...(nameParts.middleName ? [{ label: 'Middle name', value: nameParts.middleName }] : []),
     ...(nameParts.surname ? [{ label: 'Surname', value: nameParts.surname }] : []),
     ...(nameParts.suffix ? [{ label: 'Suffix', value: nameParts.suffix }] : []),
+    ...(profile.alternateNames?.value?.length
+      ? [{ label: 'Also known as', value: profile.alternateNames.value.join(', ') }]
+      : []),
+    ...(profile.previousNames?.value?.length
+      ? [{ label: 'Previous names', value: formatPreviousNamesList(profile.previousNames.value) }]
+      : []),
     { label: 'Date of birth', value: formatDateValue(profile.dateOfBirth?.value) },
     { label: 'Date of death', value: formatDateValue(profile.dateOfDeath?.value) },
     { label: 'Place of birth', value: formatPlace(profile.placeOfBirth?.value) },

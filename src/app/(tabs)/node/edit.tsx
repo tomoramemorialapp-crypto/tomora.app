@@ -18,6 +18,7 @@ import { MultiSelect } from '@/components/ui/MultiSelect';
 import { PlaceField } from '@/components/ui/PlaceField';
 import { SuggestChangeModal } from '@/components/profile/SuggestChangeModal';
 import { ConnectionsEditor } from '@/components/profile/ConnectionsEditor';
+import { PreviousNamesEditor } from '@/components/profile/PreviousNamesEditor';
 import {
   COUNTRIES,
   GENDER_OPTIONS,
@@ -53,6 +54,11 @@ import {
 } from '@/lib/profile';
 import type { PersonName } from '@/types/profile';
 import type { ChangeLogEntryInput } from '@/services/profileService';
+import {
+  previousNamesFromProfile,
+  previousNamesToProfile,
+  type PreviousNameDraft,
+} from '@/lib/previousNames';
 
 const GENDER_DISPLAY: GenderSexField['displayPreference'][] = ['show_gender', 'show_sex', 'show_both', 'hide'];
 
@@ -105,6 +111,9 @@ function EditProfileEditor({ nodeId }: { nodeId: string }) {
   const [suffix, setSuffix] = useState(initialName.suffix ?? '');
   const [photo, setPhoto] = useState(profile.profilePhoto?.value ?? '');
   const [altNames, setAltNames] = useState(listToString(profile.alternateNames?.value));
+  const [previousNames, setPreviousNames] = useState<PreviousNameDraft[]>(() =>
+    previousNamesFromProfile(profile.previousNames?.value),
+  );
 
   const [dob, setDob] = useState<DateValue | undefined>(profile.dateOfBirth?.value);
   const [dod, setDod] = useState<DateValue | undefined>(profile.dateOfDeath?.value);
@@ -275,6 +284,8 @@ function EditProfileEditor({ nodeId }: { nodeId: string }) {
     apply('name', nameValue, isPersonNameEmpty(nameValue));
     apply('profilePhoto', photo.trim(), !photo.trim());
     apply('alternateNames', stringToList(altNames), stringToList(altNames).length === 0);
+    const prevNamesValue = previousNamesToProfile(previousNames);
+    apply('previousNames', prevNamesValue, prevNamesValue.length === 0);
 
     apply('dateOfBirth', dob, !dob);
     // Death details are only persisted for nodes already marked as passed.
@@ -341,6 +352,10 @@ function EditProfileEditor({ nodeId }: { nodeId: string }) {
     const rows: { key: ProfileFieldKey; value: string }[] = [
       { key: 'name', value: formatPersonName(resolvePersonName(profile, node.displayName)) },
       { key: 'alternateNames', value: listToString(profile.alternateNames?.value) },
+      {
+        key: 'previousNames',
+        value: (profile.previousNames?.value ?? []).map((p) => p.name).join(', '),
+      },
       { key: 'dateOfBirth', value: formatDateValue(profile.dateOfBirth?.value) },
       { key: 'dateOfDeath', value: formatDateValue(profile.dateOfDeath?.value) },
       { key: 'placeOfBirth', value: formatPlace(profile.placeOfBirth?.value) },
@@ -436,6 +451,12 @@ function EditProfileEditor({ nodeId }: { nodeId: string }) {
             placeholder="Comma separated"
           />
           <VisibilitySelector value={vis.alternateNames ?? 'family_tree'} onChange={setFieldVis('alternateNames')} label="Alternate names visibility" />
+          <PreviousNamesEditor entries={previousNames} onChange={setPreviousNames} />
+          <VisibilitySelector
+            value={vis.previousNames ?? 'family_tree'}
+            onChange={setFieldVis('previousNames')}
+            label="Previous names visibility"
+          />
         </View>
       </Card>
 

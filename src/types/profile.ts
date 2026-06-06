@@ -55,6 +55,25 @@ export interface PersonName {
   suffix?: string;
 }
 
+export type PreviousNameType =
+  | 'maiden_name'
+  | 'married_name'
+  | 'legal_change'
+  | 'adopted_name'
+  | 'alternate_spelling'
+  | 'romanization'
+  | 'other';
+
+/** A prior legal or commonly used name kept for genealogy and records. */
+export interface PreviousName {
+  id: string;
+  name: string;
+  type?: PreviousNameType;
+  fromDate?: string;
+  toDate?: string;
+  notes?: string;
+}
+
 export type FieldStatus =
   | 'draft'
   | 'confirmed'
@@ -104,6 +123,7 @@ export interface NodeProfile {
   profilePhoto?: ProfileField<string>;
   name?: ProfileField<PersonName>;
   alternateNames?: ProfileField<string[]>;
+  previousNames?: ProfileField<PreviousName[]>;
   dateOfBirth?: ProfileField<DateValue>;
   dateOfDeath?: ProfileField<DateValue>;
   placeOfBirth?: ProfileField<PlaceReference>;
@@ -119,6 +139,7 @@ export const PROFILE_FIELD_KEYS: ProfileFieldKey[] = [
   'profilePhoto',
   'name',
   'alternateNames',
+  'previousNames',
   'dateOfBirth',
   'dateOfDeath',
   'placeOfBirth',
@@ -132,6 +153,7 @@ export const PROFILE_FIELD_LABELS: Record<ProfileFieldKey, string> = {
   profilePhoto: 'Profile Photo',
   name: 'Name',
   alternateNames: 'Alternate, Nick, or Alias Names',
+  previousNames: 'Previous Names',
   dateOfBirth: 'Date of Birth',
   dateOfDeath: 'Date of Death',
   placeOfBirth: 'Place of Birth',

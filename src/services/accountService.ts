@@ -1,3 +1,4 @@
+import { validatePasswordLength } from '@/lib/passwordPolicy';
 import { supabase } from '@/lib/supabase';
 import type { Account, FamilyNode, PublicProfileConfig, SocialLinks, ThemePreference } from '@/types/models';
 import type { Json, Tables, TablesUpdate } from '@/types/database.types';
@@ -86,6 +87,9 @@ export async function updateEmail(newEmail: string): Promise<void> {
 
 /** Change the signed-in user's password. */
 export async function updatePassword(newPassword: string): Promise<void> {
+  const passwordError = validatePasswordLength(newPassword);
+  if (passwordError) throw new Error(passwordError);
+
   const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) throw error;
 }

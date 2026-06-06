@@ -21,6 +21,8 @@ import {
   suggestInLawType,
   type RelationshipDetail,
 } from '@/lib/relationshipDetail';
+import { ParentPairingPrompt } from '@/components/family-tree/ParentPairingPrompt';
+import { buildParentPartnershipEdge, detectParentPairingOpportunity, type ParentPairingOpportunity } from '@/lib/parentPairing';
 import { useAppState } from '@/state/AppState';
 import type { FamilyNode, RelationshipType } from '@/types/models';
 import type { DateValue } from '@/types/profile';
@@ -78,6 +80,8 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
   const [newDetail, setNewDetail] = useState<RelationshipDetail | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pairingOpportunity, setPairingOpportunity] = useState<ParentPairingOpportunity | null>(null);
+  const [pairingBusy, setPairingBusy] = useState(false);
 
   const connectedIds = new Set(
     rels.map((r) => (r.fromNodeId === node.id ? r.toNodeId : r.fromNodeId)),
@@ -171,10 +175,39 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
         relationshipType: newType,
         relationshipDetail: storedDetail(true, newDetail),
       });
+
+      const opportunity =
+        newType === 'parent' || newType === 'step_parent'
+          ? detectParentPairingOpportunity({
+              childId: node.id,
+              nodes,
+              relationships: [
+                ...relationships,
+                {
+                  id: '__pending__',
+                  familyTreeId: node.familyTreeId,
+                  fromNodeId: node.id,
+                  toNodeId: newTargetId,
+                  relationshipType: newType,
+                  relationshipDetail: storedDetail(true, newDetail),
+                  status: 'approved',
+                  visibility: 'family_tree',
+                  createdByAccountId: '',
+                  createdAt: '',
+                  updatedAt: '',
+                },
+              ],
+            })
+          : null;
+
       setAdding(false);
       setNewTargetId(undefined);
       setNewType('parent');
       setNewDetail(undefined);
+
+      if (opportunity) {
+        setPairingOpportunity(opportunity);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not add this connection. Please try again.');
     } finally {
@@ -182,7 +215,50 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
     }
   };
 
+  const onConfirmPairing = async (params: {
+    choice: import('@/lib/parentPairing').ParentPartnershipChoice;
+    lifecycle: import('@/lib/parentPairing').PartnershipLifecycle;
+    husbandParentId?: string;
+  }) => {
+    if (!pairingOpportunity) return;
+    if (params.choice === 'co_parent_only') {
+      setPairingOpportunity(null);
+      return;
+    }
+
+    setPairingBusy(true);
+    try {
+      const edge = buildParentPartnershipEdge({
+        fromParentId: pairingOpportunity.parentAId,
+        toParentId: pairingOpportunity.parentBId,
+        choice: params.choice,
+        husbandParentId: params.husbandParentId,
+        nodes,
+      });
+      await createRelationship({
+        fromNodeId: edge.fromNodeId,
+        toNodeId: edge.toNodeId,
+        relationshipType: edge.relationshipType,
+        relationshipDetail: edge.relationshipDetail,
+      });
+      setPairingOpportunity(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not connect these parents. Please try again.');
+    } finally {
+      setPairingBusy(false);
+    }
+  };
+
   return (
+    <>
+    <ParentPairingPrompt
+      visible={!!pairingOpportunity}
+      opportunity={pairingOpportunity}
+      nodes={liveNodes}
+      busy={pairingBusy}
+      onConfirm={onConfirmPairing}
+      onDismiss={() => setPairingOpportunity(null)}
+    />
     <Card style={{ marginBottom: spacing.lg }}>
       <SectionHeader title="Connections" />
       <Caption style={{ marginTop: spacing.xs }}>
@@ -328,5 +404,6 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
         ) : null}
       </View>
     </Card>
+    </>
   );
 }

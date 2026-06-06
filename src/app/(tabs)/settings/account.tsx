@@ -16,6 +16,7 @@ import { useLanguage } from '@/i18n';
 import { isEmailVerified, resendEmailConfirmation } from '@/services/authService';
 import { publicProfileUrl } from '@/constants/urls';
 import { usernameChangesRemaining } from '@/services/accountService';
+import { passwordMinLengthHint, validatePasswordLength } from '@/lib/passwordPolicy';
 import { normalizeUsername } from '@/lib/username';
 import { Badge } from '@/components/ui/Badge';
 import { Toggle } from '@/components/ui/Toggle';
@@ -200,8 +201,9 @@ export default function AccountSettings() {
 
   const onChangePassword = async () => {
     setPwMsg(null);
-    if (password.length < 8) {
-      setPwMsg('Use at least 8 characters.');
+    const passwordError = validatePasswordLength(password);
+    if (passwordError) {
+      setPwMsg(passwordError);
       return;
     }
     try {
@@ -385,7 +387,7 @@ export default function AccountSettings() {
               label="New password"
               value={password}
               onChangeText={setPassword}
-              placeholder="At least 8 characters"
+              placeholder={passwordMinLengthHint()}
               autoCapitalize="none"
               secureTextEntry={!showPassword}
             />

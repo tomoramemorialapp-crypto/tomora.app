@@ -11,10 +11,12 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Body, Caption, Display, Title } from '@/components/ui/Typography';
 import { DisconnectedNodeBridgePrompt } from '@/components/family-tree/DisconnectedNodeBridgePrompt';
+import { ParentPairingPrompt } from '@/components/family-tree/ParentPairingPrompt';
 import { colors, spacing } from '@/constants/theme';
 import { relationshipChoices } from '@/constants/copy';
 import { goBack } from '@/lib/navigation';
 import { contextRelationshipChoices, previewInferredConnections } from '@/lib/contextualAdd';
+import { buildParentPartnershipEdge, type ParentPairingOpportunity } from '@/lib/parentPairing';
 import { useAppState } from '@/state/AppState';
 import type { RelationshipType } from '@/types/models';
 
@@ -24,7 +26,7 @@ type ContextChoice = (typeof contextRelationshipChoices)[number];
 export default function NewRelative() {
   const router = useRouter();
   const { contextNodeId } = useLocalSearchParams<{ contextNodeId?: string }>();
-  const { addRelative, nodes, relationships, account } = useAppState();
+  const { addRelative, createRelationship, nodes, relationships, account } = useAppState();
 
   const anchorNode = useMemo(
     () =>
@@ -42,6 +44,8 @@ export default function NewRelative() {
   const [isRemembered, setIsRemembered] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pairingOpportunity, setPairingOpportunity] = useState<ParentPairingOpportunity | null>(null);
+  const [pairingBusy, setPairingBusy] = useState(false);
 
   const choice = isContextual ? contextChoice : anchorChoice;
   const relationshipType = choice?.relationshipType;
@@ -65,13 +69,18 @@ export default function NewRelative() {
     setError(null);
     setBusy(true);
     try {
-      await addRelative({
+      const { pairingOpportunity } = await addRelative({
         name: name.trim(),
         relationshipType,
         isRemembered,
         tags: isUnsure ? ['Unknown link'] : undefined,
         contextNodeId: isContextual ? contextNode!.id : undefined,
       });
+
+      if (pairingOpportunity) {
+        setPairingOpportunity(pairingOpportunity);
+        return;
+      }
       goBack(router);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Could not add this family member. Please try again.');
@@ -80,7 +89,55 @@ export default function NewRelative() {
     }
   };
 
+  const onConfirmPairing = async (params: {
+    choice: import('@/lib/parentPairing').ParentPartnershipChoice;
+    lifecycle: import('@/lib/parentPairing').PartnershipLifecycle;
+    husbandParentId?: string;
+  }) => {
+    if (!pairingOpportunity) return;
+    if (params.choice === 'co_parent_only') {
+      setPairingOpportunity(null);
+      goBack(router);
+      return;
+    }
+
+    setPairingBusy(true);
+    try {
+      const edge = buildParentPartnershipEdge({
+        fromParentId: pairingOpportunity.parentAId,
+        toParentId: pairingOpportunity.parentBId,
+        choice: params.choice,
+        husbandParentId: params.husbandParentId,
+        nodes,
+      });
+      await createRelationship({
+        fromNodeId: edge.fromNodeId,
+        toNodeId: edge.toNodeId,
+        relationshipType: edge.relationshipType,
+        relationshipDetail: edge.relationshipDetail,
+      });
+      setPairingOpportunity(null);
+      goBack(router);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Could not connect these parents. Please try again.');
+    } finally {
+      setPairingBusy(false);
+    }
+  };
+
   return (
+    <>
+    <ParentPairingPrompt
+      visible={!!pairingOpportunity}
+      opportunity={pairingOpportunity}
+      nodes={nodes}
+      busy={pairingBusy}
+      onConfirm={onConfirmPairing}
+      onDismiss={() => {
+        setPairingOpportunity(null);
+        goBack(router);
+      }}
+    />
     <ScreenContainer
       maxWidth={620}
       footer={
@@ -181,5 +238,6 @@ export default function NewRelative() {
         {error ? <Caption style={{ color: colors.error, fontSize: 14 }}>{error}</Caption> : null}
       </View>
     </ScreenContainer>
+    </>
   );
 }

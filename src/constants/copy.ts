@@ -135,6 +135,24 @@ export const relationshipChoices = [
   { id: 'unsure', label: 'Not sure yet', relationshipType: 'other' },
 ] as const;
 
+/** Soft prompt when a child gains a second parent without a partnership edge. */
+export const parentPairingCopy = {
+  title: 'Connect these parents?',
+  body: (parentA: string, parentB: string, child: string) =>
+    `${parentA} and ${parentB} are both parents of ${child}. Would you like to show them as a couple on your Family Tree?`,
+  note: 'Tomora never assumes marriage or partnership — you choose what fits your family.',
+  spouses: 'Spouses (husband & wife)',
+  partners: 'Partners',
+  coParentsOnly: 'Co-parents only',
+  notNow: 'Not now',
+  husbandPrompt: 'Who is the husband?',
+  statusPrompt: 'Partnership status',
+  separatedNote: 'They will still appear as connected for your tree layout; you can update details anytime.',
+  confirm: 'Connect parents',
+  preview: (from: string, to: string, type: string) =>
+    `This will link ${from} and ${to} as ${type === 'spouse' ? 'spouses' : 'partners'}.`,
+};
+
 /** Warm copy for the disconnected / unclear-connection bridge prompt. */
 export const bridgePrompt = {
   title: 'How is this person connected to your Family Tree?',

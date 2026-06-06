@@ -118,6 +118,11 @@ export default function AuthCallback() {
       return;
     }
 
+    if (nextHint === 'onboarding') {
+      router.replace(isOnboarded ? '/(tabs)' : '/(onboarding)/privacy');
+      return;
+    }
+
     router.replace(isOnboarded ? '/(tabs)' : '/welcome');
   }, [status, loading, isOnboarded, passwordRecoveryPending, next, router]);
 

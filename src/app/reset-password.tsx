@@ -9,6 +9,7 @@ import { Body, Caption, Display } from '@/components/ui/Typography';
 import { GoldStar } from '@/components/brand/GoldStar';
 import { colors, spacing } from '@/constants/theme';
 import { copy } from '@/constants/copy';
+import { passwordMeetsMinLength, passwordMinLengthHint } from '@/lib/passwordPolicy';
 import * as authService from '@/services/authService';
 import { useAppState } from '@/state/AppState';
 
@@ -30,7 +31,7 @@ export default function ResetPassword() {
   }, [loading, session]);
 
   const passwordsMatch = password === confirm;
-  const canSubmit = password.length >= 6 && passwordsMatch && !busy && !!session;
+  const canSubmit = passwordMeetsMinLength(password) && passwordsMatch && !busy && !!session;
 
   const onSubmit = async () => {
     if (!canSubmit) return;
@@ -92,7 +93,7 @@ export default function ResetPassword() {
               label="New password"
               value={password}
               onChangeText={setPassword}
-              placeholder="At least 6 characters"
+              placeholder={passwordMinLengthHint()}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
             />

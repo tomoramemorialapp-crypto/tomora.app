@@ -7,6 +7,7 @@ import {
   getPasswordResetRedirectUrl,
   type AuthCallbackIntent,
 } from '@/lib/authRedirect';
+import { validatePasswordLength } from '@/lib/passwordPolicy';
 import { supabase } from '@/lib/supabase';
 import { isEmailIdentifier } from '@/lib/username';
 import type { Session } from '@supabase/supabase-js';
@@ -44,6 +45,9 @@ export function friendlyAuthError(error: unknown): string {
   if (msg.includes('recovery email') || msg.includes('reset password')) {
     return 'Could not send the reset email. Check your SMTP settings in Supabase, or try again in a few minutes.';
   }
+  if (msg.includes('oauth') || msg.includes('provider')) {
+    return 'Sign-in with this provider is not available yet. Try email and password, or check Supabase Auth provider settings.';
+  }
   return error.message;
 }
 
@@ -76,6 +80,9 @@ export async function signUpWithEmail(
   username: string,
   intent?: AuthCallbackIntent,
 ): Promise<SignUpResult> {
+  const passwordError = validatePasswordLength(password);
+  if (passwordError) throw new Error(passwordError);
+
   const normalizedEmail = normalizeAuthEmail(email);
   const { data, error } = await supabase.auth.signUp({
     email: normalizedEmail,
@@ -145,6 +152,9 @@ export async function requestPasswordReset(identifier: string): Promise<void> {
 
 /** Set a new password after the user opens the recovery link (requires active recovery session). */
 export async function completePasswordReset(newPassword: string): Promise<Session> {
+  const passwordError = validatePasswordLength(newPassword);
+  if (passwordError) throw new Error(passwordError);
+
   const { data, error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) throw new Error(friendlyAuthError(error));
   if (!data.user) throw new Error('Could not update your password. Please try again.');
@@ -176,8 +186,11 @@ export async function refreshUser(): Promise<Session | null> {
  * Start Google or Apple sign-in. On web the browser redirects away; on native an
  * in-app auth session completes the OAuth code exchange.
  */
-export async function signInWithOAuth(provider: OAuthProvider): Promise<void> {
-  const redirectTo = getOAuthRedirectUrl();
+export async function signInWithOAuth(
+  provider: OAuthProvider,
+  intent?: AuthCallbackIntent,
+): Promise<void> {
+  const redirectTo = getOAuthRedirectUrl(intent);
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
     options: {

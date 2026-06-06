@@ -9,11 +9,11 @@ import { Body, Caption, Display } from '@/components/ui/Typography';
 import { GoldStar } from '@/components/brand/GoldStar';
 import { AppFooter } from '@/components/brand/AppFooter';
 import { colors, spacing } from '@/constants/theme';
-import { OAUTH_SIGN_IN_ENABLED } from '@/constants/app';
+import { OAuthSignInButtons } from '@/components/auth/OAuthSignInButtons';
 import { copy } from '@/constants/copy';
 import { useT } from '@/i18n';
+import { passwordMeetsMinLength, passwordMinLengthHint } from '@/lib/passwordPolicy';
 import { isEmailIdentifier, isUsernameIdentifier } from '@/lib/username';
-import * as authService from '@/services/authService';
 import { useAppState } from '@/state/AppState';
 
 export default function Login() {
@@ -26,23 +26,9 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [oauthBusy, setOauthBusy] = useState<'google' | 'apple' | null>(null);
-
   const trimmed = identifier.trim();
   const validIdentifier = isEmailIdentifier(trimmed) || isUsernameIdentifier(trimmed);
-  const canSubmit = validIdentifier && password.length >= 6 && !busy;
-
-  const onOAuth = async (provider: 'google' | 'apple') => {
-    setError(null);
-    setOauthBusy(provider);
-    try {
-      await authService.signInWithOAuth(provider);
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "We couldn't log you in. Please try again.";
-      setError(message);
-      setOauthBusy(null);
-    }
-  };
+  const canSubmit = validIdentifier && passwordMeetsMinLength(password) && !busy;
 
   const onSubmit = async () => {
     setError(null);
@@ -81,7 +67,7 @@ export default function Login() {
               label="Password"
               value={password}
               onChangeText={setPassword}
-              placeholder="Your password"
+              placeholder={passwordMinLengthHint()}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
               onSubmitEditing={() => canSubmit && onSubmit()}
@@ -105,20 +91,7 @@ export default function Login() {
 
         <View style={{ gap: spacing.md, marginTop: spacing.md }}>
           <Button label={t('login.cta')} variant="gold" disabled={!canSubmit} loading={busy} onPress={onSubmit} />
-          <Button
-            label={OAUTH_SIGN_IN_ENABLED ? copy.save.google : `${copy.save.google} · Soon`}
-            variant="secondary"
-            disabled={!OAUTH_SIGN_IN_ENABLED || !!oauthBusy || busy}
-            loading={OAUTH_SIGN_IN_ENABLED && oauthBusy === 'google'}
-            onPress={() => onOAuth('google')}
-          />
-          <Button
-            label={OAUTH_SIGN_IN_ENABLED ? copy.save.apple : `${copy.save.apple} · Soon`}
-            variant="secondary"
-            disabled={!OAUTH_SIGN_IN_ENABLED || !!oauthBusy || busy}
-            loading={OAUTH_SIGN_IN_ENABLED && oauthBusy === 'apple'}
-            onPress={() => onOAuth('apple')}
-          />
+          <OAuthSignInButtons disabled={busy} onError={setError} />
           <Button
             label={t('login.noAccount')}
             variant="ghost"

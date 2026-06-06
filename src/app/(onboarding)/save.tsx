@@ -10,8 +10,9 @@ import { LightDivider } from '@/components/brand/LightDivider';
 import { Body, Caption, Display, Title } from '@/components/ui/Typography';
 import { GoldStar } from '@/components/brand/GoldStar';
 import { colors, spacing } from '@/constants/theme';
-import { OAUTH_SIGN_IN_ENABLED } from '@/constants/app';
+import { OAuthSignInButtons } from '@/components/auth/OAuthSignInButtons';
 import { copy } from '@/constants/copy';
+import { passwordMeetsMinLength, passwordMinLengthHint } from '@/lib/passwordPolicy';
 import { normalizeUsername, validateUsername } from '@/lib/username';
 import * as authService from '@/services/authService';
 import { useAppState } from '@/state/AppState';
@@ -30,25 +31,14 @@ export default function Save() {
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
   const [resendBusy, setResendBusy] = useState(false);
   const [resendNote, setResendNote] = useState<string | null>(null);
-  const [oauthBusy, setOauthBusy] = useState<'google' | 'apple' | null>(null);
-
   const normalizedUsername = normalizeUsername(username);
   const usernameError = username ? validateUsername(normalizedUsername) : 'Choose a username.';
   const canSave =
-    /\S+@\S+\.\S+/.test(email) && !usernameError && normalizedUsername.length > 0 && password.length >= 6 && !busy;
-
-  const onOAuth = async (provider: 'google' | 'apple') => {
-    setError(null);
-    setOauthBusy(provider);
-    try {
-      await authService.signInWithOAuth(provider);
-      // Web redirects away; native completes via exchangeCodeForSession + auth listener.
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'Could not sign in. Please try again.';
-      setError(message);
-      setOauthBusy(null);
-    }
-  };
+    /\S+@\S+\.\S+/.test(email) &&
+    !usernameError &&
+    normalizedUsername.length > 0 &&
+    passwordMeetsMinLength(password) &&
+    !busy;
 
   const onSave = async () => {
     setError(null);
@@ -129,19 +119,10 @@ export default function Save() {
       footer={
         <View style={{ gap: spacing.md }}>
           <Button label="Save my Family Tree" variant="gold" disabled={!canSave} loading={busy} onPress={onSave} />
-          <Button
-            label={OAUTH_SIGN_IN_ENABLED ? copy.save.google : `${copy.save.google} · Soon`}
-            variant="secondary"
-            disabled={!OAUTH_SIGN_IN_ENABLED || !!oauthBusy || busy}
-            loading={OAUTH_SIGN_IN_ENABLED && oauthBusy === 'google'}
-            onPress={() => onOAuth('google')}
-          />
-          <Button
-            label={OAUTH_SIGN_IN_ENABLED ? copy.save.apple : `${copy.save.apple} · Soon`}
-            variant="secondary"
-            disabled={!OAUTH_SIGN_IN_ENABLED || !!oauthBusy || busy}
-            loading={OAUTH_SIGN_IN_ENABLED && oauthBusy === 'apple'}
-            onPress={() => onOAuth('apple')}
+          <OAuthSignInButtons
+            intent={{ next: 'onboarding' }}
+            disabled={busy}
+            onError={setError}
           />
         </View>
       }
@@ -179,7 +160,7 @@ export default function Save() {
               label="Password"
               value={password}
               onChangeText={setPassword}
-              placeholder="At least 6 characters"
+              placeholder={passwordMinLengthHint()}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
             />
@@ -193,9 +174,6 @@ export default function Save() {
         </View>
 
         {error ? <Caption style={{ color: colors.error, fontSize: 14 }}>{error}</Caption> : null}
-        <Caption style={{ color: colors.deepUmber, fontSize: 14 }}>
-          Google & Apple sign-in are coming soon — continue with email for now.
-        </Caption>
 
         <View style={{ alignItems: 'center', marginTop: spacing.sm, gap: spacing.sm }}>
           <LightDivider width={60} />

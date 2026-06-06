@@ -44,6 +44,7 @@ import {
 } from '@/lib/passwordRecovery';
 import '@/lib/passwordRecovery';
 import { validateUsername } from '@/lib/username';
+import { childIdForParentEdge, detectParentPairingOpportunity } from '@/lib/parentPairing';
 import { pickPrimaryRelationship } from '@/lib/relationshipUtils';
 import type { NodeInvite } from '@/services/inviteService';
 import type { AccountSettingsPatch } from '@/services/accountService';
@@ -108,7 +109,7 @@ interface AppStateValue {
     tags?: string[];
     /** When set, the new person is added relative to this node (not only the anchor). */
     contextNodeId?: string;
-  }) => Promise<FamilyNode>;
+  }) => Promise<{ node: FamilyNode; pairingOpportunity: import('@/lib/parentPairing').ParentPairingOpportunity | null }>;
 
   /** Turn a synthetic unknown tree node into a minimal, editable Life Profile. */
   materializeUnknown: (placeholder: import('@/lib/kinship/types').KinshipNode) => Promise<FamilyNode>;
@@ -589,19 +590,31 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
       setNodes((prev) => [...prev, node]);
       setRelationships((prev) => [...prev, ...createdRelationships]);
-      return node;
+
+      const childId = childIdForParentEdge(relationshipType, fromNodeId);
+      const pairingOpportunity = childId
+        ? detectParentPairingOpportunity({
+            childId,
+            nodes: [...nodes, node],
+            relationships: [...relationships, ...createdRelationships],
+          })
+        : null;
+
+      return { node, pairingOpportunity };
     },
     [account, nodes, relationships, tree],
   );
 
   const materializeUnknown = useCallback<AppStateValue['materializeUnknown']>(
-    async (placeholder) =>
-      addRelative({
+    async (placeholder) => {
+      const { node } = await addRelative({
         name: defaultNameForPlaceholder(placeholder),
         relationshipType: relationshipTypeForPlaceholder(placeholder),
         isRemembered: false,
         tags: ['Unknown link'],
-      }),
+      });
+      return node;
+    },
     [addRelative],
   );
 

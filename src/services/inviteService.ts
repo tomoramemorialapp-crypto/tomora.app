@@ -5,12 +5,10 @@
  * aren't a member of yet.
  */
 
+import { claimUrl } from '@/constants/urls';
 import { supabase } from '@/lib/supabase';
 import type { FamilyNode } from '@/types/models';
 import { mapNode } from './mappers';
-
-/** Base URL used for shareable claim links (web demo). */
-const CLAIM_BASE_URL = 'https://tomora.app/claim';
 
 /** Unambiguous code alphabet (no 0/O/1/I). */
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -23,7 +21,7 @@ function generateCode(length = 8): string {
 
 /** Build the shareable claim link for a code. */
 export function claimLinkFor(code: string): string {
-  return `${CLAIM_BASE_URL}?code=${encodeURIComponent(code)}`;
+  return claimUrl(code);
 }
 
 export interface NodeInvite {

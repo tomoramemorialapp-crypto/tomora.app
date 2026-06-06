@@ -9,12 +9,13 @@ import { ShareSheet } from '@/components/ui/ShareSheet';
 import { Body, Display } from '@/components/ui/Typography';
 import { spacing } from '@/constants/theme';
 import { copy } from '@/constants/copy';
+import { inviteUrl } from '@/constants/urls';
 import { createId } from '@/lib/relationshipUtils';
 
 export default function Invite() {
   const router = useRouter();
   const [shareOpen, setShareOpen] = useState(false);
-  const link = useMemo(() => `https://tomora.app/invite/${createId('inv')}`, []);
+  const link = useMemo(() => inviteUrl(createId('inv')), []);
 
   const finish = () => router.replace('/(tabs)');
 

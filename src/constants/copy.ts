@@ -25,7 +25,7 @@ export const copy = {
   },
   login: {
     prompt: 'Welcome back.',
-    body: 'Log in to return to your Family Tree.',
+    body: 'Log in with your email or username to return to your Family Tree.',
     cta: 'Log in',
     noAccount: 'New here? Start your Family Tree',
   },

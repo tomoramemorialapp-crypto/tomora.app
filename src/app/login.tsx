@@ -10,28 +10,31 @@ import { GoldStar } from '@/components/brand/GoldStar';
 import { AppFooter } from '@/components/brand/AppFooter';
 import { colors, spacing } from '@/constants/theme';
 import { copy } from '@/constants/copy';
+import { isEmailIdentifier, isUsernameIdentifier } from '@/lib/username';
 import { useAppState } from '@/state/AppState';
 
 export default function Login() {
   const router = useRouter();
   const { signInAndLoad } = useAppState();
 
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canSubmit = /\S+@\S+\.\S+/.test(email) && password.length >= 6 && !busy;
+  const trimmed = identifier.trim();
+  const validIdentifier = isEmailIdentifier(trimmed) || isUsernameIdentifier(trimmed);
+  const canSubmit = validIdentifier && password.length >= 6 && !busy;
 
   const onSubmit = async () => {
     setError(null);
     setBusy(true);
     try {
-      await signInAndLoad(email, password);
+      await signInAndLoad(trimmed, password);
       router.replace('/(tabs)');
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'We couldn’t log you in. Please try again.';
+      const message = e instanceof Error ? e.message : "We couldn't log you in. Please try again.";
       setError(message);
     } finally {
       setBusy(false);
@@ -62,13 +65,12 @@ export default function Login() {
 
         <View style={{ gap: spacing.md }}>
           <TextField
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            placeholder="you@example.com"
-            keyboardType="email-address"
+            label="Email or username"
+            value={identifier}
+            onChangeText={setIdentifier}
+            placeholder="you@example.com or yourname"
             autoCapitalize="none"
-            autoComplete="email"
+            autoComplete="username"
           />
           <View style={{ gap: spacing.xs }}>
             <TextField

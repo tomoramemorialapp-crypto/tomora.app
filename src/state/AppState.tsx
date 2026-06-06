@@ -33,6 +33,7 @@ import * as accountService from '@/services/accountService';
 import * as inviteService from '@/services/inviteService';
 import * as notificationService from '@/services/notificationService';
 import * as memorialService from '@/services/memorialService';
+import { validateUsername } from '@/lib/username';
 import type { NodeInvite } from '@/services/inviteService';
 import type { AccountSettingsPatch } from '@/services/accountService';
 import type { ChangeLogEntryInput } from '@/services/profileService';
@@ -43,6 +44,8 @@ interface OnboardingDraft {
   lovedOneName: string;
   lovedOneRelationship: RelationshipType;
   lovedOneIsRemembered: boolean;
+  /** Chosen at signup; applied via set_username once a session exists. */
+  pendingUsername?: string;
 }
 
 interface AppStateValue {
@@ -62,8 +65,8 @@ interface AppStateValue {
   setDraft: (patch: Partial<OnboardingDraft>) => void;
 
   // auth + persistence
-  signUpAndStart: (email: string, password: string) => Promise<{ needsEmailConfirmation: boolean }>;
-  signInAndLoad: (email: string, password: string) => Promise<void>;
+  signUpAndStart: (email: string, password: string, username: string) => Promise<{ needsEmailConfirmation: boolean }>;
+  signInAndLoad: (identifier: string, password: string) => Promise<void>;
   resetAll: () => Promise<void>;
 
   // account settings + lifecycle
@@ -267,7 +270,21 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     async (activeSession: Session) => {
       const userId = activeSession.user.id;
       const displayName = draftRef.current.selfName || activeSession.user.email?.split('@')[0] || 'You';
-      const acct = (await treeService.getAccount(userId)) ?? (await treeService.ensureAccount(userId, displayName));
+      let acct = (await treeService.getAccount(userId)) ?? (await treeService.ensureAccount(userId, displayName));
+
+      const pendingUsername = draftRef.current.pendingUsername?.trim();
+      if (pendingUsername && !acct.username) {
+        try {
+          acct = await accountService.setUsername(pendingUsername);
+          setDraftState((prev) => {
+            const next = { ...prev, pendingUsername: undefined };
+            storeDraft(next);
+            return next;
+          });
+        } catch (e) {
+          console.warn('[tomora] pending username set failed', e);
+        }
+      }
       setAccount(acct);
 
       let bundle = await treeService.loadMyTreeBundle(userId);
@@ -294,24 +311,27 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
-    (async () => {
-      try {
-        const current = await authService.getSession();
-        if (!mounted) return;
-        setSession(current);
-        if (current) await loadForUser(current);
-      } catch (e) {
-        console.warn('[tomora] initial load failed', e);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      if (!mounted) return;
       setSession(newSession);
+
       if (!newSession) {
         setAccount(null);
         applyBundle(null);
+        setLoading(false);
+        return;
+      }
+
+      // Hydrate on cold start and after sign-in (e.g. email-confirmation redirect).
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+        try {
+          await loadForUser(newSession);
+        } catch (e) {
+          console.warn('[tomora] auth hydrate failed', e);
+        } finally {
+          if (mounted) setLoading(false);
+        }
       }
     });
 
@@ -330,11 +350,20 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signUpAndStart = useCallback<AppStateValue['signUpAndStart']>(
-    async (email, password) => {
-      const result = await authService.signUpWithEmail(email, password);
+    async (email, password, username) => {
+      const normalized = username.trim().toLowerCase();
+      const usernameErr = validateUsername(normalized);
+      if (usernameErr) throw new Error(usernameErr);
+
+      setDraftState((prev) => {
+        const next = { ...prev, pendingUsername: normalized };
+        storeDraft(next);
+        return next;
+      });
+
+      const result = await authService.signUpWithEmail(email, password, normalized);
       if (!result.session) {
-        // email confirmation required — draft is persisted and will be saved
-        // automatically once the user confirms and returns.
+        // Email confirmation required — username is kept in draft until hydrate.
         return { needsEmailConfirmation: true };
       }
       setSession(result.session);
@@ -345,8 +374,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signInAndLoad = useCallback<AppStateValue['signInAndLoad']>(
-    async (email, password) => {
-      const s = await authService.signInWithEmail(email, password);
+    async (identifier, password) => {
+      const s = await authService.signInWithIdentifier(identifier, password);
       setSession(s);
       await loadForUser(s);
     },

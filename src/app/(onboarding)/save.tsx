@@ -11,6 +11,7 @@ import { Body, Caption, Display, Title } from '@/components/ui/Typography';
 import { GoldStar } from '@/components/brand/GoldStar';
 import { colors, spacing } from '@/constants/theme';
 import { copy } from '@/constants/copy';
+import { normalizeUsername, validateUsername } from '@/lib/username';
 import { useAppState } from '@/state/AppState';
 
 export default function Save() {
@@ -18,19 +19,23 @@ export default function Save() {
   const { signUpAndStart } = useAppState();
 
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmEmail, setConfirmEmail] = useState(false);
 
-  const canSave = /\S+@\S+\.\S+/.test(email) && password.length >= 6 && !busy;
+  const normalizedUsername = normalizeUsername(username);
+  const usernameError = username ? validateUsername(normalizedUsername) : 'Choose a username.';
+  const canSave =
+    /\S+@\S+\.\S+/.test(email) && !usernameError && normalizedUsername.length > 0 && password.length >= 6 && !busy;
 
   const onSave = async () => {
     setError(null);
     setBusy(true);
     try {
-      const { needsEmailConfirmation } = await signUpAndStart(email, password);
+      const { needsEmailConfirmation } = await signUpAndStart(email, password, normalizedUsername);
       if (needsEmailConfirmation) {
         setConfirmEmail(true);
       } else {
@@ -84,6 +89,17 @@ export default function Save() {
         </View>
 
         <View style={{ gap: spacing.md }}>
+          <TextField
+            label="Username"
+            value={username}
+            onChangeText={(v) => setUsername(normalizeUsername(v))}
+            placeholder="yourname"
+            autoCapitalize="none"
+            autoComplete="username"
+          />
+          <Caption style={{ color: colors.ashTaupe, fontSize: 13, marginTop: -4 }}>
+            Your unique handle for signing in and your public profile. Lowercase letters, numbers, and underscores only.
+          </Caption>
           <TextField
             label="Email"
             value={email}

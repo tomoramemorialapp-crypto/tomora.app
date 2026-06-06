@@ -12,7 +12,7 @@ import { isLivingFor, nodeStatusFor } from '@/lib/relationshipUtils';
 import { makeField } from '@/lib/profile';
 import type { EditScope } from '@/lib/profile';
 import type { NodeProfile, SuggestedEdit } from '@/types/profile';
-import type { Json } from '@/types/database.types';
+import type { Json, Tables } from '@/types/database.types';
 import {
   mapAccount,
   mapMemory,
@@ -265,14 +265,35 @@ export async function updateTreePrivacy(
 
 /** Load the signed-in user's primary tree and all of its content. */
 export async function loadMyTreeBundle(accountId: string): Promise<TreeBundle | null> {
-  const { data: trees, error: treeErr } = await supabase
-    .from('family_trees')
-    .select()
-    .eq('created_by_account_id', accountId)
-    .order('created_at', { ascending: true })
-    .limit(1);
-  if (treeErr) throw treeErr;
-  const treeRow = trees?.[0];
+  // Resolve via membership so claimed/joined members see their tree, not only creators.
+  const { data: memberships, error: memErr } = await supabase
+    .from('tree_memberships')
+    .select('family_tree_id, role, created_at')
+    .eq('account_id', accountId)
+    .order('created_at', { ascending: true });
+  if (memErr) throw memErr;
+
+  let treeRow: Tables<'family_trees'> | null = null;
+
+  const membership = memberships?.find((m) => m.role === 'creator') ?? memberships?.[0];
+  if (membership) {
+    const { data, error } = await supabase.from('family_trees').select().eq('id', membership.family_tree_id).maybeSingle();
+    if (error) throw error;
+    treeRow = data;
+  }
+
+  // Legacy fallback for trees created before memberships were recorded.
+  if (!treeRow) {
+    const { data: trees, error: treeErr } = await supabase
+      .from('family_trees')
+      .select()
+      .eq('created_by_account_id', accountId)
+      .order('created_at', { ascending: true })
+      .limit(1);
+    if (treeErr) throw treeErr;
+    treeRow = trees?.[0] ?? null;
+  }
+
   if (!treeRow) return null;
 
   const [nodesRes, relsRes, memsRes, suggestionsRes] = await Promise.all([

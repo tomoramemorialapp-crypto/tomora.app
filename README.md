@@ -6,89 +6,102 @@ Tomora is a private **Family Tree** and memory platform that helps people stay
 close — across life, distance, memory, and time. Every person is a node that can
 become a Life Profile, an Occasion anchor, or a Memory Light memorial.
 
-This repository is the **web-first Expo Router app**. It currently implements
-**Phase 0 — Demo UI** from the developer brief: the brand system, onboarding
-flow, the mini Family Tree reveal, the dashboard, a basic Life Profile, and an
-add-text-memory flow — all on local/mock state, with architecture hooks left in
-place for the backend, payments, AI, and livestreaming that come later.
+This repository is the **web-first Expo Router app** (v0.1.0). It implements a
+**Supabase-backed MVP**: authentication, family trees, Life Profiles, memories
+with media, invites/claiming, memorial pages, public profiles, notifications,
+dark mode, and partial i18n.
 
 ## Tech stack
 
 - [Expo](https://docs.expo.dev/) (SDK 56) + **Expo Router** (file-based routing)
 - React Native + **react-native-web** (web is the primary target for now)
 - TypeScript (strict)
-- Local React Context state with seedable mock data (no backend yet)
+- [Supabase](https://supabase.com/) — Auth, Postgres, Storage, RLS + RPCs
+- React Context (`AppState`) for client state
+- **Tomora Kinship Engine (TKE)** — generation-aware tree layout and relationship explanations
 
 ## Getting started
 
 ```bash
 npm install
-npm run web      # start the web app at http://localhost:8081
-# npm run ios / npm run android also work via Expo
+cp .env.example .env   # add your Supabase URL + anon key
+npm run web            # http://localhost:8081
 ```
 
-Open the printed URL. The first run downloads Google Fonts (Cormorant Garamond +
-Inter) for the premium serif/sans pairing; native falls back to system fonts.
+Set `EXPO_PUBLIC_APP_URL=http://localhost:8081` in `.env` for local invite/claim links.
 
-## Demo path (under ~90 seconds)
+Apply database migrations to your Supabase project:
+
+```bash
+# via Supabase CLI, from the project root
+supabase db push
+```
+
+The first run downloads Google Fonts (Cormorant Garamond + Inter) on web; native
+falls back to system fonts.
+
+## Demo path
 
 1. **Welcome** → "Start my Family Tree"
-2. **Add yourself** → just a name
-3. **Add one loved one** → pick a relationship, give them a name
-4. **Tree reveal** → two lights connect with a drawing gold line
-5. **Save → Privacy (recommended) → Invite/skip**
-6. **Dashboard** → open the Family Tree, tap a node, **Add a memory**
+2. **Add yourself** → your name
+3. **Add one loved one** → relationship + name
+4. **Tree reveal** → two lights connect
+5. **Save** → choose a **username**, email, and password
+6. **Privacy → Invite/skip**
+7. **Dashboard** → Family Tree, Life Profiles, memories
 
-Use **You → Start over** to reset the demo.
+Log in later with your **email or username**. Use **You → Sign out** to end a session, or **Clear cache to update** in the footer after a deploy.
+
+## Auth
+
+- **Sign up** requires a unique username (3–30 chars, `a-z`, `0-9`, `_`), email, and password.
+- Usernames are stored in `accounts.username` (via `set_username` RPC) and in Supabase Auth `user_metadata`.
+- **Log in** accepts email or username — usernames resolve to the auth email via the `resolve_login_email` RPC.
 
 ## Project structure
 
 ```
 src/
-  app/                      # Expo Router routes
-    _layout.tsx             # providers (state, safe area, gestures) + root stack
-    index.tsx               # redirect: onboarded → tabs, else → welcome
-    welcome.tsx
-    (onboarding)/           # choose-path, add-self, add-loved-one, reveal, save, privacy, invite
-    (tabs)/                 # dashboard, family-tree, memories, occasions, companion, profile
-    node/[nodeId].tsx       # Life Profile
-    memory/new.tsx          # Add text memory (modal)
-  components/
-    brand/                  # TomoraEmblem, TomoraLogo, GoldStar, LightDivider
-    ui/                     # ScreenContainer, Button, Card, TextField, Avatar, Badge, Typography, ...
-    family-tree/            # FamilyTreeCanvas, FamilyNodeCircle, MiniTreeReveal, RelationshipLine, AddRelativeCard
-    onboarding/             # OnboardingProgress, PathSelectionCards, RelationshipPicker, PrivacyPresetCard
-    memories/               # MemoryCard, MemoryVisibilitySelector
-  constants/                # theme.ts (design tokens), copy.ts (UI copy library)
-  data/mockData.ts          # seed demo data from the brief
-  lib/                      # relationshipUtils, visibility (permission engine)
-  state/AppState.tsx        # in-memory app store (account, tree, nodes, relationships, memories)
-  types/models.ts           # TypeScript models (mirrors the future Supabase schema)
+  app/                  # Expo Router routes (onboarding, tabs, settings, memorial, public profile)
+  components/           # brand, ui, family-tree, memories, profile, onboarding
+  constants/            # theme, copy, urls, options
+  i18n/                 # LanguageProvider + translations
+  lib/                  # kinship engine, media, geocoding, username helpers
+  services/             # Supabase service layer
+  state/AppState.tsx    # global app store
+  theme/                # dark mode provider
+  types/                # models, profile, database.types
+supabase/migrations/    # SQL migrations (apply with Supabase CLI)
+docs/PROJECT_STATUS.md  # detailed project audit
 ```
+
+## Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run web` | Start Expo web dev server |
+| `npm run ios` / `android` | Native dev builds |
+| `npx tsc --noEmit` | Type-check |
+| `npm test` | Kinship engine unit tests (Vitest) |
 
 ## Design system
 
 Tokens live in `src/constants/theme.ts` — ivory/gold/black palette, soft
-shadows, rounded radii, and serif/sans font tokens. The system is architected so
-colors and fonts can be swapped without touching screens. Motion is intentionally
-soft and slow (gentle fades, a drawing gold line) and respects
-`prefers-reduced-motion`.
+shadows, rounded radii, and serif/sans font tokens. Night mode swaps palettes
+in place via `ThemeProvider`.
 
-## Privacy model (MVP)
+## Privacy model
 
 Visibility levels: `private`, `selected_people`, `family_tree`, `invite_link`,
 `public`. Defaults are private/family-only; public sharing is always opt-in.
-Privacy is never a paywalled feature. See `src/lib/visibility.ts` for the
-permission check.
+Privacy is never a paywalled feature.
 
-## Not yet built (intentional placeholders)
+## Coming soon
 
-Per the brief's MVP scope, these are placeholders/coming-soon and ready to be
-built in later phases: authentication + Supabase persistence, invitations &
-node claiming, media uploads, Occasion Pages, Memory Light conversion,
-subscriptions, the Tomora Companion (AI), and livestream/gift integrations.
+Tomora Companion (AI), Occasion Pages, billing/subscriptions, Google/Apple
+sign-in, push notifications, and full i18n coverage.
 
 ## Source of truth
 
-Product, UX, data model, and roadmap decisions follow
-`tomora_developer_brief.md`. When in doubt, defer to the brief.
+Product, UX, data model, and roadmap decisions follow `tomora_developer_brief.md`.
+For a detailed technical audit see `docs/PROJECT_STATUS.md`.

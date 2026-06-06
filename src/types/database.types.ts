@@ -738,6 +738,7 @@ export type Database = {
         Args: { p_death_date?: string; p_node_id: string; p_reason?: string }
         Returns: Json
       }
+      resolve_login_email: { Args: { p_identifier: string }; Returns: string }
       set_username: {
         Args: { p_username: string }
         Returns: {

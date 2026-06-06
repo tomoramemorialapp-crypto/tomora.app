@@ -14,7 +14,9 @@ import { useAppState } from '@/state/AppState';
 import { useTheme, type AppearancePreference } from '@/theme';
 import { useLanguage } from '@/i18n';
 import { isEmailVerified, resendEmailConfirmation } from '@/services/authService';
+import { publicProfileUrl } from '@/constants/urls';
 import { usernameChangesRemaining } from '@/services/accountService';
+import { normalizeUsername } from '@/lib/username';
 import { Badge } from '@/components/ui/Badge';
 import { Toggle } from '@/components/ui/Toggle';
 import { AppFooter } from '@/components/brand/AppFooter';
@@ -224,7 +226,7 @@ export default function AccountSettings() {
             <TextField
               label="Username"
               value={username}
-              onChangeText={(v) => setUsernameInput(v.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+              onChangeText={(v) => setUsernameInput(normalizeUsername(v))}
               placeholder="username"
               autoCapitalize="none"
             />
@@ -302,7 +304,7 @@ export default function AccountSettings() {
             label="Make my profile public"
             description={
               account?.username
-                ? `Anyone with the link tomora.app/u/${account.username} can view it.`
+                ? `Anyone with the link ${publicProfileUrl(account.username)} can view it.`
                 : 'Set a username above first to enable your public link.'
             }
           />

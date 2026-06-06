@@ -12,6 +12,7 @@ import { VisibilitySelector } from '@/components/ui/VisibilitySelector';
 import { ShareSheet } from '@/components/ui/ShareSheet';
 import { AppFooter } from '@/components/brand/AppFooter';
 import { Body, Caption, Display, Title } from '@/components/ui/Typography';
+import { inviteUrl } from '@/constants/urls';
 import { colors, radii, spacing } from '@/constants/theme';
 import { useAppState } from '@/state/AppState';
 import { isEmailVerified } from '@/services/authService';
@@ -105,7 +106,7 @@ export default function YouScreen() {
   const isVacated = account?.status === 'vacated';
   const graceDays = daysUntil(account?.deletionScheduledFor);
   const usedPct = Math.min(1, mediaUsageBytes / STORAGE_QUOTA_BYTES);
-  const inviteLink = `https://tomora.app/invite/${account?.inviteCode ?? ''}`;
+  const inviteLink = account?.inviteCode ? inviteUrl(account.inviteCode) : '';
 
   const onSignOut = async () => {
     await resetAll();

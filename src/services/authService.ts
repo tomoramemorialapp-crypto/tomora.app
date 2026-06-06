@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { isEmailIdentifier } from '@/lib/username';
 import type { Session } from '@supabase/supabase-js';
 
 export interface SignUpResult {
@@ -7,12 +8,40 @@ export interface SignUpResult {
 }
 
 /**
- * Sign up with email + password. If the project has email confirmation
- * disabled, a session is returned immediately; otherwise the caller should
- * prompt the user to confirm via email.
+ * Resolve an email or username to the auth email Supabase expects for sign-in.
  */
-export async function signUpWithEmail(email: string, password: string): Promise<SignUpResult> {
-  const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
+export async function resolveLoginEmail(identifier: string): Promise<string> {
+  const trimmed = identifier.trim();
+  if (!trimmed) throw new Error('Enter your email or username.');
+
+  if (isEmailIdentifier(trimmed)) {
+    return trimmed.toLowerCase();
+  }
+
+  const { data, error } = await supabase.rpc('resolve_login_email', { p_identifier: trimmed });
+  if (error) throw new Error(error.message);
+  if (!data || typeof data !== 'string') {
+    throw new Error('No account found for that username or email.');
+  }
+  return data;
+}
+
+/**
+ * Sign up with email + password. Username is stored in auth metadata and must
+ * still be written to accounts via set_username once a session exists.
+ */
+export async function signUpWithEmail(
+  email: string,
+  password: string,
+  username: string,
+): Promise<SignUpResult> {
+  const { data, error } = await supabase.auth.signUp({
+    email: email.trim(),
+    password,
+    options: {
+      data: { username: username.toLowerCase() },
+    },
+  });
   if (error) throw error;
   return {
     session: data.session,
@@ -25,6 +54,12 @@ export async function signInWithEmail(email: string, password: string): Promise<
   if (error) throw error;
   if (!data.session) throw new Error('Could not start a session.');
   return data.session;
+}
+
+/** Sign in with an email address or Tomora username. */
+export async function signInWithIdentifier(identifier: string, password: string): Promise<Session> {
+  const email = await resolveLoginEmail(identifier);
+  return signInWithEmail(email, password);
 }
 
 export async function signOut(): Promise<void> {
@@ -53,7 +88,6 @@ export async function resendEmailConfirmation(email: string): Promise<void> {
 export async function refreshUser(): Promise<Session | null> {
   const { error } = await supabase.auth.refreshSession();
   if (error) {
-    // fall back to current session if refresh isn't possible
     return getSession();
   }
   return getSession();

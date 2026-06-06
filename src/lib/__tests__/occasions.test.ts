@@ -108,4 +108,66 @@ describe('getUpcomingEvents', () => {
     expect(anniversary!.subtitle).toMatch(/36th wedding anniversary/);
     expect(anniversary!.partnerNodeId).toBe('dad');
   });
+
+  it('includes wedding anniversaries when only month and year are stored', () => {
+    const events = getUpcomingEvents(
+      [
+        node('mom', { displayName: 'Maria', status: 'claimed', isLiving: true, profile: {} }),
+        node('dad', { displayName: 'Jose', status: 'claimed', isLiving: true, profile: {} }),
+      ],
+      {
+        now: new Date('2026-06-01'),
+        withinDays: 366,
+        relationships: [
+          {
+            id: 'rel1',
+            familyTreeId: 'tree1',
+            fromNodeId: 'mom',
+            toNodeId: 'dad',
+            relationshipType: 'spouse',
+            status: 'approved',
+            visibility: 'family_tree',
+            weddingDate: '1990-06',
+            createdByAccountId: 'acct1',
+            createdAt: '2026-01-01',
+            updatedAt: '2026-01-01',
+          } satisfies Relationship,
+        ],
+      },
+    );
+
+    expect(events.find((e) => e.kind === 'wedding_anniversary')).toBeDefined();
+  });
+
+  it('dedupes spouse pairs and reads wedding date from the partnership edge', () => {
+    const rel = (id: string, weddingDate?: string): Relationship => ({
+      id,
+      familyTreeId: 'tree1',
+      fromNodeId: 'mom',
+      toNodeId: 'dad',
+      relationshipType: 'spouse',
+      status: 'approved',
+      visibility: 'family_tree',
+      weddingDate,
+      createdByAccountId: 'acct1',
+      createdAt: '2026-01-01',
+      updatedAt: '2026-01-01',
+    });
+
+    const events = getUpcomingEvents(
+      [
+        node('mom', { displayName: 'Maria', status: 'claimed', isLiving: true, profile: {} }),
+        node('dad', { displayName: 'Jose', status: 'claimed', isLiving: true, profile: {} }),
+      ],
+      {
+        now: new Date('2026-06-01'),
+        withinDays: 366,
+        relationships: [rel('rel-a'), rel('rel-b', '1990-06-15')],
+      },
+    );
+
+    const weddings = events.filter((e) => e.kind === 'wedding_anniversary');
+    expect(weddings).toHaveLength(1);
+    expect(weddings[0].id).toBe('wedding-rel-b');
+  });
 });

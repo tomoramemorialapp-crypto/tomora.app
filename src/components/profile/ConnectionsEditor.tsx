@@ -144,9 +144,12 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
   };
 
   const onChangeWeddingDate = async (relId: string, value: DateValue | undefined) => {
+    const iso = dateValueToStorageIso(value);
+    // Partial input (month/day without year) emits a DateValue that does not serialize — do not wipe a saved date.
+    if (iso === null && value !== undefined) return;
     setBusy(true);
     try {
-      await updateRelationshipWeddingDate(relId, dateValueToStorageIso(value));
+      await updateRelationshipWeddingDate(relId, iso);
     } finally {
       setBusy(false);
     }
@@ -241,6 +244,7 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
                 {isPartnership(pType) ? (
                   <View style={{ marginTop: spacing.sm }}>
                     <DateValueInput
+                      key={`wedding-${rel.id}-${rel.weddingDate ?? 'empty'}`}
                       label="Wedding date"
                       value={isoToDateValue(rel.weddingDate)}
                       onChange={(d) => onChangeWeddingDate(rel.id, d)}

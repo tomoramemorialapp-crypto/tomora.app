@@ -53,10 +53,18 @@ function birthYearOf(d?: DateValue): number | undefined {
   return m ? Number(m[1]) : undefined;
 }
 
+function normalizeDateIso(iso?: string): string | undefined {
+  if (!iso) return undefined;
+  const trimmed = iso.trim();
+  if (!trimmed) return undefined;
+  return trimmed.split('T')[0];
+}
+
 function monthDayOfIso(iso?: string): { month: number; day: number } | null {
-  if (!iso) return null;
-  if (/^\d{4}$/.test(iso)) return { month: 1, day: 1 };
-  const m = /^(\d{4})-(\d{2})(?:-(\d{2}))?/.exec(iso);
+  const normalized = normalizeDateIso(iso);
+  if (!normalized) return null;
+  if (/^\d{4}$/.test(normalized)) return { month: 1, day: 1 };
+  const m = /^(\d{4})-(\d{2})(?:-(\d{2}))?/.exec(normalized);
   if (!m) return null;
   const month = Number(m[2]);
   const day = m[3] ? Number(m[3]) : 1;
@@ -65,8 +73,42 @@ function monthDayOfIso(iso?: string): { month: number; day: number } | null {
 }
 
 function yearOfIso(iso?: string): number | undefined {
-  const m = iso ? /^(\d{4})/.exec(iso) : null;
+  const normalized = normalizeDateIso(iso);
+  const m = normalized ? /^(\d{4})/.exec(normalized) : null;
   return m ? Number(m[1]) : undefined;
+}
+
+function pairKey(a: string, b: string): string {
+  return [a, b].sort().join('+');
+}
+
+/** Collect spouse/partner pairs and the best available wedding date between them. */
+function partnershipAnniversaries(
+  relationships: Relationship[],
+): { rel: Relationship; weddingDate: string; pair: string }[] {
+  const byPair = new Map<string, Relationship[]>();
+  for (const rel of relationships) {
+    const key = pairKey(rel.fromNodeId, rel.toNodeId);
+    const list = byPair.get(key) ?? [];
+    list.push(rel);
+    byPair.set(key, list);
+  }
+
+  const results: { rel: Relationship; weddingDate: string; pair: string }[] = [];
+  for (const [key, edges] of byPair) {
+    const partnershipEdges = edges.filter((e) => isPartnershipType(e.relationshipType));
+    if (!partnershipEdges.length) continue;
+
+    const weddingDate =
+      partnershipEdges.map((e) => normalizeDateIso(e.weddingDate)).find(Boolean) ??
+      edges.map((e) => normalizeDateIso(e.weddingDate)).find(Boolean);
+    if (!weddingDate) continue;
+
+    const rel =
+      partnershipEdges.find((e) => normalizeDateIso(e.weddingDate)) ?? partnershipEdges[0];
+    results.push({ rel, weddingDate, pair: key });
+  }
+  return results;
 }
 
 function isPartnershipType(type: RelationshipType): boolean {
@@ -176,14 +218,8 @@ export function getUpcomingEvents(
     }
   }
 
-  const seenPairs = new Set<string>();
-  for (const rel of opts.relationships ?? []) {
-    if (!isPartnershipType(rel.relationshipType) || !rel.weddingDate) continue;
-    const pairKey = [rel.fromNodeId, rel.toNodeId].sort().join('+');
-    if (seenPairs.has(pairKey)) continue;
-    seenPairs.add(pairKey);
-
-    const weddingMd = monthDayOfIso(rel.weddingDate);
+  for (const { rel, weddingDate } of partnershipAnniversaries(opts.relationships ?? [])) {
+    const weddingMd = monthDayOfIso(weddingDate);
     if (!weddingMd) continue;
 
     const a = nodeById.get(rel.fromNodeId);
@@ -191,7 +227,7 @@ export function getUpcomingEvents(
     if (!a || !b) continue;
 
     const date = nextAnnual(now, weddingMd.month, weddingMd.day);
-    const weddingYear = yearOfIso(rel.weddingDate);
+    const weddingYear = yearOfIso(weddingDate);
     const years = weddingYear ? date.getFullYear() - weddingYear : undefined;
     const isSpouse = rel.relationshipType === 'spouse';
     const label = isSpouse ? 'wedding anniversary' : 'anniversary';

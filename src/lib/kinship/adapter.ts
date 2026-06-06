@@ -104,14 +104,101 @@ export interface KinshipGraphData {
   edges: RelationshipEdge[];
 }
 
+function hasEdge(edges: RelationshipEdge[], id: string): boolean {
+  return edges.some((e) => e.id === id);
+}
+
 /**
- * Convert the app's stored Family Tree (anchor-centric relationships typed by
- * the relative's role) into a normalized kinship graph. Indirect relationships
- * (grandparent, aunt/uncle, cousin, niece/nephew, grandchild) are expanded with
- * ephemeral placeholder bridge nodes so the engine can render accurate paths.
+ * Expand one stored relationship edge into TKE edges + optional placeholders.
  *
- * Side (maternal/paternal) defaults to "unsorted" because the current schema
- * does not persist it; bridges on the same side are shared/deduped.
+ * App edges are authored from the source node's perspective (Connections Editor
+ * and add-relative both set `from_node_id` to the editor / anchor node):
+ * "[to] is [from]'s {relationshipType}".
+ */
+function applyStoredRelationship(params: {
+  rel: Relationship;
+  appNodes: FamilyNode[];
+  existingNodes: KinshipNode[];
+  existingEdges: RelationshipEdge[];
+  placeholders: KinshipNode[];
+  familyTreeId: string;
+}): void {
+  const { rel, appNodes, existingNodes, existingEdges, placeholders, familyTreeId } = params;
+  const sourceId = rel.fromNodeId;
+  const targetId = rel.toNodeId;
+  const source = appNodes.find((n) => n.id === sourceId);
+  const target = appNodes.find((n) => n.id === targetId);
+  if (!source || !target) return;
+
+  const intent = toIntent(rel.relationshipType);
+  if (intent === null) {
+    const id = `edge:chosen_family:${sourceId}->${targetId}`;
+    if (!hasEdge(existingEdges, id)) {
+      existingEdges.push({
+        id,
+        familyTreeId,
+        fromNodeId: sourceId,
+        toNodeId: targetId,
+        type: 'chosen_family',
+        status: 'confirmed',
+        visibility: mapVisibility(rel.visibility),
+        createdByAccountId: rel.createdByAccountId,
+      });
+    }
+    return;
+  }
+
+  if (intent === 'friend' || intent === 'chosen_family') {
+    const id = `edge:${intent}:${sourceId}->${targetId}`;
+    if (!hasEdge(existingEdges, id)) {
+      existingEdges.push({
+        id,
+        familyTreeId,
+        fromNodeId: sourceId,
+        toNodeId: targetId,
+        type: intent,
+        status: 'confirmed',
+        visibility: mapVisibility(rel.visibility),
+        createdByAccountId: rel.createdByAccountId,
+      });
+    }
+    return;
+  }
+
+  const result = buildRelationshipWithPlaceholders({
+    intent: {
+      anchorNodeId: sourceId,
+      targetDisplayName: target.displayName,
+      relationshipToAnchor: intent,
+      side: 'unsorted',
+      targetNodeId: targetId,
+    },
+    existingNodes,
+    existingEdges,
+    familyTreeId,
+    createdByAccountId: rel.createdByAccountId,
+  });
+
+  for (const ph of result.nodesToCreate) {
+    if (!existingNodes.some((n) => n.id === ph.id)) {
+      existingNodes.push(ph);
+      placeholders.push(ph);
+    }
+  }
+  for (const e of result.edgesToCreate) {
+    if (!hasEdge(existingEdges, e.id)) existingEdges.push(e);
+  }
+}
+
+/**
+ * Convert the app's stored Family Tree into a normalized kinship graph.
+ *
+ * Every persisted relationship is interpreted from its `from_node_id` (the node
+ * whose profile authored the link). That includes lateral links — e.g. a spouse
+ * connection between two parents — not only edges that touch the viewer.
+ *
+ * Indirect types (cousin, grandparent, …) are expanded with ephemeral
+ * placeholder bridge nodes per the Tomora Kinship Engine.
  */
 export function buildKinshipGraphFromApp(params: {
   nodes: FamilyNode[];
@@ -120,12 +207,15 @@ export function buildKinshipGraphFromApp(params: {
 }): KinshipGraphData {
   const { nodes: appNodes, relationships, anchorNodeId } = params;
   const familyTreeId = appNodes[0]?.familyTreeId ?? 'tree';
+  const nodeIds = new Set(appNodes.map((n) => n.id));
 
   const petIds = new Set<string>();
   for (const r of relationships) {
-    if (r.relationshipType === 'pet') {
-      if (r.fromNodeId === anchorNodeId) petIds.add(r.toNodeId);
-      else if (r.toNodeId === anchorNodeId) petIds.add(r.fromNodeId);
+    if (r.relationshipType === 'pet' && nodeIds.has(r.fromNodeId) && nodeIds.has(r.toNodeId)) {
+      petIds.add(r.toNodeId);
+    }
+    if (r.relationshipType === 'caretaker' && nodeIds.has(r.fromNodeId) && nodeIds.has(r.toNodeId)) {
+      petIds.add(r.fromNodeId);
     }
   }
 
@@ -135,7 +225,6 @@ export function buildKinshipGraphFromApp(params: {
     else if (r.toNodeId === anchorNodeId) roleByNode.set(r.fromNodeId, r.relationshipType);
   }
 
-  // Base kinship nodes for every real app node.
   const baseNodes: KinshipNode[] = appNodes.map((n) => {
     const role = roleByNode.get(n.id);
     return {
@@ -162,63 +251,19 @@ export function buildKinshipGraphFromApp(params: {
   const existingEdges: RelationshipEdge[] = [];
   const placeholders: KinshipNode[] = [];
 
-  // Process anchor-centric relationships deterministically.
-  const anchorRels = relationships
-    .filter((r) => r.fromNodeId === anchorNodeId || r.toNodeId === anchorNodeId)
+  const storedRels = relationships
+    .filter((r) => nodeIds.has(r.fromNodeId) && nodeIds.has(r.toNodeId))
     .sort((a, b) => a.id.localeCompare(b.id));
 
-  for (const rel of anchorRels) {
-    const relativeId = rel.fromNodeId === anchorNodeId ? rel.toNodeId : rel.fromNodeId;
-    const relative = appNodes.find((n) => n.id === relativeId);
-    if (!relative) continue;
-    const intent = toIntent(rel.relationshipType);
-    if (intent === null) {
-      // caretaker/other → quiet same-generation chosen connection
-      existingEdges.push({
-        id: `edge:chosen_family:${anchorNodeId}->${relativeId}`,
-        familyTreeId,
-        fromNodeId: anchorNodeId,
-        toNodeId: relativeId,
-        type: 'chosen_family',
-        status: 'confirmed',
-        visibility: mapVisibility(rel.visibility),
-      });
-      continue;
-    }
-    if (intent === 'friend' || intent === 'chosen_family') {
-      existingEdges.push({
-        id: `edge:${intent}:${anchorNodeId}->${relativeId}`,
-        familyTreeId,
-        fromNodeId: anchorNodeId,
-        toNodeId: relativeId,
-        type: intent,
-        status: 'confirmed',
-        visibility: mapVisibility(rel.visibility),
-      });
-      continue;
-    }
-
-    const result = buildRelationshipWithPlaceholders({
-      intent: {
-        anchorNodeId,
-        targetDisplayName: relative.displayName,
-        relationshipToAnchor: intent,
-        side: 'unsorted',
-        targetNodeId: relativeId,
-      },
+  for (const rel of storedRels) {
+    applyStoredRelationship({
+      rel,
+      appNodes,
       existingNodes,
       existingEdges,
+      placeholders,
       familyTreeId,
-      createdByAccountId: rel.createdByAccountId,
     });
-
-    for (const ph of result.nodesToCreate) {
-      if (!existingNodes.some((n) => n.id === ph.id)) {
-        existingNodes.push(ph);
-        placeholders.push(ph);
-      }
-    }
-    for (const e of result.edgesToCreate) existingEdges.push(e);
   }
 
   return { nodes: [...baseNodes, ...placeholders], edges: existingEdges };

@@ -7,6 +7,7 @@ import { TextField } from '@/components/ui/TextField';
 import { Button } from '@/components/ui/Button';
 import { Body, Caption, Display } from '@/components/ui/Typography';
 import { GoldStar } from '@/components/brand/GoldStar';
+import { AppFooter } from '@/components/brand/AppFooter';
 import { colors, spacing } from '@/constants/theme';
 import { copy } from '@/constants/copy';
 import { useAppState } from '@/state/AppState';
@@ -48,6 +49,7 @@ export default function Login() {
             variant="ghost"
             onPress={() => router.replace('/(onboarding)/add-self')}
           />
+          <AppFooter />
         </View>
       }
     >

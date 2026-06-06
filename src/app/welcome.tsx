@@ -5,9 +5,11 @@ import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { Button } from '@/components/ui/Button';
 import { TomoraEmblem } from '@/components/brand/TomoraEmblem';
+import { TomoraLogo } from '@/components/brand/TomoraLogo';
 import { LightDivider } from '@/components/brand/LightDivider';
-import { Body, Caption, Display } from '@/components/ui/Typography';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { AppFooter } from '@/components/brand/AppFooter';
+import { Body, Display } from '@/components/ui/Typography';
+import { colors, spacing } from '@/constants/theme';
 import { copy } from '@/constants/copy';
 
 export default function Welcome() {
@@ -50,9 +52,7 @@ export default function Welcome() {
           <TomoraEmblem size={132} glow={false} />
         </View>
 
-        <Caption style={{ fontFamily: fonts.display, fontSize: 26, letterSpacing: 2, color: colors.ink }}>
-          tomora
-        </Caption>
+        <TomoraLogo size={56} showEmblem={false} />
 
         <Display align="center" style={{ fontSize: 44 }}>
           {copy.welcome.tagline}
@@ -72,6 +72,8 @@ export default function Welcome() {
         <Button label={copy.welcome.secondaryCta} variant="secondary" onPress={() => router.push('/(onboarding)/claim')} />
         <Button label={copy.welcome.login} variant="ghost" onPress={() => router.push('/login')} />
       </View>
+
+      <AppFooter showLogo={false} />
     </ScreenContainer>
   );
 }

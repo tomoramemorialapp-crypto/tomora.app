@@ -1,12 +1,11 @@
 import { View, type ViewStyle } from 'react-native';
-import { Image } from 'expo-image';
-
-const STAR = require('../../../assets/brand/star.png');
+import { colors } from '@/constants/theme';
+import StarSvg from '../../../assets/brand/gold-star.svg';
 
 /**
  * The Tomora four-point gold star — the light/star motif used as accents and
- * as the gentle "add" affordance throughout the app. Renders the brand star
- * asset; pass `color` to tint it for a specific surface.
+ * as the gentle "add" affordance throughout the app. Renders the crisp vector
+ * star; pass `color` to tint it for a specific surface.
  */
 export function GoldStar({
   size = 16,
@@ -22,13 +21,7 @@ export function GoldStar({
       accessible={false}
       style={[{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }, style]}
     >
-      <Image
-        source={STAR}
-        style={{ width: size, height: size }}
-        contentFit="contain"
-        tintColor={color}
-        accessible={false}
-      />
+      <StarSvg width={size} height={size} color={color ?? colors.guardianGold} />
     </View>
   );
 }

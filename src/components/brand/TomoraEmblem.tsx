@@ -1,9 +1,6 @@
 import { View } from 'react-native';
-import { Image } from 'expo-image';
 import { colors } from '@/constants/theme';
-
-// Official Tomora crest — gold pine tree + light, on a transparent background.
-const EMBLEM = require('../../../assets/brand/logo-emblem.png');
+import EmblemSvg from '../../../assets/brand/gold-logo.svg';
 
 /**
  * Tomora emblem. Renders the brand crest, optionally over a soft candlelight
@@ -28,13 +25,7 @@ export function TomoraEmblem({ size = 96, glow = true }: { size?: number; glow?:
           }}
         />
       ) : null}
-      <Image
-        source={EMBLEM}
-        style={{ width: size, height: size }}
-        contentFit="contain"
-        accessible={false}
-        transition={300}
-      />
+      <EmblemSvg width={size} height={size} />
     </View>
   );
 }

@@ -17,6 +17,7 @@ import { isEmailVerified, resendEmailConfirmation } from '@/services/authService
 import { usernameChangesRemaining } from '@/services/accountService';
 import { Badge } from '@/components/ui/Badge';
 import { Toggle } from '@/components/ui/Toggle';
+import { AppFooter } from '@/components/brand/AppFooter';
 import type { PublicProfileConfig, SocialLinks, ThemePreference } from '@/types/models';
 
 const SOCIAL_FIELDS: { key: SocialNetwork; placeholder: string }[] = [
@@ -394,6 +395,8 @@ export default function AccountSettings() {
           {pwMsg ? <Caption>{pwMsg}</Caption> : null}
         </View>
       </Card>
+
+      <AppFooter />
     </ScreenContainer>
   );
 }

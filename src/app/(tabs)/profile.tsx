@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Toggle } from '@/components/ui/Toggle';
 import { VisibilitySelector } from '@/components/ui/VisibilitySelector';
 import { ShareSheet } from '@/components/ui/ShareSheet';
+import { AppFooter } from '@/components/brand/AppFooter';
 import { Body, Caption, Display, Title } from '@/components/ui/Typography';
 import { colors, radii, spacing } from '@/constants/theme';
 import { useAppState } from '@/state/AppState';
@@ -265,6 +266,8 @@ export default function YouScreen() {
         </Card>
 
         <Caption align="center">Signed in as {session?.user?.email ?? 'your account'}.</Caption>
+
+        <AppFooter />
       </View>
 
       <ShareSheet

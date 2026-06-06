@@ -3,6 +3,8 @@
  * precious. Avoid cold technical language everywhere.
  */
 
+import { getAnchorRelationshipChoices } from '@/lib/relationshipTaxonomy';
+
 export const brand = {
   name: 'Tomora',
   tagline: 'Always with you.',
@@ -139,23 +141,8 @@ export const copy = {
   privateContent: 'This memory is kept private by the family.',
 } as const;
 
-/** Relationship choices for the "add loved one" step, grouped by generation. */
-export const relationshipChoices = [
-  { id: 'mother', label: 'Mother', relationshipType: 'parent' },
-  { id: 'father', label: 'Father', relationshipType: 'parent' },
-  { id: 'grandparent', label: 'Grandparent', relationshipType: 'grandparent' },
-  { id: 'aunt', label: 'Aunt', relationshipType: 'aunt_uncle' },
-  { id: 'uncle', label: 'Uncle', relationshipType: 'aunt_uncle' },
-  { id: 'sibling', label: 'Sibling', relationshipType: 'sibling' },
-  { id: 'partner', label: 'Partner', relationshipType: 'partner' },
-  { id: 'cousin', label: 'Cousin', relationshipType: 'cousin' },
-  { id: 'child', label: 'Child', relationshipType: 'child' },
-  { id: 'grandchild', label: 'Grandchild', relationshipType: 'grandchild' },
-  { id: 'niece', label: 'Niece', relationshipType: 'niece_nephew' },
-  { id: 'nephew', label: 'Nephew', relationshipType: 'niece_nephew' },
-  { id: 'pet', label: 'Pet', relationshipType: 'pet' },
-  { id: 'unsure', label: 'Not sure yet', relationshipType: 'other' },
-] as const;
+/** Relationship choices for onboarding / add-relative — derived from the taxonomy. */
+export const relationshipChoices = getAnchorRelationshipChoices();
 
 /** Soft prompt when a child gains a second parent without a partnership edge. */
 export const parentPairingCopy = {

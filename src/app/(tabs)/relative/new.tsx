@@ -16,13 +16,14 @@ import { colors, spacing } from '@/constants/theme';
 import { relationshipChoices } from '@/constants/copy';
 import { goBack } from '@/lib/navigation';
 import { contextRelationshipChoices, previewInferredConnections } from '@/lib/contextualAdd';
+import type { RelationshipChoice } from '@/lib/relationshipTaxonomy';
 import { buildParentPartnershipEdge, type ParentPairingOpportunity } from '@/lib/parentPairing';
 import { activeNodes } from '@/lib/activeNodes';
 import { useAppState } from '@/state/AppState';
 import type { RelationshipType } from '@/types/models';
 
-type AnchorChoice = (typeof relationshipChoices)[number];
-type ContextChoice = (typeof contextRelationshipChoices)[number];
+type AnchorChoice = RelationshipChoice;
+type ContextChoice = RelationshipChoice;
 
 export default function NewRelative() {
   const router = useRouter();
@@ -74,6 +75,7 @@ export default function NewRelative() {
       const { pairingOpportunity } = await addRelative({
         name: name.trim(),
         relationshipType,
+        relationshipDetail: choice.relationshipDetail,
         isRemembered,
         tags: isUnsure ? ['Unknown link'] : undefined,
         contextNodeId: isContextual ? contextNode!.id : undefined,

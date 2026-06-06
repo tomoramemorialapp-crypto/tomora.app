@@ -8,27 +8,13 @@
 
 import type { FamilyNode, Relationship, RelationshipType } from '@/types/models';
 import { INVERSE_RELATIONSHIP_TYPE } from '@/lib/relationshipDetail';
+import { getContextRelationshipChoices } from '@/lib/relationshipTaxonomy';
 import { relationshipLabel, relationshipPath } from '@/lib/relationshipUtils';
 
 export const INVERSE_RELATIONSHIP = INVERSE_RELATIONSHIP_TYPE;
 
 /** Choices when adding relative to someone other than the anchor user. */
-export const contextRelationshipChoices = [
-  { id: 'parent', label: 'Their biological parent', relationshipType: 'parent' as const },
-  { id: 'step_parent', label: 'Their step-parent', relationshipType: 'step_parent' as const },
-  { id: 'parent_in_law', label: 'Their parent-in-law', relationshipType: 'parent_in_law' as const },
-  { id: 'child_in_law', label: 'Their child-in-law', relationshipType: 'child_in_law' as const },
-  { id: 'child', label: 'Their child', relationshipType: 'child' as const },
-  { id: 'sibling', label: 'Their sibling', relationshipType: 'sibling' as const },
-  { id: 'spouse', label: 'Their spouse', relationshipType: 'spouse' as const },
-  { id: 'partner', label: 'Their partner', relationshipType: 'partner' as const },
-  { id: 'grandparent', label: 'Their grandparent', relationshipType: 'grandparent' as const },
-  { id: 'grandchild', label: 'Their grandchild', relationshipType: 'grandchild' as const },
-  { id: 'cousin', label: 'Their cousin', relationshipType: 'cousin' as const },
-  { id: 'niece', label: 'Their niece or nephew', relationshipType: 'niece_nephew' as const },
-  { id: 'pet', label: 'Their pet', relationshipType: 'pet' as const },
-  { id: 'unsure', label: 'Not sure yet', relationshipType: 'other' as const },
-];
+export const contextRelationshipChoices = getContextRelationshipChoices();
 
 /**
  * If context is neighbor's `neighborToContext` and new person is context's

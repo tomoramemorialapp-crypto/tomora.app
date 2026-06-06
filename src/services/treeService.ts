@@ -58,6 +58,7 @@ export interface InitialTreeInput {
   selfName: string;
   lovedOneName: string;
   relationshipType: RelationshipType;
+  relationshipDetail?: RelationshipDetail;
   isRemembered: boolean;
 }
 
@@ -75,7 +76,7 @@ export interface TreeBundle {
  * approved relationship between them.
  */
 export async function createInitialTree(input: InitialTreeInput): Promise<TreeBundle> {
-  const { accountId, selfName, lovedOneName, relationshipType, isRemembered } = input;
+  const { accountId, selfName, lovedOneName, relationshipType, relationshipDetail, isRemembered } = input;
 
   const { data: treeRow, error: treeErr } = await supabase
     .from('family_trees')
@@ -123,6 +124,7 @@ export async function createInitialTree(input: InitialTreeInput): Promise<TreeBu
       from_node_id: selfRow.id,
       to_node_id: lovedRow.id,
       relationship_type: relationshipType,
+      relationship_detail: relationshipDetail ?? null,
       status: 'approved',
       created_by_account_id: accountId,
     })
@@ -146,6 +148,7 @@ export interface AddRelativeInput {
   fromNodeId: string;
   name: string;
   relationshipType: RelationshipType;
+  relationshipDetail?: RelationshipDetail;
   isRemembered: boolean;
   /** Optional family tags, e.g. ['Unknown link'] for an unclear connection. */
   tags?: string[];
@@ -158,7 +161,7 @@ export interface AddRelativeResult {
 
 /** Add a new family member: a node plus an approved relationship to `fromNodeId`. */
 export async function addRelative(input: AddRelativeInput): Promise<AddRelativeResult> {
-  const { treeId, accountId, fromNodeId, name, relationshipType, isRemembered, tags } = input;
+  const { treeId, accountId, fromNodeId, name, relationshipType, relationshipDetail, isRemembered, tags } = input;
 
   const { data: nodeRow, error: nodeErr } = await supabase
     .from('nodes')
@@ -181,6 +184,7 @@ export async function addRelative(input: AddRelativeInput): Promise<AddRelativeR
       from_node_id: fromNodeId,
       to_node_id: nodeRow.id,
       relationship_type: relationshipType,
+      relationship_detail: relationshipDetail ?? null,
       status: 'approved',
       created_by_account_id: accountId,
     })

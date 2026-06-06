@@ -12,17 +12,30 @@ import { Button } from '@/components/ui/Button';
 import { Body, Display, Title } from '@/components/ui/Typography';
 import { colors, spacing } from '@/constants/theme';
 import { copy, relationshipChoices } from '@/constants/copy';
+import type { RelationshipChoice } from '@/lib/relationshipTaxonomy';
 import { useAppState } from '@/state/AppState';
 import type { RelationshipType } from '@/types/models';
 
-type Choice = (typeof relationshipChoices)[number];
+function restoreChoice(draft: {
+  lovedOneTaxonId?: string;
+  lovedOneRelationship: RelationshipType;
+  lovedOneRelationshipDetail?: string;
+}): RelationshipChoice | undefined {
+  if (draft.lovedOneTaxonId) {
+    const byId = relationshipChoices.find((c) => c.id === draft.lovedOneTaxonId);
+    if (byId) return byId;
+  }
+  return relationshipChoices.find(
+    (c) =>
+      c.relationshipType === draft.lovedOneRelationship &&
+      (draft.lovedOneRelationshipDetail ? c.relationshipDetail === draft.lovedOneRelationshipDetail : true),
+  );
+}
 
 export default function AddLovedOne() {
   const router = useRouter();
   const { draft, setDraft } = useAppState();
-  const [choice, setChoice] = useState<Choice | undefined>(
-    relationshipChoices.find((c) => c.relationshipType === draft.lovedOneRelationship),
-  );
+  const [choice, setChoice] = useState<RelationshipChoice | undefined>(() => restoreChoice(draft));
   const [name, setName] = useState(draft.lovedOneName);
   const [isRemembered, setIsRemembered] = useState(draft.lovedOneIsRemembered);
 
@@ -36,6 +49,8 @@ export default function AddLovedOne() {
     setDraft({
       lovedOneName: name.trim(),
       lovedOneRelationship: choice.relationshipType as RelationshipType,
+      lovedOneRelationshipDetail: choice.relationshipDetail,
+      lovedOneTaxonId: choice.id,
       lovedOneIsRemembered: isRemembered,
     });
     router.push('/(onboarding)/reveal');

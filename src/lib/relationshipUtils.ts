@@ -20,6 +20,7 @@ export function generationOffset(type: RelationshipType): -1 | 0 | 1 {
     case 'aunt_uncle':
       return -1;
     case 'child':
+    case 'child_in_law':
     case 'grandchild':
     case 'niece_nephew':
     case 'pet':

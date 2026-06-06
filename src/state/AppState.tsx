@@ -56,6 +56,8 @@ interface OnboardingDraft {
   selfName: string;
   lovedOneName: string;
   lovedOneRelationship: RelationshipType;
+  lovedOneRelationshipDetail?: import('@/lib/relationshipDetail').RelationshipDetail;
+  lovedOneTaxonId?: string;
   lovedOneIsRemembered: boolean;
   /** Chosen at signup; applied via set_username once a session exists. */
   pendingUsername?: string;
@@ -108,6 +110,7 @@ interface AppStateValue {
   addRelative: (input: {
     name: string;
     relationshipType: RelationshipType;
+    relationshipDetail?: import('@/lib/relationshipDetail').RelationshipDetail;
     isRemembered: boolean;
     tags?: string[];
     /** When set, the new person is added relative to this node (not only the anchor). */
@@ -374,6 +377,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           selfName: draftRef.current.selfName,
           lovedOneName: draftRef.current.lovedOneName,
           relationshipType: draftRef.current.lovedOneRelationship,
+          relationshipDetail: draftRef.current.lovedOneRelationshipDetail,
           isRemembered: draftRef.current.lovedOneIsRemembered,
         });
         clearStoredDraft();
@@ -567,7 +571,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, [account]);
 
   const addRelative = useCallback<AppStateValue['addRelative']>(
-    async ({ name, relationshipType, isRemembered, tags, contextNodeId }) => {
+    async ({ name, relationshipType, relationshipDetail, isRemembered, tags, contextNodeId }) => {
       if (!tree || !account) throw new Error('No tree or account loaded.');
       const selfNode =
         nodes.find((n) => n.ownerAccountId === account.id) ??
@@ -586,6 +590,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         fromNodeId,
         name,
         relationshipType,
+        relationshipDetail,
         isRemembered,
         tags,
       });

@@ -9,7 +9,9 @@ import { Body, Display } from '@/components/ui/Typography';
 import { spacing } from '@/constants/theme';
 import { copy } from '@/constants/copy';
 import { useAppState } from '@/state/AppState';
-import { generationOffset, nodeStatusFor, isLivingFor, relationshipLabel } from '@/lib/relationshipUtils';
+import { nodeStatusFor, isLivingFor } from '@/lib/relationshipUtils';
+import { connectionLabel } from '@/lib/relationshipDetail';
+import { generationOffsetForChoice, getTaxon } from '@/lib/relationshipTaxonomy';
 import type { FamilyNode } from '@/types/models';
 
 export default function Reveal() {
@@ -67,6 +69,15 @@ export default function Reveal() {
     return null;
   }
 
+  const lovedOneTaxon = draft.lovedOneTaxonId ? getTaxon(draft.lovedOneTaxonId) : undefined;
+  const revealOffsetRaw = lovedOneTaxon
+    ? lovedOneTaxon.generationOffset
+    : generationOffsetForChoice({ id: '', relationshipType: draft.lovedOneRelationship });
+  const revealOffset = (revealOffsetRaw <= -1 ? -1 : revealOffsetRaw >= 1 ? 1 : 0) as -1 | 0 | 1;
+  const revealLabel = draft.lovedOneRelationshipDetail
+    ? connectionLabel(draft.lovedOneRelationship, draft.lovedOneRelationshipDetail)
+    : lovedOneTaxon?.label.toLowerCase() ?? 'loved one';
+
   return (
     <ScreenContainer
       center
@@ -79,8 +90,8 @@ export default function Reveal() {
         <MiniTreeReveal
           selfNode={selfNode}
           lovedOneNode={lovedOneNode}
-          offset={generationOffset(draft.lovedOneRelationship)}
-          relationshipLabel={relationshipLabel(draft.lovedOneRelationship)}
+          offset={revealOffset}
+          relationshipLabel={revealLabel}
         />
 
         <Animated.View style={{ opacity: textFade, alignItems: 'center', gap: spacing.sm }}>

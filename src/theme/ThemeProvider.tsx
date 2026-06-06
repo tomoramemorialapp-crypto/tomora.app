@@ -1,5 +1,5 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Appearance, Platform, View } from 'react-native';
+import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { Platform, View } from 'react-native';
 
 import { applyPalette, colors, darkColors, lightColors, type ThemeMode } from '@/constants/theme';
 
@@ -15,16 +15,21 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue>({
   themeMode: 'light',
-  appearancePreference: 'system',
+  appearancePreference: 'light',
   setAppearancePreference: () => {},
 });
+
+/** Legacy `system` and unknown values resolve to light — dark only when explicitly chosen. */
+function normalizePreference(value: AppearancePreference | string | null | undefined): AppearancePreference {
+  return value === 'dark' ? 'dark' : 'light';
+}
 
 function readStoredPreference(): AppearancePreference {
   if (Platform.OS === 'web' && typeof localStorage !== 'undefined') {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw === 'light' || raw === 'dark' || raw === 'system') return raw;
+    if (raw) return normalizePreference(raw);
   }
-  return 'system';
+  return 'light';
 }
 
 function persistPreference(value: AppearancePreference): void {
@@ -37,14 +42,8 @@ function persistPreference(value: AppearancePreference): void {
   }
 }
 
-function resolveMode(pref: AppearancePreference, system: 'light' | 'dark' | null): ThemeMode {
-  if (pref === 'system') return system === 'dark' ? 'dark' : 'light';
-  return pref;
-}
-
-/** Coerce RN's ColorSchemeName ('light' | 'dark' | 'unspecified' | null) to ours. */
-function normalizeScheme(scheme: string | null | undefined): 'light' | 'dark' {
-  return scheme === 'dark' ? 'dark' : 'light';
+function resolveMode(pref: AppearancePreference): ThemeMode {
+  return pref === 'dark' ? 'dark' : 'light';
 }
 
 /** Reflect the resolved theme onto the web document (data-theme, CSS vars, body bg). */
@@ -79,32 +78,28 @@ export function ThemeProvider({
   accountPreference?: AppearancePreference | null;
 }) {
   const [appearancePreference, setPref] = useState<AppearancePreference>(() => readStoredPreference());
-  const [systemScheme, setSystemScheme] = useState<'light' | 'dark'>(() => normalizeScheme(Appearance.getColorScheme()));
 
   useEffect(() => {
     if (accountPreference === 'light' || accountPreference === 'dark' || accountPreference === 'system') {
-      persistPreference(accountPreference);
-      setPref(accountPreference);
+      const normalized = normalizePreference(accountPreference);
+      persistPreference(normalized);
+      setPref(normalized);
     }
   }, [accountPreference]);
 
-  useEffect(() => {
-    const sub = Appearance.addChangeListener(({ colorScheme }) => setSystemScheme(normalizeScheme(colorScheme)));
-    return () => sub.remove();
-  }, []);
-
-  const themeMode = resolveMode(appearancePreference, systemScheme);
+  const themeMode = resolveMode(appearancePreference);
 
   // Apply the palette synchronously so children render with correct colors.
   applyPalette(themeMode);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     syncWebDocument(themeMode);
   }, [themeMode]);
 
   const setAppearancePreference = useCallback((value: AppearancePreference) => {
-    persistPreference(value);
-    setPref(value);
+    const normalized = normalizePreference(value);
+    persistPreference(normalized);
+    setPref(normalized);
   }, []);
 
   const value = useMemo<ThemeContextValue>(

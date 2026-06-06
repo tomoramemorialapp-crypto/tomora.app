@@ -157,7 +157,9 @@ export default function YouScreen() {
               </Pressable>
             ) : null}
           </View>
-          <Badge label="Account Owner · Creator" tone="gold" />
+          <View style={{ alignSelf: 'center' }}>
+            <Badge label="Account Owner · Creator" tone="gold" />
+          </View>
           {selfNode ? (
             <Button
               label="Edit my Life Profile"

@@ -15,6 +15,7 @@ import type {
   VisibilityLevel,
   MemoryType,
   ApprovalStatus,
+  ThemePreference,
 } from '@/types/models';
 import type {
   ChangeLogAction,
@@ -28,6 +29,10 @@ import type { Tables } from '@/types/database.types';
 
 /** Map Supabase rows (snake_case) to the app's camelCase domain models. */
 
+function normalizeThemePreference(value: string | null | undefined): ThemePreference {
+  return value === 'dark' ? 'dark' : 'light';
+}
+
 export function mapAccount(row: Tables<'accounts'>): Account {
   const prefs = (row.preferences ?? {}) as { publicProfile?: Partial<Account['publicProfile']> };
   const pp = prefs.publicProfile ?? {};
@@ -38,7 +43,7 @@ export function mapAccount(row: Tables<'accounts'>): Account {
     avatarUrl: row.avatar_url ?? undefined,
     socialLinks: (row.social_links as Account['socialLinks']) ?? {},
     language: row.language ?? 'en',
-    themePreference: (row.theme_preference as Account['themePreference']) ?? 'system',
+    themePreference: normalizeThemePreference(row.theme_preference),
     inviteCode: row.invite_code ?? undefined,
     status: (row.status as Account['status']) ?? 'active',
     publicProfile: {

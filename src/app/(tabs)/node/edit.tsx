@@ -253,7 +253,7 @@ export default function EditProfile() {
   }
 
   async function onSave() {
-    if (!canEdit) return;
+    if (!canEdit || saving) return;
     setSaving(true);
     setSaveError(null);
     try {
@@ -265,10 +265,11 @@ export default function EditProfile() {
         defaultVisibility: vis.fullName,
         changeLog: log,
       });
-      router.back();
+      router.replace({ pathname: '/node/[nodeId]', params: { nodeId: node!.id } });
     } catch (e) {
       console.warn('[tomora] profile save failed', e);
-      setSaveError('Could not save these changes. Please try again.');
+      setSaveError(e instanceof Error ? e.message : 'Could not save these changes. Please try again.');
+    } finally {
       setSaving(false);
     }
   }

@@ -129,6 +129,7 @@ export function KinshipTreeCanvas({
   onOpenMemorial,
   onCompleteUnknown,
   onAddRelative,
+  onAddRelativeFromNode,
 }: {
   nodes: FamilyNode[];
   relationships: Relationship[];
@@ -139,6 +140,7 @@ export function KinshipTreeCanvas({
   onOpenMemorial?: (nodeId: string) => void;
   onCompleteUnknown?: (node: RenderNode) => void;
   onAddRelative?: () => void;
+  onAddRelativeFromNode?: (nodeId: string) => void;
 }) {
   const appNodeIds = useMemo(() => new Set(nodes.map((n) => n.id)), [nodes]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -616,6 +618,11 @@ export function KinshipTreeCanvas({
             onCompleteUnknown={
               selected.nodeType === 'placeholder' && !appNodeIds.has(selected.id) && onCompleteUnknown
                 ? () => onCompleteUnknown(selected)
+                : undefined
+            }
+            onAddRelative={
+              appNodeIds.has(selected.id) && selected.nodeType !== 'placeholder' && onAddRelativeFromNode
+                ? () => onAddRelativeFromNode(selected.id)
                 : undefined
             }
             onClose={() => setSelectedId(null)}

@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { RelationshipPicker } from '@/components/onboarding/RelationshipPicker';
+import { ContextRelationshipPicker } from '@/components/onboarding/ContextRelationshipPicker';
 import { TextField } from '@/components/ui/TextField';
 import { Toggle } from '@/components/ui/Toggle';
 import { Card } from '@/components/ui/Card';
@@ -13,35 +14,63 @@ import { DisconnectedNodeBridgePrompt } from '@/components/family-tree/Disconnec
 import { colors, spacing } from '@/constants/theme';
 import { relationshipChoices } from '@/constants/copy';
 import { goBack } from '@/lib/navigation';
+import { contextRelationshipChoices, previewInferredConnections } from '@/lib/contextualAdd';
 import { useAppState } from '@/state/AppState';
 import type { RelationshipType } from '@/types/models';
 
-type Choice = (typeof relationshipChoices)[number];
+type AnchorChoice = (typeof relationshipChoices)[number];
+type ContextChoice = (typeof contextRelationshipChoices)[number];
 
 export default function NewRelative() {
   const router = useRouter();
-  const { addRelative } = useAppState();
+  const { contextNodeId } = useLocalSearchParams<{ contextNodeId?: string }>();
+  const { addRelative, nodes, relationships, account } = useAppState();
 
-  const [choice, setChoice] = useState<Choice | undefined>(undefined);
+  const anchorNode = useMemo(
+    () =>
+      nodes.find((n) => n.ownerAccountId === account?.id) ??
+      nodes.find((n) => n.status === 'claimed') ??
+      nodes[0],
+    [nodes, account?.id],
+  );
+  const contextNode = contextNodeId ? nodes.find((n) => n.id === contextNodeId) : undefined;
+  const isContextual = !!contextNode && contextNode.id !== anchorNode?.id;
+
+  const [anchorChoice, setAnchorChoice] = useState<AnchorChoice | undefined>(undefined);
+  const [contextChoice, setContextChoice] = useState<ContextChoice | undefined>(undefined);
   const [name, setName] = useState('');
   const [isRemembered, setIsRemembered] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const choice = isContextual ? contextChoice : anchorChoice;
+  const relationshipType = choice?.relationshipType;
   const canSave = !!choice && name.trim().length > 0 && !busy;
-  const isPet = choice?.relationshipType === 'pet';
-  const isUnsure = choice?.relationshipType === 'other';
+  const isPet = relationshipType === 'pet';
+  const isUnsure = relationshipType === 'other';
+
+  const inferredPreview = useMemo(() => {
+    if (!isContextual || !contextNode || !relationshipType || !anchorNode) return [];
+    return previewInferredConnections({
+      contextNodeId: contextNode.id,
+      relationshipToContext: relationshipType,
+      anchorNodeId: anchorNode.id,
+      nodes,
+      relationships,
+    });
+  }, [isContextual, contextNode, relationshipType, anchorNode, nodes, relationships]);
 
   const onSave = async () => {
-    if (!choice) return;
+    if (!choice || !relationshipType) return;
     setError(null);
     setBusy(true);
     try {
       await addRelative({
         name: name.trim(),
-        relationshipType: choice.relationshipType as RelationshipType,
+        relationshipType,
         isRemembered,
         tags: isUnsure ? ['Unknown link'] : undefined,
+        contextNodeId: isContextual ? contextNode!.id : undefined,
       });
       goBack(router);
     } catch (e: unknown) {
@@ -65,16 +94,33 @@ export default function NewRelative() {
         <View style={{ gap: spacing.xs }}>
           <Caption style={{ textTransform: 'uppercase', letterSpacing: 1.6 }}>Grow your Family Tree</Caption>
           <Display style={{ fontSize: 32 }}>Add a family member</Display>
-          <Body style={{ fontSize: 17 }}>Who would you like to add?</Body>
+          {isContextual ? (
+            <Body style={{ fontSize: 17 }}>
+              Adding someone connected to {contextNode!.displayName}. Choose how they relate to{' '}
+              {contextNode!.displayName.split(' ')[0]} — Tomora will wire up the rest of your tree.
+            </Body>
+          ) : (
+            <Body style={{ fontSize: 17 }}>Who would you like to add?</Body>
+          )}
         </View>
 
-        <RelationshipPicker
-          selectedId={choice?.id}
-          onSelect={(next) => {
-            setChoice(next);
-            if (next.relationshipType === 'pet') setIsRemembered(false);
-          }}
-        />
+        {isContextual ? (
+          <ContextRelationshipPicker
+            selectedId={contextChoice?.id}
+            onSelect={(next) => {
+              setContextChoice(next);
+              if (next.relationshipType === 'pet') setIsRemembered(false);
+            }}
+          />
+        ) : (
+          <RelationshipPicker
+            selectedId={anchorChoice?.id}
+            onSelect={(next) => {
+              setAnchorChoice(next);
+              if (next.relationshipType === 'pet') setIsRemembered(false);
+            }}
+          />
+        )}
 
         {choice ? (
           <View style={{ gap: spacing.md, marginTop: spacing.sm }}>
@@ -89,6 +135,24 @@ export default function NewRelative() {
                 onSubmitEditing={() => canSave && onSave()}
               />
             </View>
+
+            {isContextual && inferredPreview.length > 0 ? (
+              <Card style={{ backgroundColor: colors.candlelight, borderColor: colors.softGold }}>
+                <View style={{ gap: spacing.xs }}>
+                  <Title style={{ fontSize: 18 }}>Tomora will also connect them</Title>
+                  <Body style={{ fontSize: 15, color: colors.deepUmber }}>
+                    Based on how {contextNode!.displayName} already fits in your tree:
+                  </Body>
+                  <View style={{ gap: 4, marginTop: spacing.xs }}>
+                    {inferredPreview.map((line) => (
+                      <Caption key={`${line.nodeId}-${line.relationshipType}`} style={{ fontSize: 14 }}>
+                        · {line.label}
+                      </Caption>
+                    ))}
+                  </View>
+                </View>
+              </Card>
+            ) : null}
 
             {!isUnsure ? (
               <Card style={{ backgroundColor: colors.candlelight, borderColor: colors.softGold }}>
@@ -105,10 +169,12 @@ export default function NewRelative() {
               </Card>
             ) : null}
 
-            <DisconnectedNodeBridgePrompt
-              relationshipType={choice.relationshipType as RelationshipType}
-              relationshipLabel={choice.label}
-            />
+            {!isContextual ? (
+              <DisconnectedNodeBridgePrompt
+                relationshipType={choice.relationshipType as RelationshipType}
+                relationshipLabel={choice.label}
+              />
+            ) : null}
           </View>
         ) : null}
 

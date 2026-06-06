@@ -10,6 +10,7 @@ import React, {
 import { Platform } from 'react-native';
 import type { Session } from '@supabase/supabase-js';
 
+import { inferContextualRelationships } from '@/lib/contextualAdd';
 import type {
   Account,
   FamilyTree,
@@ -91,6 +92,8 @@ interface AppStateValue {
     relationshipType: RelationshipType;
     isRemembered: boolean;
     tags?: string[];
+    /** When set, the new person is added relative to this node (not only the anchor). */
+    contextNodeId?: string;
   }) => Promise<FamilyNode>;
 
   /** Turn a synthetic unknown tree node into a minimal, editable Life Profile. */
@@ -480,27 +483,54 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, [account]);
 
   const addRelative = useCallback<AppStateValue['addRelative']>(
-    async ({ name, relationshipType, isRemembered, tags }) => {
+    async ({ name, relationshipType, isRemembered, tags, contextNodeId }) => {
       if (!tree || !account) throw new Error('No tree or account loaded.');
       const selfNode =
         nodes.find((n) => n.ownerAccountId === account.id) ??
         nodes.find((n) => n.status === 'claimed') ??
         nodes[0];
       if (!selfNode) throw new Error('No anchor node to connect to.');
+
+      const fromNodeId = contextNodeId ?? selfNode.id;
+      if (!nodes.some((n) => n.id === fromNodeId)) {
+        throw new Error('That family member is no longer in your tree.');
+      }
+
       const { node, relationship } = await treeService.addRelative({
         treeId: tree.id,
         accountId: account.id,
-        fromNodeId: selfNode.id,
+        fromNodeId,
         name,
         relationshipType,
         isRemembered,
         tags,
       });
+
+      const createdRelationships = [relationship];
+      if (contextNodeId && contextNodeId !== selfNode.id) {
+        const inferred = inferContextualRelationships({
+          contextNodeId,
+          newNodeId: node.id,
+          relationshipToContext: relationshipType,
+          relationships: [...relationships, relationship],
+        });
+        for (const edge of inferred) {
+          const extra = await treeService.createRelationship({
+            treeId: tree.id,
+            accountId: account.id,
+            fromNodeId: edge.fromNodeId,
+            toNodeId: edge.toNodeId,
+            relationshipType: edge.relationshipType,
+          });
+          createdRelationships.push(extra);
+        }
+      }
+
       setNodes((prev) => [...prev, node]);
-      setRelationships((prev) => [...prev, relationship]);
+      setRelationships((prev) => [...prev, ...createdRelationships]);
       return node;
     },
-    [account, nodes, tree],
+    [account, nodes, relationships, tree],
   );
 
   const materializeUnknown = useCallback<AppStateValue['materializeUnknown']>(

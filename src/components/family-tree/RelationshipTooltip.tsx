@@ -11,6 +11,7 @@ export function RelationshipTooltip({
   onOpenProfile,
   onOpenMemorial,
   onCompleteUnknown,
+  onAddRelative,
   onClose,
 }: {
   name: string;
@@ -19,6 +20,7 @@ export function RelationshipTooltip({
   onOpenProfile?: () => void;
   onOpenMemorial?: () => void;
   onCompleteUnknown?: () => void;
+  onAddRelative?: () => void;
   onClose?: () => void;
 }) {
   return (
@@ -36,10 +38,32 @@ export function RelationshipTooltip({
       ]}
     >
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm }}>
-        <Title style={{ fontSize: 20 }}>{name}</Title>
-        {label ? (
-          <Caption style={{ textTransform: 'uppercase', letterSpacing: 1.2, color: colors.deepUmber }}>{label}</Caption>
-        ) : null}
+        <Title style={{ fontSize: 20, flex: 1 }}>{name}</Title>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+          {label ? (
+            <Caption style={{ textTransform: 'uppercase', letterSpacing: 1.2, color: colors.deepUmber }}>{label}</Caption>
+          ) : null}
+          {onAddRelative ? (
+            <Pressable
+              onPress={onAddRelative}
+              accessibilityRole="button"
+              accessibilityLabel={`Add a family member connected to ${name}`}
+              hitSlop={10}
+              style={({ pressed }) => ({
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: pressed ? 'rgba(184,135,47,0.2)' : 'rgba(184,135,47,0.12)',
+                borderWidth: 1.5,
+                borderColor: colors.guardianGold,
+              })}
+            >
+              <Body style={{ fontSize: 22, lineHeight: 24, color: colors.guardianGold, fontWeight: '700' }}>+</Body>
+            </Pressable>
+          ) : null}
+        </View>
       </View>
       {explanation ? <Body style={{ fontSize: 15, color: colors.deepUmber }}>{explanation}</Body> : null}
       <View style={{ gap: spacing.sm }}>

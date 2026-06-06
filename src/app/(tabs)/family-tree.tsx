@@ -56,6 +56,9 @@ export default function FamilyTreeScreen() {
           }
         }}
         onAddRelative={() => router.push('/relative/new')}
+        onAddRelativeFromNode={(nodeId) =>
+          router.push({ pathname: '/relative/new', params: { contextNodeId: nodeId } })
+        }
       />
     </ScreenContainer>
   );

@@ -13,6 +13,7 @@ export type SocialNetwork =
   | 'website'
   | 'instagram'
   | 'facebook'
+  | 'messenger'
   | 'x'
   | 'linkedin'
   | 'youtube'
@@ -20,6 +21,8 @@ export type SocialNetwork =
   | 'spotify'
   | 'whatsapp'
   | 'telegram'
+  | 'viber'
+  | 'sms'
   | 'github'
   | 'threads'
   | 'email';
@@ -28,6 +31,7 @@ export const SOCIAL_LABELS: Record<SocialNetwork, string> = {
   website: 'Website',
   instagram: 'Instagram',
   facebook: 'Facebook',
+  messenger: 'Messenger',
   x: 'X',
   linkedin: 'LinkedIn',
   youtube: 'YouTube',
@@ -35,6 +39,8 @@ export const SOCIAL_LABELS: Record<SocialNetwork, string> = {
   spotify: 'Spotify',
   whatsapp: 'WhatsApp',
   telegram: 'Telegram',
+  viber: 'Viber',
+  sms: 'Messages',
   github: 'GitHub',
   threads: 'Threads',
   email: 'Email',
@@ -54,6 +60,15 @@ function Glyph({ network, color, sw }: { network: SocialNetwork; color: string; 
       return (
         <Path
           d="M13.5 21v-7h2.2l.4-2.7h-2.6V9.4c0-.8.3-1.3 1.4-1.3h1.3V5.7c-.6-.1-1.4-.2-2.3-.2-2.3 0-3.7 1.4-3.7 3.9v1.9H8v2.7h2.2V21"
+          stroke={color}
+          strokeWidth={sw}
+          strokeLinejoin="round"
+        />
+      );
+    case 'messenger':
+      return (
+        <Path
+          d="M12 4C7.6 4 4 7.1 4 11c0 2.2 1.1 4.1 2.9 5.4L6 20l3.4-1.8c.8.2 1.6.3 2.6.3 4.4 0 8-3.1 8-7s-3.6-7-8-7Z"
           stroke={color}
           strokeWidth={sw}
           strokeLinejoin="round"
@@ -107,6 +122,30 @@ function Glyph({ network, color, sw }: { network: SocialNetwork; color: string; 
     case 'telegram':
       return (
         <Path d="M20 5 3.8 11.4c-.6.2-.6 1 .1 1.2l4 1.2 1.6 4.4c.2.5.8.6 1.1.2l2.2-2.3 3.9 2.9c.4.3 1 .1 1.1-.4L20 5Zm0 0-9.5 8.9" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" />
+      );
+    case 'viber':
+      return (
+        <>
+          <Path
+            d="M9.5 5.5h5c3.3 0 5.5 2.2 5.5 5.5v4.8c0 .8-.7 1.5-1.5 1.5h-1.2l-1.4 2.4-2-2.4H9.5c-3.3 0-5.5-2.2-5.5-5.5V11c0-3.3 2.2-5.5 5.5-5.5Z"
+            stroke={color}
+            strokeWidth={sw}
+            strokeLinejoin="round"
+          />
+          <Path d="M10 10.5h4M10 13.5h2.5" stroke={color} strokeWidth={sw} strokeLinecap="round" />
+        </>
+      );
+    case 'sms':
+      return (
+        <>
+          <Path
+            d="M5 5h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H9l-4 3v-3H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"
+            stroke={color}
+            strokeWidth={sw}
+            strokeLinejoin="round"
+          />
+          <Path d="M8 10h8M8 13h5" stroke={color} strokeWidth={sw} strokeLinecap="round" />
+        </>
       );
     case 'github':
       return (

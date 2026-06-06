@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Linking, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { SocialIcon, type SocialNetwork } from '@/components/brand/SocialIcon';
 import { colors, fonts, radii, shadows, spacing } from '@/constants/theme';
 import { Title, Caption } from '@/components/ui/Typography';
 
 type Target = {
   id: string;
   label: string;
+  icon: SocialNetwork;
   /** Build a share url. If omitted, the target only copies the link. */
   url?: (link: string, message: string) => string;
   tint: string;
@@ -14,37 +16,42 @@ type Target = {
 const enc = encodeURIComponent;
 
 const TARGETS: Target[] = [
-  { id: 'sms', label: 'Messages', tint: '#34C759', url: (l, m) => `sms:?&body=${enc(`${m} ${l}`)}` },
+  { id: 'sms', label: 'Messages', icon: 'sms', tint: '#34C759', url: (l, m) => `sms:?&body=${enc(`${m} ${l}`)}` },
   {
     id: 'email',
     label: 'Email',
+    icon: 'email',
     tint: '#8E8E93',
     url: (l, m) => `mailto:?subject=${enc('Join our Family Tree on Tomora')}&body=${enc(`${m}\n\n${l}`)}`,
   },
-  { id: 'whatsapp', label: 'WhatsApp', tint: '#25D366', url: (l, m) => `https://wa.me/?text=${enc(`${m} ${l}`)}` },
+  { id: 'whatsapp', label: 'WhatsApp', icon: 'whatsapp', tint: '#25D366', url: (l, m) => `https://wa.me/?text=${enc(`${m} ${l}`)}` },
   {
     id: 'messenger',
     label: 'Messenger',
+    icon: 'messenger',
     tint: '#0084FF',
     url: (l) => `https://www.facebook.com/dialog/send?link=${enc(l)}&app_id=0&redirect_uri=${enc(l)}`,
   },
   {
     id: 'telegram',
     label: 'Telegram',
+    icon: 'telegram',
     tint: '#229ED9',
     url: (l, m) => `https://t.me/share/url?url=${enc(l)}&text=${enc(m)}`,
   },
-  { id: 'viber', label: 'Viber', tint: '#7360F2', url: (l, m) => `viber://forward?text=${enc(`${m} ${l}`)}` },
-  { id: 'instagram', label: 'Instagram', tint: '#E1306C' },
+  { id: 'viber', label: 'Viber', icon: 'viber', tint: '#7360F2', url: (l, m) => `viber://forward?text=${enc(`${m} ${l}`)}` },
+  { id: 'instagram', label: 'Instagram', icon: 'instagram', tint: '#E1306C' },
   {
     id: 'x',
     label: 'X',
+    icon: 'x',
     tint: '#111111',
     url: (l, m) => `https://twitter.com/intent/tweet?text=${enc(m)}&url=${enc(l)}`,
   },
   {
     id: 'linkedin',
     label: 'LinkedIn',
+    icon: 'linkedin',
     tint: '#0A66C2',
     url: (l) => `https://www.linkedin.com/sharing/share-offsite/?url=${enc(l)}`,
   },
@@ -165,9 +172,7 @@ export function ShareSheet({
                     justifyContent: 'center',
                   }}
                 >
-                  <Text style={{ fontFamily: fonts.body, fontSize: 20, fontWeight: '700', color: colors.white }}>
-                    {t.label.slice(0, 1)}
-                  </Text>
+                  <SocialIcon network={t.icon} size={26} color={colors.white} />
                 </View>
                 <Text style={{ fontFamily: fonts.body, fontSize: 12, color: colors.ink }} numberOfLines={1}>
                   {t.label}

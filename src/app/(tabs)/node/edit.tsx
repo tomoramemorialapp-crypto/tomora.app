@@ -32,7 +32,8 @@ import { useAppState } from '@/state/AppState';
 import type { VisibilityLevel } from '@/types/models';
 import { ProfilePhotoCropModal } from '@/components/media/ProfilePhotoCropModal';
 import { goBack } from '@/lib/navigation';
-import { capFor, formatBytes, isWithinCap, pickMedia, uploadMedia } from '@/lib/media';
+import { pickMedia, uploadMedia } from '@/lib/media';
+import { profilePhotoValidationMessage, validateProfilePhoto } from '@/lib/profilePhotoValidation';
 import type {
   DateValue,
   GenderSexField,
@@ -169,8 +170,9 @@ function EditProfileEditor({ nodeId }: { nodeId: string }) {
     try {
       const picked = await pickMedia('photo');
       if (!picked) return;
-      if (!isWithinCap(picked)) {
-        setPhotoError(`That image is ${formatBytes(picked.size)} — the limit is ${formatBytes(capFor('photo'))}.`);
+      const validation = validateProfilePhoto(picked);
+      if (!validation.valid) {
+        setPhotoError(profilePhotoValidationMessage(validation, picked.size));
         return;
       }
       setCropUri(picked.uri);
@@ -431,8 +433,21 @@ function EditProfileEditor({ nodeId }: { nodeId: string }) {
               ) : null}
             </View>
           </View>
-          {photoError ? <Caption style={{ color: colors.error }}>{photoError}</Caption> : null}
-          <TextField label="Or paste a photo URL" value={photo} onChangeText={setPhoto} placeholder="https://…" autoCapitalize="none" />
+          {photoError ? (
+            <Caption style={{ color: colors.error, lineHeight: 20 }}>{photoError}</Caption>
+          ) : (
+            <Caption style={{ color: colors.ashTaupe }}>JPG, PNG, or WebP · max 10MB</Caption>
+          )}
+          <TextField
+            label="Or paste a photo URL"
+            value={photo}
+            onChangeText={(v) => {
+              setPhoto(v);
+              if (photoError) setPhotoError(null);
+            }}
+            placeholder="https://…"
+            autoCapitalize="none"
+          />
           <TextField label="First name" value={firstName} onChangeText={setFirstName} placeholder="First name" autoCapitalize="words" />
           <TextField label="Middle name" value={middleName} onChangeText={setMiddleName} placeholder="Middle name (optional)" autoCapitalize="words" />
           <TextField label="Surname" value={surname} onChangeText={setSurname} placeholder="Surname" autoCapitalize="words" />

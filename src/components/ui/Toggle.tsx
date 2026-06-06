@@ -21,6 +21,8 @@ export function Toggle({
         borderRadius: 999,
         padding: 3,
         backgroundColor: value ? colors.guardianGold : colors.mistBeige,
+        borderWidth: value ? 0 : 1,
+        borderColor: colors.ashTaupe,
         justifyContent: 'center',
       }}
     >
@@ -29,7 +31,9 @@ export function Toggle({
           width: 24,
           height: 24,
           borderRadius: 12,
-          backgroundColor: colors.white,
+          backgroundColor: colors.ink,
+          borderWidth: 1,
+          borderColor: value ? 'transparent' : colors.ashTaupe,
           alignSelf: value ? 'flex-end' : 'flex-start',
         }}
       />

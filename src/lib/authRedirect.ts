@@ -4,8 +4,8 @@ import { Platform } from 'react-native';
 import { APP_BASE_URL } from '@/constants/urls';
 
 export type AuthCallbackIntent = {
-  /** Post-auth route hint — claim resumes pending invite from draft storage. */
-  next?: 'claim' | 'home' | 'onboarding';
+  /** Post-auth route hint after email link or OAuth return. */
+  next?: 'claim' | 'home' | 'onboarding' | 'reset-password';
 };
 
 /** Best-effort public origin for the running app (web) or configured base URL. */
@@ -39,4 +39,9 @@ export function getOAuthRedirectUrl(): string {
 /** Email confirmation redirect for sign-up and resend flows. */
 export function getEmailRedirectUrl(intent?: AuthCallbackIntent): string {
   return getAuthCallbackUrl(intent);
+}
+
+/** Redirect target for password-reset emails from Supabase Auth. */
+export function getPasswordResetRedirectUrl(): string {
+  return getAuthCallbackUrl({ next: 'reset-password' });
 }

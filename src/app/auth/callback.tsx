@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Platform, View } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 
 import { TomoraEmblem } from '@/components/brand/TomoraEmblem';
 import { Button } from '@/components/ui/Button';
@@ -13,16 +13,26 @@ import { useAppState } from '@/state/AppState';
 
 type CallbackStatus = 'working' | 'error';
 
-function readAuthErrorFromUrl(): string | null {
+function readUrlAuthParams(): URLSearchParams | null {
   if (Platform.OS !== 'web' || typeof window === 'undefined') return null;
-
   const hash = window.location.hash?.replace(/^#/, '') ?? '';
   const search = window.location.search?.replace(/^\?/, '') ?? '';
-  const params = new URLSearchParams(hash || search);
+  if (!hash && !search) return null;
+  return new URLSearchParams(hash || search);
+}
 
+function readAuthErrorFromUrl(): string | null {
+  const params = readUrlAuthParams();
+  if (!params) return null;
   const description = params.get('error_description') ?? params.get('error');
   if (!description) return null;
   return description.replace(/\+/g, ' ');
+}
+
+function isPasswordRecoveryReturn(next?: string): boolean {
+  if (next === 'reset-password') return true;
+  const params = readUrlAuthParams();
+  return params?.get('type') === 'recovery';
 }
 
 /** OAuth / email-verification return route — completes session exchange and resumes onboarding. */
@@ -78,6 +88,11 @@ export default function AuthCallback() {
 
   useEffect(() => {
     if (status === 'error' || loading) return;
+
+    if (isPasswordRecoveryReturn(next)) {
+      router.replace('/reset-password' as Href);
+      return;
+    }
 
     if (next === 'claim') {
       router.replace('/(onboarding)/claim');
@@ -140,7 +155,13 @@ export default function AuthCallback() {
             onPress={onResend}
           />
           {resendNote ? <Caption style={{ color: colors.deepUmber }}>{resendNote}</Caption> : null}
-          <Button label="Return to sign in" variant="secondary" onPress={() => router.replace('/login')} />
+          <Button
+            label={isPasswordRecoveryReturn(next) ? 'Request new reset link' : 'Return to sign in'}
+            variant="secondary"
+            onPress={() =>
+              router.replace((isPasswordRecoveryReturn(next) ? '/forgot-password' : '/login') as Href)
+            }
+          />
         </View>
       </View>
     );

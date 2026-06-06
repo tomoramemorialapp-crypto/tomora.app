@@ -1,7 +1,12 @@
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 
-import { getEmailRedirectUrl, getOAuthRedirectUrl, type AuthCallbackIntent } from '@/lib/authRedirect';
+import {
+  getEmailRedirectUrl,
+  getOAuthRedirectUrl,
+  getPasswordResetRedirectUrl,
+  type AuthCallbackIntent,
+} from '@/lib/authRedirect';
 import { supabase } from '@/lib/supabase';
 import { isEmailIdentifier } from '@/lib/username';
 import type { Session } from '@supabase/supabase-js';
@@ -35,6 +40,9 @@ export function friendlyAuthError(error: unknown): string {
   }
   if (msg.includes('email address not authorized')) {
     return 'This email address cannot receive messages from the default Supabase mailer. Set up custom SMTP in your Supabase project, or sign up with an email on your Supabase org team.';
+  }
+  if (msg.includes('recovery email') || msg.includes('reset password')) {
+    return 'Could not send the reset email. Check your SMTP settings in Supabase, or try again in a few minutes.';
   }
   return error.message;
 }
@@ -115,6 +123,28 @@ export function isEmailVerified(session: Session | null): boolean {
   const user = session?.user;
   if (!user) return false;
   return Boolean(user.email_confirmed_at || user.confirmed_at);
+}
+
+/**
+ * Send a password-reset link. Accepts email or Tomora username (resolved to auth email).
+ * Supabase always returns success for unknown emails — we mirror that calm UX in the UI.
+ */
+export async function requestPasswordReset(identifier: string): Promise<void> {
+  const email = await resolveLoginEmail(identifier);
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: getPasswordResetRedirectUrl(),
+  });
+  if (error) throw new Error(friendlyAuthError(error));
+}
+
+/** Set a new password after the user opens the recovery link (requires active recovery session). */
+export async function completePasswordReset(newPassword: string): Promise<Session> {
+  const { data, error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw new Error(friendlyAuthError(error));
+  if (!data.user) throw new Error('Could not update your password. Please try again.');
+  const session = await getSession();
+  if (!session) throw new Error('Your reset link may have expired. Request a new one.');
+  return session;
 }
 
 /** Resend the confirmation email for an unverified address. */

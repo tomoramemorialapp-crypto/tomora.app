@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { TextField } from '@/components/ui/TextField';
@@ -93,6 +93,12 @@ export default function Login() {
               onPress={() => setShowPassword((s) => !s)}
             />
           </View>
+          <Button
+            label={copy.login.forgotPassword}
+            variant="ghost"
+            fullWidth={false}
+            onPress={() => router.push('/forgot-password' as Href)}
+          />
         </View>
 
         {error ? <Caption style={{ color: colors.error, fontSize: 14 }}>{error}</Caption> : null}

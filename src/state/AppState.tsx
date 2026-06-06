@@ -370,6 +370,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // Recovery link — session only until the user sets a new password on /reset-password.
+      if (event === 'PASSWORD_RECOVERY') {
+        if (mounted) setLoading(false);
+        return;
+      }
+
       // Hydrate on cold start and after sign-in (e.g. email-confirmation redirect).
       if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
         try {

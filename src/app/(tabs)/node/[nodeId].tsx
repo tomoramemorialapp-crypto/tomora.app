@@ -16,7 +16,7 @@ import { copy } from '@/constants/copy';
 import { useAppState } from '@/state/AppState';
 import { goBack } from '@/lib/navigation';
 import { relationshipPath } from '@/lib/relationshipUtils';
-import { editScopeFor, formatDateValue, formatGenderSex, formatPlace } from '@/lib/profile';
+import { editScopeFor, formatDateValue, formatGenderSex, formatPlace, resolvePersonName } from '@/lib/profile';
 
 export default function LifeProfile() {
   const router = useRouter();
@@ -60,7 +60,12 @@ export default function LifeProfile() {
   const profile = node.profile ?? {};
   const pendingSuggestions = getSuggestedEditsForNode(node.id).filter((s) => s.status === 'pending').length;
 
+  const nameParts = resolvePersonName(profile, node.displayName);
   const details: { label: string; value: string }[] = [
+    ...(nameParts.firstName ? [{ label: 'First name', value: nameParts.firstName }] : []),
+    ...(nameParts.middleName ? [{ label: 'Middle name', value: nameParts.middleName }] : []),
+    ...(nameParts.surname ? [{ label: 'Surname', value: nameParts.surname }] : []),
+    ...(nameParts.suffix ? [{ label: 'Suffix', value: nameParts.suffix }] : []),
     { label: 'Date of birth', value: formatDateValue(profile.dateOfBirth?.value) },
     { label: 'Date of death', value: formatDateValue(profile.dateOfDeath?.value) },
     { label: 'Place of birth', value: formatPlace(profile.placeOfBirth?.value) },

@@ -26,6 +26,7 @@ export interface FamilyTreeFilterState {
   nodeStatuses: NodeStatus[]; // empty => all
   lifeStatuses: LifeStatus[]; // empty => all
   tags: string[]; // empty => all
+  surnames: string[]; // empty => all
   showPlaceholders: boolean;
 }
 
@@ -35,6 +36,7 @@ export const DEFAULT_FILTER: FamilyTreeFilterState = {
   nodeStatuses: [],
   lifeStatuses: [],
   tags: [],
+  surnames: [],
   showPlaceholders: true,
 };
 
@@ -96,6 +98,17 @@ export function tagsOf(node: RenderNode): string[] {
   return ((node.metadata as { tags?: string[] } | undefined)?.tags ?? []) as string[];
 }
 
+export function surnameOf(node: RenderNode): string | undefined {
+  const s = (node.metadata as { surname?: string } | undefined)?.surname?.trim();
+  return s || undefined;
+}
+
+export function nameSearchHaystackOf(node: RenderNode): string {
+  const md = node.metadata as { nameSearch?: string } | undefined;
+  if (md?.nameSearch) return md.nameSearch;
+  return node.displayName.toLowerCase();
+}
+
 /** Whether a resolved node passes the active filter. The anchor always passes. */
 export function nodeMatchesFilter(node: RenderNode, filter: FamilyTreeFilterState): boolean {
   if (node.isAnchor) return true;
@@ -113,6 +126,10 @@ export function nodeMatchesFilter(node: RenderNode, filter: FamilyTreeFilterStat
     const t = tagsOf(node);
     if (!filter.tags.some((tag) => t.includes(tag))) return false;
   }
+  if (filter.surnames.length) {
+    const s = surnameOf(node);
+    if (!s || !filter.surnames.includes(s)) return false;
+  }
   return true;
 }
 
@@ -123,6 +140,7 @@ export function isFilterActive(filter: FamilyTreeFilterState): boolean {
     filter.nodeStatuses.length > 0 ||
     filter.lifeStatuses.length > 0 ||
     filter.tags.length > 0 ||
+    filter.surnames.length > 0 ||
     !filter.showPlaceholders
   );
 }

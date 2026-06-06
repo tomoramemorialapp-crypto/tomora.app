@@ -9,7 +9,7 @@ import type {
   VisibilityLevel,
 } from '@/types/models';
 import { isLivingFor, nodeStatusFor } from '@/lib/relationshipUtils';
-import { makeField } from '@/lib/profile';
+import { makeField, parsePersonNameFromString } from '@/lib/profile';
 import type { EditScope } from '@/lib/profile';
 import type { NodeProfile, SuggestedEdit } from '@/types/profile';
 import type { Json, Tables } from '@/types/database.types';
@@ -25,7 +25,7 @@ import {
 /** Seed a minimal profile so the very first name carries provenance metadata. */
 function seedProfile(fullName: string, scope: EditScope, accountId: string): NodeProfile {
   return {
-    fullName: makeField(fullName.trim(), {
+    name: makeField(parsePersonNameFromString(fullName), {
       visibility: 'family_tree',
       scope,
       accountId,

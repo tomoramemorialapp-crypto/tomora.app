@@ -11,6 +11,7 @@ import type {
   GenderSexField,
   NodeOwnershipState,
   NodeProfile,
+  PersonName,
   PlaceReference,
   ProfileField,
   ProfileFieldKey,
@@ -102,6 +103,64 @@ export function makeField<T>(
 }
 
 // ---------------------------------------------------------------------------
+// Structured name
+// ---------------------------------------------------------------------------
+
+const NAME_SUFFIX_PATTERN = /^(jr\.?|sr\.?|i{1,3}|iv|v|vi{0,3}|esq\.?|phd|md|dds|dvm)$/i;
+
+/** Split a legacy full-name string into structured parts (best-effort). */
+export function parsePersonNameFromString(full: string): PersonName {
+  const trimmed = full.trim();
+  if (!trimmed) return { firstName: '' };
+
+  const parts = trimmed.split(/\s+/).filter(Boolean);
+  let suffix: string | undefined;
+  if (parts.length > 1 && NAME_SUFFIX_PATTERN.test(parts[parts.length - 1]!)) {
+    suffix = parts.pop();
+  }
+  if (parts.length === 0) return { firstName: trimmed, suffix };
+  if (parts.length === 1) return { firstName: parts[0]!, suffix };
+
+  const firstName = parts[0]!;
+  const surname = parts[parts.length - 1];
+  const middleName = parts.length > 2 ? parts.slice(1, -1).join(' ') : undefined;
+  return { firstName, middleName, surname, suffix };
+}
+
+type LegacyNodeProfile = NodeProfile & { fullName?: ProfileField<string> };
+
+/** Read structured name from profile JSON, migrating legacy `fullName` when needed. */
+export function resolvePersonName(profile: NodeProfile, displayName?: string): PersonName {
+  const legacy = profile as LegacyNodeProfile;
+  if (profile.name?.value) return profile.name.value;
+  if (legacy.fullName?.value) return parsePersonNameFromString(legacy.fullName.value);
+  if (displayName) return parsePersonNameFromString(displayName);
+  return { firstName: '' };
+}
+
+/** Compose a display-ready full name from structured parts. */
+export function formatPersonName(name: PersonName): string {
+  return [name.firstName, name.middleName, name.surname, name.suffix].filter(Boolean).join(' ').trim();
+}
+
+export function isPersonNameEmpty(name: PersonName): boolean {
+  return !name.firstName.trim() && !name.middleName?.trim() && !name.surname?.trim() && !name.suffix?.trim();
+}
+
+/** Lowercase haystack for search across all name parts. */
+export function personNameSearchHaystack(name: PersonName): string {
+  return [name.firstName, name.middleName, name.surname, name.suffix]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+}
+
+export function displayNameForNode(node: Pick<import('@/types/models').FamilyNode, 'displayName' | 'profile'>): string {
+  const formatted = formatPersonName(resolvePersonName(node.profile ?? {}, node.displayName));
+  return formatted || node.displayName;
+}
+
+// ---------------------------------------------------------------------------
 // Value formatting
 // ---------------------------------------------------------------------------
 
@@ -170,7 +229,7 @@ export function profileToFlatColumns(profile: NodeProfile): {
   is_living?: boolean;
 } {
   const out: ReturnType<typeof profileToFlatColumns> = {};
-  const name = profile.fullName?.value?.trim();
+  const name = formatPersonName(resolvePersonName(profile));
   if (name) out.display_name = name;
   if (profile.profilePhoto?.value) out.avatar_url = profile.profilePhoto.value;
   const dob = profile.dateOfBirth?.value;

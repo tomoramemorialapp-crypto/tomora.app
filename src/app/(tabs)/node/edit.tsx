@@ -45,9 +45,13 @@ import {
   editScopeFor,
   formatDateValue,
   formatGenderSex,
+  formatPersonName,
   formatPlace,
+  isPersonNameEmpty,
   makeField,
+  resolvePersonName,
 } from '@/lib/profile';
+import type { PersonName } from '@/types/profile';
 import type { ChangeLogEntryInput } from '@/services/profileService';
 
 const GENDER_DISPLAY: GenderSexField['displayPreference'][] = ['show_gender', 'show_sex', 'show_both', 'hide'];
@@ -81,7 +85,11 @@ export default function EditProfile() {
   const profile = node?.profile ?? {};
 
   // --- Local editable form state (owner/guardian) ---
-  const [fullName, setFullName] = useState(profile.fullName?.value ?? node?.displayName ?? '');
+  const initialName = resolvePersonName(profile, node?.displayName);
+  const [firstName, setFirstName] = useState(initialName.firstName);
+  const [middleName, setMiddleName] = useState(initialName.middleName ?? '');
+  const [surname, setSurname] = useState(initialName.surname ?? '');
+  const [suffix, setSuffix] = useState(initialName.suffix ?? '');
   const [photo, setPhoto] = useState(profile.profilePhoto?.value ?? '');
   const [altNames, setAltNames] = useState(listToString(profile.alternateNames?.value));
 
@@ -245,7 +253,13 @@ export default function EditProfile() {
       }
     };
 
-    apply('fullName', fullName.trim(), !fullName.trim());
+    const nameValue: PersonName = {
+      firstName: firstName.trim(),
+      middleName: middleName.trim() || undefined,
+      surname: surname.trim() || undefined,
+      suffix: suffix.trim() || undefined,
+    };
+    apply('name', nameValue, isPersonNameEmpty(nameValue));
     apply('profilePhoto', photo.trim(), !photo.trim());
     apply('alternateNames', stringToList(altNames), stringToList(altNames).length === 0);
 
@@ -280,6 +294,8 @@ export default function EditProfile() {
       log.push({ fieldKey: 'tags', action: 'tags_updated', previousValue: node!.tags, newValue: nextTags });
     }
 
+    if (next.name) delete (next as Record<string, unknown>).fullName;
+
     return { next, log, nextTags };
   }
 
@@ -293,7 +309,7 @@ export default function EditProfile() {
         nodeId: node!.id,
         profile: next,
         tags: nextTags,
-        defaultVisibility: vis.fullName,
+        defaultVisibility: vis.name,
         changeLog: log,
       });
       router.replace({ pathname: '/node/[nodeId]', params: { nodeId: node!.id } });
@@ -310,7 +326,7 @@ export default function EditProfile() {
   // ----- Suggest-only (non-owner) view -----
   if (!canEdit) {
     const rows: { key: ProfileFieldKey; value: string }[] = [
-      { key: 'fullName', value: profile.fullName?.value ?? node.displayName },
+      { key: 'name', value: formatPersonName(resolvePersonName(profile, node.displayName)) },
       { key: 'alternateNames', value: listToString(profile.alternateNames?.value) },
       { key: 'dateOfBirth', value: formatDateValue(profile.dateOfBirth?.value) },
       { key: 'dateOfDeath', value: formatDateValue(profile.dateOfDeath?.value) },
@@ -374,7 +390,11 @@ export default function EditProfile() {
         <SectionHeader title="Photo & Name" />
         <View style={{ gap: spacing.md, marginTop: spacing.sm }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-            <Avatar name={fullName || node.displayName} size={64} uri={photo || undefined} />
+            <Avatar
+              name={formatPersonName({ firstName, middleName, surname, suffix }) || node.displayName}
+              size={64}
+              uri={photo || undefined}
+            />
             <View style={{ flex: 1 }}>
               <Button
                 label={photoBusy ? 'Uploading…' : 'Upload from device'}
@@ -391,8 +411,11 @@ export default function EditProfile() {
           </View>
           {photoError ? <Caption style={{ color: colors.error }}>{photoError}</Caption> : null}
           <TextField label="Or paste a photo URL" value={photo} onChangeText={setPhoto} placeholder="https://…" autoCapitalize="none" />
-          <TextField label="Full name" value={fullName} onChangeText={setFullName} placeholder="Full name" />
-          <VisibilitySelector value={vis.fullName ?? 'family_tree'} onChange={setFieldVis('fullName')} label="Name visibility" />
+          <TextField label="First name" value={firstName} onChangeText={setFirstName} placeholder="First name" autoCapitalize="words" />
+          <TextField label="Middle name" value={middleName} onChangeText={setMiddleName} placeholder="Middle name (optional)" autoCapitalize="words" />
+          <TextField label="Surname" value={surname} onChangeText={setSurname} placeholder="Surname" autoCapitalize="words" />
+          <TextField label="Suffix" value={suffix} onChangeText={setSuffix} placeholder="Jr., III, PhD… (optional)" autoCapitalize="characters" />
+          <VisibilitySelector value={vis.name ?? 'family_tree'} onChange={setFieldVis('name')} label="Name visibility" />
           <TextField
             label="Alternate, nick, or alias names"
             value={altNames}
@@ -515,8 +538,15 @@ export default function EditProfile() {
             options={[...toOptions(SUGGESTED_TAGS), ...toOptions(COUNTRIES)]}
             placeholder="Choose tags like Mother's side or a country"
             otherPlaceholder="Add your own tag"
-            helperText="Tags help you filter the Family Tree — pick a side, a current country, or add your own."
+            helperText="Tags help you filter the Family Tree — pick a side, a surname, a country, or add your own. You can also filter by surname on the tree."
           />
+          {surname.trim() && !tags.includes(surname.trim()) ? (
+            <Pressable onPress={() => setTags((prev) => [...prev, surname.trim()])} hitSlop={8}>
+              <Caption style={{ color: colors.guardianGold, fontWeight: '600' }}>
+                Add “{surname.trim()}” as a tag
+              </Caption>
+            </Pressable>
+          ) : null}
         </View>
       </Card>
 

@@ -14,7 +14,8 @@ import { goBack } from '@/lib/navigation';
 import { useAppState } from '@/state/AppState';
 import type { ChangeLogAction, ProfileChangeLog, ProfileFieldKey, SuggestedEdit } from '@/types/profile';
 import { PROFILE_FIELD_LABELS } from '@/types/profile';
-import { editScopeFor } from '@/lib/profile';
+import { editScopeFor, formatPersonName } from '@/lib/profile';
+import type { PersonName } from '@/types/profile';
 
 const ACTION_LABELS: Record<ChangeLogAction, string> = {
   field_updated: 'Updated',
@@ -42,6 +43,7 @@ function valuePreview(v: unknown): string {
   if (Array.isArray(v)) return v.join(', ');
   if (typeof v === 'object') {
     const o = v as Record<string, unknown>;
+    if (typeof o.firstName === 'string') return formatPersonName(o as unknown as PersonName);
     if (typeof o.value === 'string') return o.value;
     if (typeof o.displayText === 'string') return o.displayText;
     if (typeof o.displayName === 'string') return o.displayName;

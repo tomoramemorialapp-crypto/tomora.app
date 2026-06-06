@@ -22,6 +22,8 @@ import {
   isFilterActive,
   nodeMatchesFilter,
   tagsOf,
+  surnameOf,
+  nameSearchHaystackOf,
   type FamilyTreeFilterState,
   type FamilyTreeLayoutOrientation,
 } from './canvasFilters';
@@ -217,7 +219,17 @@ export function KinshipTreeCanvas({
     if (!graph) return [];
     const set = new Set<string>();
     for (const n of graph.nodes) for (const t of tagsOf(n)) set.add(t);
-    return [...set];
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [graph]);
+
+  const availableSurnames = useMemo<string[]>(() => {
+    if (!graph) return [];
+    const set = new Set<string>();
+    for (const n of graph.nodes) {
+      const s = surnameOf(n);
+      if (s) set.add(s);
+    }
+    return [...set].sort((a, b) => a.localeCompare(b));
   }, [graph]);
 
   const contentW = view?.width ?? 1;
@@ -391,7 +403,7 @@ export function KinshipTreeCanvas({
       // Exclude only synthetic bridge nodes — unclaimed people keep a
       // 'placeholder' status but are still real, searchable nodes.
       .filter((n) => n.nodeType !== 'placeholder')
-      .filter((n) => (q ? n.displayName.toLowerCase().includes(q) : true))
+      .filter((n) => (q ? nameSearchHaystackOf(n).includes(q) : true))
       .slice(0, 8);
   }, [view, searchQuery]);
 
@@ -618,6 +630,7 @@ export function KinshipTreeCanvas({
         onClose={() => setFilterOpen(false)}
         availableBranches={availableBranches}
         availableTags={availableTags}
+        availableSurnames={availableSurnames}
       />
     </View>
   );

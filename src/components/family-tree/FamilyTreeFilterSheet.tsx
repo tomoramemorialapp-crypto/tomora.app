@@ -70,6 +70,7 @@ export function FamilyTreeFilterSheet({
   onClose,
   availableBranches,
   availableTags,
+  availableSurnames,
 }: {
   visible: boolean;
   filter: FamilyTreeFilterState;
@@ -77,6 +78,7 @@ export function FamilyTreeFilterSheet({
   onClose: () => void;
   availableBranches: BranchType[];
   availableTags: string[];
+  availableSurnames: string[];
 }) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -154,6 +156,22 @@ export function FamilyTreeFilterSheet({
               ))}
             </View>
           </View>
+
+          {availableSurnames.length > 0 ? (
+            <View style={{ gap: spacing.sm }}>
+              <Caption style={{ color: colors.ashTaupe }}>Surname</Caption>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                {availableSurnames.map((s) => (
+                  <Chip
+                    key={s}
+                    label={s}
+                    active={filter.surnames.includes(s)}
+                    onPress={() => onChange({ ...filter, surnames: toggleIn(filter.surnames, s) })}
+                  />
+                ))}
+              </View>
+            </View>
+          ) : null}
 
           {availableTags.length > 0 ? (
             <View style={{ gap: spacing.sm }}>

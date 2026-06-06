@@ -47,6 +47,14 @@ export interface NodeProfileHistoryFields {
   occupationOrRole?: string[];
 }
 
+/** Structured personal name — replaces the legacy single full-name string. */
+export interface PersonName {
+  firstName: string;
+  middleName?: string;
+  surname?: string;
+  suffix?: string;
+}
+
 export type FieldStatus =
   | 'draft'
   | 'confirmed'
@@ -89,12 +97,12 @@ export interface ProfileField<T> {
 
 /**
  * The stored profile. Each entry is optional because a node may have only a name
- * at first. `fullName` is conceptually required but kept optional here so partial
+ * at first. `name` is conceptually required but kept optional here so partial
  * profiles deserialize safely.
  */
 export interface NodeProfile {
   profilePhoto?: ProfileField<string>;
-  fullName?: ProfileField<string>;
+  name?: ProfileField<PersonName>;
   alternateNames?: ProfileField<string[]>;
   dateOfBirth?: ProfileField<DateValue>;
   dateOfDeath?: ProfileField<DateValue>;
@@ -109,7 +117,7 @@ export type ProfileFieldKey = keyof NodeProfile;
 
 export const PROFILE_FIELD_KEYS: ProfileFieldKey[] = [
   'profilePhoto',
-  'fullName',
+  'name',
   'alternateNames',
   'dateOfBirth',
   'dateOfDeath',
@@ -122,7 +130,7 @@ export const PROFILE_FIELD_KEYS: ProfileFieldKey[] = [
 
 export const PROFILE_FIELD_LABELS: Record<ProfileFieldKey, string> = {
   profilePhoto: 'Profile Photo',
-  fullName: 'Full Name',
+  name: 'Name',
   alternateNames: 'Alternate, Nick, or Alias Names',
   dateOfBirth: 'Date of Birth',
   dateOfDeath: 'Date of Death',

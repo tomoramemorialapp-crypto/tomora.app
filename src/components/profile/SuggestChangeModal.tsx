@@ -11,13 +11,13 @@ import { useAppState } from '@/state/AppState';
 import type { FamilyNode } from '@/types/models';
 import type { ProfileFieldKey } from '@/types/profile';
 import { PROFILE_FIELD_KEYS, PROFILE_FIELD_LABELS } from '@/types/profile';
-import { formatDateValue, formatGenderSex, formatPlace } from '@/lib/profile';
+import { formatDateValue, formatGenderSex, formatPersonName, formatPlace, parsePersonNameFromString, resolvePersonName } from '@/lib/profile';
 
 function currentValueText(node: FamilyNode, key: ProfileFieldKey): string {
   const p = node.profile;
   switch (key) {
-    case 'fullName':
-      return p.fullName?.value ?? node.displayName;
+    case 'name':
+      return formatPersonName(resolvePersonName(p, node.displayName));
     case 'alternateNames':
       return (p.alternateNames?.value ?? []).join(', ');
     case 'dateOfBirth':
@@ -50,14 +50,14 @@ export function SuggestChangeModal({
   onClose: () => void;
 }) {
   const { submitSuggestedEdit } = useAppState();
-  const [fieldKey, setFieldKey] = useState<ProfileFieldKey>('fullName');
+  const [fieldKey, setFieldKey] = useState<ProfileFieldKey>('name');
   const [value, setValue] = useState('');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
 
   const reset = () => {
-    setFieldKey('fullName');
+    setFieldKey('name');
     setValue('');
     setReason('');
     setSubmitting(false);
@@ -73,11 +73,13 @@ export function SuggestChangeModal({
     if (!value.trim()) return;
     setSubmitting(true);
     try {
+      const suggestedValue =
+        fieldKey === 'name' ? parsePersonNameFromString(value.trim()) : value.trim();
       await submitSuggestedEdit({
         nodeId: node.id,
         fieldKey,
         currentValueSnapshot: currentValueText(node, fieldKey),
-        suggestedValue: value.trim(),
+        suggestedValue,
         reason: reason.trim() || undefined,
       });
       setDone(true);
@@ -149,7 +151,12 @@ export function SuggestChangeModal({
               <Body>{currentValueText(node, fieldKey) || '—'}</Body>
             </Card>
 
-            <TextField label="Suggested value" value={value} onChangeText={setValue} placeholder="What should it say?" />
+            <TextField
+              label="Suggested value"
+              value={value}
+              onChangeText={setValue}
+              placeholder={fieldKey === 'name' ? 'e.g. Maria Elena Santos Jr.' : 'What should it say?'}
+            />
             <TextField label="Why? (optional)" value={reason} onChangeText={setReason} placeholder="Add context" multiline />
 
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>

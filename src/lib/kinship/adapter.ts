@@ -1,3 +1,4 @@
+import { personNameSearchHaystack, resolvePersonName } from '@/lib/profile';
 import type {
   FamilyNode,
   Relationship,
@@ -227,6 +228,8 @@ export function buildKinshipGraphFromApp(params: {
 
   const baseNodes: KinshipNode[] = appNodes.map((n) => {
     const role = roleByNode.get(n.id);
+    const personName = resolvePersonName(n.profile ?? {}, n.displayName);
+    const surname = personName.surname?.trim();
     return {
       id: n.id,
       familyTreeId: n.familyTreeId,
@@ -243,6 +246,9 @@ export function buildKinshipGraphFromApp(params: {
         tags: n.tags ?? [],
         isLiving: n.isLiving !== false,
         avatarUrl: n.profile?.profilePhoto?.value ?? n.avatarUrl,
+        firstName: personName.firstName?.trim() || undefined,
+        surname: surname || undefined,
+        nameSearch: personNameSearchHaystack(personName),
       },
     };
   });

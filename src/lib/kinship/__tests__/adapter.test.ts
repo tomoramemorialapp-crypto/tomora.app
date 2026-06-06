@@ -76,4 +76,29 @@ describe('buildKinshipGraphFromApp', () => {
     expect(parentChild!.fromNodeId).toBe('mother');
     expect(parentChild!.toNodeId).toBe('self');
   });
+
+  it('tags step-parent and parent-in-law edges with distinct lineage roles', () => {
+    const self = node('self', 'You', { status: 'claimed', ownerAccountId: 'acct1' });
+    const bio = node('mom', 'Maria');
+    const step = node('step', 'Helen');
+    const inLaw = node('mil', 'Rosa');
+
+    const graph = buildKinshipGraphFromApp({
+      anchorNodeId: 'self',
+      nodes: [self, bio, step, inLaw],
+      relationships: [
+        rel('r1', 'self', 'mom', 'parent'),
+        rel('r2', 'self', 'step', 'step_parent'),
+        rel('r3', 'self', 'mil', 'parent_in_law'),
+      ],
+    });
+
+    const bioEdge = graph.edges.find((e) => e.fromNodeId === 'mom' && e.toNodeId === 'self');
+    const stepEdge = graph.edges.find((e) => e.fromNodeId === 'step' && e.toNodeId === 'self');
+    const inLawEdge = graph.edges.find((e) => e.fromNodeId === 'mil' && e.toNodeId === 'self');
+
+    expect(bioEdge?.fromRole).toBe('parent');
+    expect(stepEdge?.fromRole).toBe('step_parent');
+    expect(inLawEdge?.fromRole).toBe('parent_in_law');
+  });
 });

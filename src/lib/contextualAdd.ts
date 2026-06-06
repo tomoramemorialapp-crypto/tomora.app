@@ -12,6 +12,8 @@ import { relationshipLabel, relationshipPath } from '@/lib/relationshipUtils';
 export const INVERSE_RELATIONSHIP: Record<RelationshipType, RelationshipType> = {
   self: 'self',
   parent: 'child',
+  step_parent: 'child',
+  parent_in_law: 'child',
   child: 'parent',
   sibling: 'sibling',
   grandparent: 'grandchild',
@@ -30,7 +32,9 @@ export const INVERSE_RELATIONSHIP: Record<RelationshipType, RelationshipType> = 
 
 /** Choices when adding relative to someone other than the anchor user. */
 export const contextRelationshipChoices = [
-  { id: 'parent', label: 'Their parent', relationshipType: 'parent' as const },
+  { id: 'parent', label: 'Their biological parent', relationshipType: 'parent' as const },
+  { id: 'step_parent', label: 'Their step-parent', relationshipType: 'step_parent' as const },
+  { id: 'parent_in_law', label: 'Their parent-in-law', relationshipType: 'parent_in_law' as const },
   { id: 'child', label: 'Their child', relationshipType: 'child' as const },
   { id: 'sibling', label: 'Their sibling', relationshipType: 'sibling' as const },
   { id: 'spouse', label: 'Their spouse', relationshipType: 'spouse' as const },
@@ -75,14 +79,14 @@ export function composeContextualRelationship(
     },
     spouse: {
       sibling: 'aunt_uncle',
-      parent: 'parent',
+      parent: 'parent_in_law',
       child: 'child',
       spouse: 'self',
       partner: 'self',
     },
     partner: {
       sibling: 'aunt_uncle',
-      parent: 'parent',
+      parent: 'parent_in_law',
       child: 'child',
       spouse: 'self',
       partner: 'self',

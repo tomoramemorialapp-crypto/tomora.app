@@ -14,6 +14,8 @@ export function createId(prefix = 'id'): string {
 export function generationOffset(type: RelationshipType): -1 | 0 | 1 {
   switch (type) {
     case 'parent':
+    case 'step_parent':
+    case 'parent_in_law':
     case 'grandparent':
     case 'aunt_uncle':
       return -1;
@@ -53,6 +55,8 @@ export function relationshipLabel(type: RelationshipType): string {
   const map: Record<RelationshipType, string> = {
     self: 'you',
     parent: 'parent',
+    step_parent: 'step-parent',
+    parent_in_law: 'parent-in-law',
     child: 'child',
     sibling: 'sibling',
     grandparent: 'grandparent',
@@ -81,6 +85,8 @@ export function relationshipPath(type: RelationshipType): string {
 
 const RELATIONSHIP_PRIORITY: RelationshipType[] = [
   'parent',
+  'step_parent',
+  'parent_in_law',
   'child',
   'spouse',
   'partner',

@@ -98,6 +98,10 @@ export function getRelationshipLabel(params: ExplainParams): string {
       return 'Mother';
     case 'Parent':
       return 'Parent';
+    case 'Step-parent':
+      return 'Step-parent';
+    case 'Parent-in-law':
+      return 'Parent-in-law';
     case 'Grandparent':
       return mp ? `${cap(mp)} grandparent` : 'Grandparent';
     case 'Aunt or Uncle':
@@ -148,6 +152,10 @@ export function getRelationshipExplanation(params: ExplainParams): string {
       return `${name} is your mother.`;
     case 'Parent':
       return `${name} is your parent.`;
+    case 'Step-parent':
+      return `${name} is your step-parent.`;
+    case 'Parent-in-law':
+      return `${name} is your parent-in-law.`;
     case 'Grandparent':
       return mp ? `${name} is your ${mp} grandparent.` : `${name} is your grandparent.`;
     case 'Aunt or Uncle':

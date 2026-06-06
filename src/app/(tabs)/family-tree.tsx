@@ -29,7 +29,10 @@ export default function FamilyTreeScreen() {
           <Badge label="Private · Family Tree" tone="gold" />
         </View>
         <Display style={{ fontSize: 32 }}>Your Family Tree</Display>
-        <Body style={{ fontSize: 16 }}>Tap a light to see how you’re connected, then open their Life Profile.</Body>
+        <Body style={{ fontSize: 16 }}>
+          Tap a light to see how you’re connected. Solid gold lines are biological parents; dashed are step-parents; dotted
+          grey are parents-in-law.
+        </Body>
         {materializeError ? <Caption style={{ color: colors.error }}>{materializeError}</Caption> : null}
       </View>
 

@@ -17,6 +17,7 @@ import { FamilyTreeEdge } from './FamilyTreeEdge';
 import { RelationshipTooltip } from './RelationshipTooltip';
 import { CanvasControls } from './CanvasControls';
 import { FamilyTreeFilterSheet } from './FamilyTreeFilterSheet';
+import { ParentLineageLegend } from './ParentLineageLegend';
 import {
   DEFAULT_FILTER,
   isFilterActive,
@@ -490,6 +491,10 @@ export function KinshipTreeCanvas({
           </View>
         </View>
       </GestureDetector>
+
+      <View style={{ position: 'absolute', left: spacing.sm, top: spacing.sm + 52, zIndex: 2 }}>
+        <ParentLineageLegend />
+      </View>
 
       <CanvasControls
         orientation={orientation}

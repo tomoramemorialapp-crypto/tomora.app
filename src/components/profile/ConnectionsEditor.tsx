@@ -13,7 +13,9 @@ import type { DateValue } from '@/types/profile';
 
 /** Relationship options, phrased as "[other] is this person's [label]". */
 const OPTIONS: { id: RelationshipType; label: string }[] = [
-  { id: 'parent', label: 'Parent' },
+  { id: 'parent', label: 'Biological parent' },
+  { id: 'step_parent', label: 'Step-parent' },
+  { id: 'parent_in_law', label: 'Parent-in-law' },
   { id: 'child', label: 'Child' },
   { id: 'sibling', label: 'Sibling' },
   { id: 'spouse', label: 'Spouse' },
@@ -34,6 +36,8 @@ const OPTIONS: { id: RelationshipType; label: string }[] = [
 const INVERSE: Record<RelationshipType, RelationshipType> = {
   self: 'self',
   parent: 'child',
+  step_parent: 'child',
+  parent_in_law: 'child',
   child: 'parent',
   sibling: 'sibling',
   grandparent: 'grandchild',

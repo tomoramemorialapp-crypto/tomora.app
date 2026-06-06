@@ -1,9 +1,21 @@
 import { Path } from 'react-native-svg';
 import { colors } from '@/constants/theme';
+import { parentLineageKindFromEdge } from '@/lib/parentLineage';
 import type { LineStyle, RenderEdge } from '@/lib/kinship/types';
 
-function strokeFor(style: LineStyle, highlighted: boolean): { stroke: string; width: number; dash?: string; opacity: number } {
+function strokeFor(
+  style: LineStyle,
+  highlighted: boolean,
+  edge: RenderEdge,
+): { stroke: string; width: number; dash?: string; opacity: number } {
   if (highlighted) return { stroke: colors.guardianGold, width: 3, opacity: 1 };
+  const lineage = parentLineageKindFromEdge(edge);
+  if (lineage === 'in_law') {
+    return { stroke: colors.ashTaupe, width: 2, dash: '2,7', opacity: 0.75 };
+  }
+  if (lineage === 'step') {
+    return { stroke: colors.deepUmber, width: 2, dash: '14,7', opacity: 0.85 };
+  }
   switch (style) {
     case 'solid':
       return { stroke: colors.guardianGold, width: 2, opacity: 0.85 };
@@ -26,7 +38,7 @@ function strokeFor(style: LineStyle, highlighted: boolean): { stroke: string; wi
 /** Renders one relationship as an SVG path. Must be used inside an <Svg>. */
 export function FamilyTreeEdge({ edge, highlighted = false }: { edge: RenderEdge; highlighted?: boolean }) {
   if (!edge.path || edge.lineStyle === 'hidden') return null;
-  const s = strokeFor(edge.lineStyle, highlighted);
+  const s = strokeFor(edge.lineStyle, highlighted, edge);
   return (
     <Path
       d={edge.path}

@@ -1,3 +1,4 @@
+import { parentRoleForLineage, parentLineageFromRelationshipType } from '@/lib/parentLineage';
 import { personNameSearchHaystack, resolvePersonName } from '@/lib/profile';
 import type {
   FamilyNode,
@@ -50,6 +51,9 @@ function toIntent(type: RelationshipType): RelationshipToAnchor | 'friend' | 'ch
   switch (type) {
     case 'parent':
       return 'parent';
+    case 'step_parent':
+    case 'parent_in_law':
+      return null;
     case 'child':
       return 'child';
     case 'sibling':
@@ -83,6 +87,8 @@ function toIntent(type: RelationshipType): RelationshipToAnchor | 'friend' | 'ch
 function roleLabelFor(type: RelationshipType): string {
   const map: Partial<Record<RelationshipType, string>> = {
     parent: 'Parent',
+    step_parent: 'Step-parent',
+    parent_in_law: 'Parent-in-law',
     child: 'Child',
     sibling: 'Sibling',
     grandparent: 'Grandparent',
@@ -130,6 +136,32 @@ function applyStoredRelationship(params: {
   const source = appNodes.find((n) => n.id === sourceId);
   const target = appNodes.find((n) => n.id === targetId);
   if (!source || !target) return;
+
+  if (
+    rel.relationshipType === 'parent' ||
+    rel.relationshipType === 'step_parent' ||
+    rel.relationshipType === 'parent_in_law'
+  ) {
+    const lineage = parentLineageFromRelationshipType(rel.relationshipType);
+    const fromRole = parentRoleForLineage(lineage);
+    const id = `edge:parent_child:${targetId}->${sourceId}:${fromRole}`;
+    if (!hasEdge(existingEdges, id)) {
+      existingEdges.push({
+        id,
+        familyTreeId,
+        fromNodeId: targetId,
+        toNodeId: sourceId,
+        type: 'parent_child',
+        status: 'confirmed',
+        visibility: mapVisibility(rel.visibility),
+        fromRole,
+        toRole: 'child',
+        createdByAccountId: rel.createdByAccountId,
+        metadata: { lineage },
+      });
+    }
+    return;
+  }
 
   const intent = toIntent(rel.relationshipType);
   if (intent === null) {

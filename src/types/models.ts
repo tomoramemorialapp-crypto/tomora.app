@@ -47,6 +47,8 @@ export type RelationshipStatus =
 export type RelationshipType =
   | 'self'
   | 'parent'
+  | 'step_parent'
+  | 'parent_in_law'
   | 'child'
   | 'sibling'
   | 'grandparent'

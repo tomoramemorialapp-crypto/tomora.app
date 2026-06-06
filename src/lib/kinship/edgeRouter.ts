@@ -1,3 +1,4 @@
+import { lineStyleForParentLineage, parentLineageKindFromEdge } from '@/lib/parentLineage';
 import { LINE_STYLE_BY_EDGE_TYPE, NODE_RADIUS } from './constants';
 import type { LineStyle, RelationshipEdge, RenderEdge, RenderNode } from './types';
 
@@ -6,6 +7,8 @@ export function getLineStyle(edge: RelationshipEdge): LineStyle {
   if (edge.visibility === 'private') return 'hidden';
   if (edge.status === 'disputed') return 'warning';
   if (edge.status === 'pending' || edge.status === 'inferred') return 'muted';
+  const parentLineage = parentLineageKindFromEdge(edge);
+  if (parentLineage) return lineStyleForParentLineage(parentLineage);
   return LINE_STYLE_BY_EDGE_TYPE[edge.type] ?? 'dotted';
 }
 

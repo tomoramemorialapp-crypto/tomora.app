@@ -33,6 +33,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "pg": "^8.21.0",
     "react-native-svg-transformer": "^1.5.3",
     "typescript": "~6.0.3",
     "vitest": "^2.1.9"
@@ -44,7 +45,9 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "db:check": "node scripts/check-supabase-migrations.mjs",
+    "db:apply-pending": "node scripts/apply-pending-migrations.mjs"
   },
   "private": true
 }

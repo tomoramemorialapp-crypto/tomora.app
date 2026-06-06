@@ -157,6 +157,8 @@ interface AppStateValue {
   /** Set after a successful claim so reveal / callback can route without URL secrets. */
   pendingClaimReveal: inviteService.ClaimResult | null;
   clearPendingClaimReveal: () => void;
+  /** Owner-initiated node ownership transfer (replaces reusing an invite). */
+  requestNodeTransfer: (nodeId: string, toEmail: string) => Promise<inviteService.NodeTransferRequest>;
 
   updateTreePrivacy: (patch: {
     defaultVisibility: VisibilityLevel;
@@ -710,6 +712,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const clearPendingClaimReveal = useCallback(() => setPendingClaimReveal(null), []);
 
+  const requestNodeTransfer = useCallback<AppStateValue['requestNodeTransfer']>(
+    (nodeId, toEmail) => inviteService.requestNodeTransfer(nodeId, toEmail),
+    [],
+  );
+
   const resumePendingClaim = useCallback<AppStateValue['resumePendingClaim']>(async () => {
     const code = draftRef.current.pendingClaimCode?.trim();
     if (!code || !session) return null;
@@ -1025,6 +1032,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       resumePendingClaim,
       pendingClaimReveal,
       clearPendingClaimReveal,
+      requestNodeTransfer,
       updateTreePrivacy,
       updateNodeProfile,
       submitSuggestedEdit,
@@ -1093,6 +1101,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       resumePendingClaim,
       pendingClaimReveal,
       clearPendingClaimReveal,
+      requestNodeTransfer,
       updateTreePrivacy,
       updateNodeProfile,
       submitSuggestedEdit,

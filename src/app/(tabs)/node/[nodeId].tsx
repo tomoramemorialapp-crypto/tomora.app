@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Pressable, useWindowDimensions, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
@@ -17,6 +18,7 @@ import { useAppState } from '@/state/AppState';
 import { goBack } from '@/lib/navigation';
 import { relationshipPath } from '@/lib/relationshipUtils';
 import { formatPreviousNamesList } from '@/lib/previousNames';
+import { NodeTransferModal } from '@/components/profile/NodeTransferModal';
 import { editScopeFor, formatDateValue, formatGenderSex, formatPlace, resolvePersonName } from '@/lib/profile';
 
 export default function LifeProfile() {
@@ -30,7 +32,11 @@ export default function LifeProfile() {
     getSuggestedEditsForNode,
     nodes,
     account,
+    requestNodeTransfer,
   } = useAppState();
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferBusy, setTransferBusy] = useState(false);
+  const [transferNote, setTransferNote] = useState<string | null>(null);
   const { width } = useWindowDimensions();
   const stackActions = width < 480;
 
@@ -52,7 +58,7 @@ export default function LifeProfile() {
   const memories = getMemoriesForNode(node.id);
   const rel = getRelationshipForNode(node.id);
   const other = rel ? nodes.find((n) => n.id !== node.id && (n.id === rel.fromNodeId || n.id === rel.toNodeId)) : undefined;
-  const isSelf = !!node.ownerAccountId;
+  const isSelf = node.ownerAccountId === account?.id;
   const path = isSelf ? 'This is you' : rel ? relationshipPath(rel.relationshipType) : 'In your Family Tree';
 
   const scope = editScopeFor(node, account?.id);
@@ -163,6 +169,20 @@ export default function LifeProfile() {
               variant="gold"
               onPress={() => router.push({ pathname: '/node/invite', params: { nodeId: node.id } })}
             />
+          </View>
+        ) : null}
+        {isSelf ? (
+          <View style={{ alignSelf: 'stretch', marginTop: spacing.sm }}>
+            <Button label={copy.transfer.rowLabel} variant="ghost" onPress={() => setTransferOpen(true)} />
+            {transferNote ? (
+              <Caption align="center" style={{ marginTop: spacing.xs, color: colors.deepUmber }}>
+                {transferNote}
+              </Caption>
+            ) : (
+              <Caption align="center" style={{ marginTop: spacing.xs, color: colors.ashTaupe }}>
+                {copy.transfer.rowHint}
+              </Caption>
+            )}
           </View>
         ) : null}
         {canEdit && pendingSuggestions > 0 ? (
@@ -278,6 +298,23 @@ export default function LifeProfile() {
           Seeing a profile never means seeing every memory. Each memory keeps its own visibility.
         </Caption>
       </Card>
+
+      <NodeTransferModal
+        visible={transferOpen}
+        nodeName={node.displayName}
+        busy={transferBusy}
+        onClose={() => setTransferOpen(false)}
+        onSubmit={async (email) => {
+          setTransferBusy(true);
+          setTransferNote(null);
+          try {
+            const req = await requestNodeTransfer(node.id, email);
+            setTransferNote(`Transfer sent to ${email}. They have until ${new Date(req.expiresAt).toLocaleDateString()} to accept.`);
+          } finally {
+            setTransferBusy(false);
+          }
+        }}
+      />
     </ScreenContainer>
   );
 }

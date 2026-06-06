@@ -1,0 +1,8 @@
+# Tomora Supabase project (elugrhxdkwdishxagdur)
+# Link: npx supabase login && npx supabase link --project-ref elugrhxdkwdishxagdur
+# Push: npx supabase db push
+
+project_id = "elugrhxdkwdishxagdur"
+
+[db]
+major_version = 15

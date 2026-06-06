@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/Card';
 import { Avatar } from '@/components/ui/Avatar';
 import { Body, Caption, Title } from '@/components/ui/Typography';
 import { colors, spacing } from '@/constants/theme';
+import { invitePreviewMessage } from '@/lib/claimErrors';
 import { relationshipLabel } from '@/lib/relationshipUtils';
 import type { InvitePreview } from '@/services/inviteService';
 import type { RelationshipType } from '@/types/models';
@@ -27,11 +28,7 @@ export function ClaimInvitePreview({ preview, loading, code }: Props) {
     if (!code?.trim()) return null;
     return (
       <Card style={{ borderColor: colors.mistBeige }}>
-        <Body style={{ color: colors.deepUmber }}>
-          {preview?.reason === 'ALREADY_CLAIMED'
-            ? 'This profile has already been claimed.'
-            : 'Enter a valid invite code to see who saved a place for you.'}
-        </Body>
+        <Body style={{ color: colors.deepUmber }}>{invitePreviewMessage(preview?.reason)}</Body>
       </Card>
     );
   }

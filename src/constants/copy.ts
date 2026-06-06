@@ -73,6 +73,14 @@ export const copy = {
     enterCode: 'Enter code',
     scanQr: 'Scan QR',
   },
+  transfer: {
+    title: 'Transfer node ownership',
+    body: 'Move {name} to another account. The original invite cannot be reused — transfers are the safe way to hand off a claimed node.',
+    note: 'The new owner must sign in with the email you enter and accept the transfer within 14 days.',
+    cta: 'Send transfer invite',
+    rowLabel: 'Transfer node ownership',
+    rowHint: 'Move to a new account',
+  },
   choosePath: {
     prompt: 'What brings you to Tomora today?',
     cards: [

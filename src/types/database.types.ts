@@ -368,6 +368,12 @@ export type Database = {
           family_tree_id: string
           id: string
           invite_code: string | null
+          invite_expires_at: string | null
+          invite_failed_attempts: number
+          invite_locked_at: string | null
+          invite_used_at: string | null
+          invite_used_by_account_id: string | null
+          invited_by_account_id: string | null
           is_living: boolean | null
           legal_name: string | null
           managed_by_account_id: string | null
@@ -400,6 +406,12 @@ export type Database = {
           family_tree_id: string
           id?: string
           invite_code?: string | null
+          invite_expires_at?: string | null
+          invite_failed_attempts?: number
+          invite_locked_at?: string | null
+          invite_used_at?: string | null
+          invite_used_by_account_id?: string | null
+          invited_by_account_id?: string | null
           is_living?: boolean | null
           legal_name?: string | null
           managed_by_account_id?: string | null
@@ -432,6 +444,12 @@ export type Database = {
           family_tree_id?: string
           id?: string
           invite_code?: string | null
+          invite_expires_at?: string | null
+          invite_failed_attempts?: number
+          invite_locked_at?: string | null
+          invite_used_at?: string | null
+          invite_used_by_account_id?: string | null
+          invited_by_account_id?: string | null
           is_living?: boolean | null
           legal_name?: string | null
           managed_by_account_id?: string | null
@@ -736,6 +754,14 @@ export type Database = {
       }
       peek_invite_code: {
         Args: { p_code: string }
+        Returns: Json
+      }
+      request_node_transfer: {
+        Args: { p_node_id: string; p_to_email: string }
+        Returns: Json
+      }
+      accept_node_transfer: {
+        Args: { p_transfer_id: string }
         Returns: Json
       }
       dispute_memorial: {

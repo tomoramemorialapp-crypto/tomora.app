@@ -31,7 +31,7 @@ BEGIN
 
   SELECT coalesce(a.display_name, 'Someone in your family')
   INTO v_inviter
-  FROM family_tree_memberships m
+  FROM tree_memberships m
   JOIN accounts a ON a.id = m.account_id
   WHERE m.family_tree_id = v_node.family_tree_id
     AND m.role IN ('owner', 'creator')

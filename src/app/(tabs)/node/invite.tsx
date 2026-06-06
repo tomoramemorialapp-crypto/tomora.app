@@ -95,7 +95,7 @@ export default function NodeInviteScreen() {
         <Display style={{ fontSize: 30 }}>Invite {node.displayName}</Display>
         <Body style={{ fontSize: 16 }}>
           Share a code, link, or QR so {node.displayName} can claim their own Life Profile. Add a password for an extra
-          layer of trust.
+          layer of trust. Each invite works once and expires after 90 days.
         </Body>
       </View>
 

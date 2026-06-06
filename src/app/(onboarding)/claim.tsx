@@ -9,6 +9,7 @@ import { Body, Caption, Display } from '@/components/ui/Typography';
 import { GoldStar } from '@/components/brand/GoldStar';
 import { QrClaimScanner } from '@/components/claim/QrClaimScanner';
 import { ClaimAuthModal } from '@/components/claim/ClaimAuthModal';
+import { ClaimConfirmModal } from '@/components/claim/ClaimConfirmModal';
 import { ClaimInvitePreview } from '@/components/claim/ClaimInvitePreview';
 import { colors, fonts, radii, spacing } from '@/constants/theme';
 import { copy } from '@/constants/copy';
@@ -37,6 +38,7 @@ export default function Claim() {
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [preview, setPreview] = useState<InvitePreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
@@ -121,6 +123,11 @@ export default function Claim() {
       return;
     }
 
+    if (preview?.valid) {
+      setConfirmOpen(true);
+      return;
+    }
+
     await finishClaim();
   };
 
@@ -137,8 +144,26 @@ export default function Claim() {
         onClose={() => setAuthOpen(false)}
         onAuthed={() => {
           setAuthOpen(false);
+          if (preview?.valid) setConfirmOpen(true);
         }}
       />
+      {preview?.valid ? (
+        <ClaimConfirmModal
+          visible={confirmOpen}
+          preview={preview}
+          busy={busy}
+          onConfirm={async () => {
+            setConfirmOpen(false);
+            await finishClaim();
+          }}
+          onNotMe={() => {
+            setConfirmOpen(false);
+            setNote('If this invite is not for you, ask the person who sent it for the right link.');
+          }}
+          onHelp={() => void Linking.openURL('mailto:support@tomora.app')}
+          onClose={() => setConfirmOpen(false)}
+        />
+      ) : null}
       <ScreenContainer
         showBack
         footer={

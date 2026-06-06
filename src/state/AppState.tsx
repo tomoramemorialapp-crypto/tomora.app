@@ -25,6 +25,7 @@ import type {
   VisibilityLevel,
 } from '@/types/models';
 import { canViewContent } from '@/lib/visibility';
+import { defaultNameForPlaceholder, relationshipTypeForPlaceholder } from '@/lib/kinship/materializeIntent';
 import type { NodeProfile, ProfileChangeLog, ProfileFieldKey, SuggestedEdit } from '@/types/profile';
 import { supabase } from '@/lib/supabase';
 import * as authService from '@/services/authService';
@@ -91,6 +92,9 @@ interface AppStateValue {
     isRemembered: boolean;
     tags?: string[];
   }) => Promise<FamilyNode>;
+
+  /** Turn a synthetic unknown tree node into a minimal, editable Life Profile. */
+  materializeUnknown: (placeholder: import('@/lib/kinship/types').KinshipNode) => Promise<FamilyNode>;
 
   /** Change a node's relationship type to its connected node (creator/guardian only). */
   updateRelationshipType: (relationshipId: string, relationshipType: RelationshipType) => Promise<void>;
@@ -496,6 +500,17 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     [account, nodes, tree],
   );
 
+  const materializeUnknown = useCallback<AppStateValue['materializeUnknown']>(
+    async (placeholder) =>
+      addRelative({
+        name: defaultNameForPlaceholder(placeholder),
+        relationshipType: relationshipTypeForPlaceholder(placeholder),
+        isRemembered: false,
+        tags: ['Unknown link'],
+      }),
+    [addRelative],
+  );
+
   const updateRelationshipType = useCallback<AppStateValue['updateRelationshipType']>(
     async (relationshipId, relationshipType) => {
       const updated = await treeService.updateRelationshipType(relationshipId, relationshipType);
@@ -819,6 +834,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       requestAccountDeletion,
       undoAccountDeletion,
       addRelative,
+      materializeUnknown,
       updateRelationshipType,
       createRelationship,
       deleteRelationship,
@@ -879,6 +895,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       requestAccountDeletion,
       undoAccountDeletion,
       addRelative,
+      materializeUnknown,
       updateRelationshipType,
       createRelationship,
       deleteRelationship,

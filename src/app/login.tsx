@@ -59,34 +59,7 @@ export default function Login() {
   };
 
   return (
-    <ScreenContainer
-      showBack
-      footer={
-        <View style={{ gap: spacing.md }}>
-          <Button label={t('login.cta')} variant="gold" disabled={!canSubmit} loading={busy} onPress={onSubmit} />
-          <Button
-            label={OAUTH_SIGN_IN_ENABLED ? copy.save.google : `${copy.save.google} · Soon`}
-            variant="secondary"
-            disabled={!OAUTH_SIGN_IN_ENABLED || !!oauthBusy || busy}
-            loading={OAUTH_SIGN_IN_ENABLED && oauthBusy === 'google'}
-            onPress={() => onOAuth('google')}
-          />
-          <Button
-            label={OAUTH_SIGN_IN_ENABLED ? copy.save.apple : `${copy.save.apple} · Soon`}
-            variant="secondary"
-            disabled={!OAUTH_SIGN_IN_ENABLED || !!oauthBusy || busy}
-            loading={OAUTH_SIGN_IN_ENABLED && oauthBusy === 'apple'}
-            onPress={() => onOAuth('apple')}
-          />
-          <Button
-            label={t('login.noAccount')}
-            variant="ghost"
-            onPress={() => router.replace('/(onboarding)/add-self')}
-          />
-          <AppFooter />
-        </View>
-      }
-    >
+    <ScreenContainer showBack>
       <View style={{ gap: spacing.lg }}>
         <View style={{ alignItems: 'flex-start', gap: spacing.sm }}>
           <GoldStar size={22} />
@@ -123,6 +96,31 @@ export default function Login() {
         </View>
 
         {error ? <Caption style={{ color: colors.error, fontSize: 14 }}>{error}</Caption> : null}
+
+        <View style={{ gap: spacing.md, marginTop: spacing.md }}>
+          <Button label={t('login.cta')} variant="gold" disabled={!canSubmit} loading={busy} onPress={onSubmit} />
+          <Button
+            label={OAUTH_SIGN_IN_ENABLED ? copy.save.google : `${copy.save.google} · Soon`}
+            variant="secondary"
+            disabled={!OAUTH_SIGN_IN_ENABLED || !!oauthBusy || busy}
+            loading={OAUTH_SIGN_IN_ENABLED && oauthBusy === 'google'}
+            onPress={() => onOAuth('google')}
+          />
+          <Button
+            label={OAUTH_SIGN_IN_ENABLED ? copy.save.apple : `${copy.save.apple} · Soon`}
+            variant="secondary"
+            disabled={!OAUTH_SIGN_IN_ENABLED || !!oauthBusy || busy}
+            loading={OAUTH_SIGN_IN_ENABLED && oauthBusy === 'apple'}
+            onPress={() => onOAuth('apple')}
+          />
+          <Button
+            label={t('login.noAccount')}
+            variant="ghost"
+            onPress={() => router.replace('/(onboarding)/add-self')}
+          />
+        </View>
+
+        <AppFooter showLogo={false} />
       </View>
     </ScreenContainer>
   );

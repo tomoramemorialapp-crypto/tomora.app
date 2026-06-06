@@ -1,7 +1,9 @@
 import { Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import { colors, fonts, shadows } from '@/constants/theme';
 import { GoldStar } from '@/components/brand/GoldStar';
 import { NODE_RADIUS } from '@/lib/kinship/constants';
+import { useMediaUri } from '@/lib/mediaUri';
 import type { RenderNode } from '@/lib/kinship/types';
 
 function initials(name: string): string {
@@ -27,11 +29,14 @@ export function FamilyTreeNode({
 }) {
   const size = NODE_RADIUS * 2;
   const isAnchor = !!node.isAnchor;
-  const isPlaceholder = node.status === 'placeholder' || node.nodeType === 'placeholder';
+  const isSyntheticPlaceholder = node.nodeType === 'placeholder';
+  const isUnclaimed = node.status === 'placeholder' && !isSyntheticPlaceholder;
+  const isPlaceholder = isSyntheticPlaceholder || isUnclaimed;
   const isMemorial =
     node.nodeType === 'deceased' || node.status === 'memory_light' || node.status === 'memorial_pending';
   const isPet = node.nodeType === 'pet';
   const isClaimed = node.status === 'claimed' || isAnchor;
+  const avatarUri = useMediaUri((node.metadata?.avatarUrl as string | undefined) ?? undefined);
 
   const ringColor = isPlaceholder
     ? colors.ashTaupe
@@ -65,22 +70,27 @@ export function FamilyTreeNode({
             backgroundColor: bg,
             borderWidth: isAnchor || selected ? 3 : 2,
             borderColor: selected || highlighted ? colors.guardianGold : ringColor,
-            borderStyle: isPlaceholder ? 'dashed' : 'solid',
-            opacity: isPlaceholder ? 0.8 : 1,
+            borderStyle: isSyntheticPlaceholder ? 'dashed' : 'solid',
+            opacity: isSyntheticPlaceholder ? 0.8 : 1,
+            overflow: 'hidden',
           },
           isClaimed || isMemorial || selected ? shadows.goldGlow : shadows.card,
         ]}
       >
-        <Text
-          style={{
-            fontFamily: fonts.display,
-            fontSize: size * 0.32,
-            color: isMemorial ? colors.guardianGold : isPlaceholder ? colors.ashTaupe : colors.deepUmber,
-            fontWeight: '600',
-          }}
-        >
-          {initials(node.displayName)}
-        </Text>
+        {avatarUri && !isSyntheticPlaceholder ? (
+          <Image source={{ uri: avatarUri }} style={{ width: size, height: size }} contentFit="cover" />
+        ) : (
+          <Text
+            style={{
+              fontFamily: fonts.display,
+              fontSize: size * 0.32,
+              color: isMemorial ? colors.guardianGold : isPlaceholder ? colors.ashTaupe : colors.deepUmber,
+              fontWeight: '600',
+            }}
+          >
+            {initials(node.displayName)}
+          </Text>
+        )}
         {isMemorial ? (
           <View style={{ position: 'absolute', top: -6, right: -2 }}>
             <GoldStar size={16} />

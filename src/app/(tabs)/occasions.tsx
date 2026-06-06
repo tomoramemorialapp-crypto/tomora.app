@@ -10,11 +10,23 @@ import { Avatar } from '@/components/ui/Avatar';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Body, Caption, Display, Title } from '@/components/ui/Typography';
 import { OccasionDetailModal } from '@/components/occasions/OccasionDetailModal';
+import { OccasionFilterSheet } from '@/components/occasions/OccasionFilterSheet';
+import { OccasionToolbar } from '@/components/occasions/OccasionToolbar';
+import { Button } from '@/components/ui/Button';
 import { colors, radii, spacing } from '@/constants/theme';
 import { useAppState } from '@/state/AppState';
 import { useT } from '@/i18n';
 import { getUpcomingEvents, whenLabel, type UpcomingEvent } from '@/lib/occasions';
 import { getCalendarIds, getNotifyIds, setCalendarAdded, setNotify } from '@/lib/occasionPrefs';
+import {
+  DEFAULT_OCCASION_FILTER,
+  availableOccasionTags,
+  filterOccasions,
+  isOccasionFilterActive,
+  sortOccasions,
+  type OccasionFilterState,
+  type OccasionSort,
+} from '@/lib/occasionFilters';
 
 const EVENT_EMOJI: Record<UpcomingEvent['kind'], string> = {
   birthday: '🎂',
@@ -69,7 +81,17 @@ export default function OccasionsScreen() {
   const router = useRouter();
   const t = useT();
   const { nodes, getNode } = useAppState();
-  const events = useMemo(() => getUpcomingEvents(nodes, { withinDays: 366 }), [nodes]);
+  const allEvents = useMemo(() => getUpcomingEvents(nodes, { withinDays: 366 }), [nodes]);
+  const availableTags = useMemo(() => availableOccasionTags(allEvents, nodes), [allEvents, nodes]);
+
+  const [filter, setFilter] = useState<OccasionFilterState>(DEFAULT_OCCASION_FILTER);
+  const [sort, setSort] = useState<OccasionSort>('soonest');
+  const [filterOpen, setFilterOpen] = useState(false);
+
+  const events = useMemo(() => {
+    const filtered = filterOccasions(allEvents, filter, nodes);
+    return sortOccasions(filtered, sort);
+  }, [allEvents, filter, nodes, sort]);
 
   const [notifyIds, setNotifyIds] = useState<Set<string>>(() => getNotifyIds());
   const [calIds, setCalIds] = useState<Set<string>>(() => getCalendarIds());
@@ -88,8 +110,27 @@ export default function OccasionsScreen() {
         <Body style={{ fontSize: 17, color: colors.deepUmber }}>{t('occasions.subtitle')}</Body>
       </View>
 
-      {events.length === 0 ? (
+      {allEvents.length > 0 ? (
+        <OccasionToolbar
+          filter={filter}
+          sort={sort}
+          filterActive={isOccasionFilterActive(filter)}
+          resultCount={events.length}
+          totalCount={allEvents.length}
+          onChangeFilter={setFilter}
+          onChangeSort={setSort}
+          onOpenFilters={() => setFilterOpen(true)}
+        />
+      ) : null}
+
+      {allEvents.length === 0 ? (
         <EmptyState title={t('occasions.noDatesTitle')} body={t('occasions.noDatesBody')} />
+      ) : events.length === 0 ? (
+        <EmptyState
+          title="No matches"
+          body="Nothing fits these filters. Try clearing a filter or choosing a different sort."
+          action={<Button label="Clear filters" variant="secondary" onPress={() => setFilter(DEFAULT_OCCASION_FILTER)} />}
+        />
       ) : (
         <View style={{ gap: spacing.sm, marginBottom: spacing.lg }}>
           {events.map((e) => {
@@ -184,6 +225,14 @@ export default function OccasionsScreen() {
             : undefined
         }
         onClose={() => setSelected(null)}
+      />
+
+      <OccasionFilterSheet
+        visible={filterOpen}
+        filter={filter}
+        availableTags={availableTags}
+        onChange={setFilter}
+        onClose={() => setFilterOpen(false)}
       />
     </ScreenContainer>
   );

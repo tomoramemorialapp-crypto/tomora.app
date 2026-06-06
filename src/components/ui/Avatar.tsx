@@ -1,6 +1,7 @@
 import { Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { colors, fonts } from '@/constants/theme';
+import { useMediaUri } from '@/lib/mediaUri';
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -24,6 +25,8 @@ export function Avatar({
   memorial?: boolean;
   uri?: string;
 }) {
+  const resolvedUri = useMediaUri(uri);
+
   const ring = {
     width: size,
     height: size,
@@ -36,11 +39,11 @@ export function Avatar({
     overflow: 'hidden' as const,
   };
 
-  if (uri) {
+  if (resolvedUri) {
     return (
       <View accessibilityRole="image" accessibilityLabel={name} style={ring}>
         <Image
-          source={{ uri }}
+          source={{ uri: resolvedUri }}
           style={{ width: size, height: size }}
           contentFit="cover"
           transition={150}

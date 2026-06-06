@@ -119,6 +119,8 @@ export const en = {
   // Companion
   'companion.kicker': 'Tomora Companion',
   'companion.title': 'A gentle guide',
+  'companion.demoDisclaimer':
+    'Demo only — Tomora Companion is not connected to any AI engine yet. Replies are scripted from your Family Tree data for preview purposes.',
 
   // Occasion pages
   'occasionPage.productTitle': 'Occasion Pages',

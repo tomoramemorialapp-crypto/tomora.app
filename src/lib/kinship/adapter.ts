@@ -153,6 +153,7 @@ export function buildKinshipGraphFromApp(params: {
         ...(role ? { roleLabel: roleLabelFor(role) } : null),
         tags: n.tags ?? [],
         isLiving: n.isLiving !== false,
+        avatarUrl: n.profile?.profilePhoto?.value ?? n.avatarUrl,
       },
     };
   });

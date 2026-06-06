@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Platform, Pressable, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
@@ -29,7 +29,8 @@ import {
 import { colors, radii, spacing } from '@/constants/theme';
 import { useAppState } from '@/state/AppState';
 import type { VisibilityLevel } from '@/types/models';
-import { capFor, formatBytes, getSignedUrl, isWithinCap, pickMedia, uploadMedia } from '@/lib/media';
+import { ProfilePhotoCropModal } from '@/components/media/ProfilePhotoCropModal';
+import { capFor, formatBytes, isWithinCap, pickMedia, uploadMedia } from '@/lib/media';
 import type {
   DateValue,
   GenderSexField,
@@ -125,6 +126,7 @@ export default function EditProfile() {
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [cropUri, setCropUri] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -133,7 +135,6 @@ export default function EditProfile() {
   const onUploadPhoto = async () => {
     if (!account) return;
     setPhotoError(null);
-    setPhotoBusy(true);
     try {
       const picked = await pickMedia('photo');
       if (!picked) return;
@@ -141,9 +142,38 @@ export default function EditProfile() {
         setPhotoError(`That image is ${formatBytes(picked.size)} — the limit is ${formatBytes(capFor('photo'))}.`);
         return;
       }
+      if (Platform.OS === 'web') {
+        setCropUri(picked.uri);
+        return;
+      }
+      setPhotoBusy(true);
       const uploaded = await uploadMedia(account.id, picked);
-      const url = await getSignedUrl(uploaded.storagePath, 60 * 60 * 24 * 365);
-      if (url) setPhoto(url);
+      setPhoto(uploaded.storagePath);
+    } catch (e) {
+      console.warn('[tomora] photo pick failed', e);
+      setPhotoError('Could not open that photo. Please try again.');
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
+  const onCropConfirm = async (uri: string, blob?: Blob) => {
+    if (!account) return;
+    setCropUri(null);
+    setPhotoBusy(true);
+    setPhotoError(null);
+    try {
+      const body = blob ?? (await fetch(uri).then((r) => r.blob()));
+      if (!body) throw new Error('Could not read cropped image.');
+      const file = {
+        uri,
+        name: `profile-${Date.now()}.jpg`,
+        size: body.size,
+        mimeType: 'image/jpeg',
+        kind: 'photo' as const,
+      };
+      const uploaded = await uploadMedia(account.id, file);
+      setPhoto(uploaded.storagePath);
     } catch (e) {
       console.warn('[tomora] photo upload failed', e);
       setPhotoError('Could not upload that photo. Please try again.');
@@ -520,6 +550,13 @@ export default function EditProfile() {
           </View>
         </Card>
       ) : null}
+
+      <ProfilePhotoCropModal
+        visible={!!cropUri}
+        imageUri={cropUri}
+        onCancel={() => setCropUri(null)}
+        onConfirm={onCropConfirm}
+      />
 
       <Pressable
         onPress={() => router.push({ pathname: '/node/history', params: { nodeId: node.id } })}

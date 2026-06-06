@@ -7,7 +7,8 @@ import { FadeIn } from './FadeIn';
 
 /**
  * Ivory full-bleed screen wrapper. Centers content and caps width on wide/web
- * screens so the experience stays calm and spacious. Optionally scrollable.
+ * screens. Footer actions scroll with content so they never cover the form on
+ * small viewports.
  */
 export function ScreenContainer({
   children,
@@ -42,11 +43,15 @@ export function ScreenContainer({
     alignSelf: 'center',
     paddingHorizontal: spacing.lg,
     paddingTop: insets.top + (showBack ? 56 : spacing.lg),
-    paddingBottom: spacing.xl,
+    paddingBottom: insets.bottom + spacing.xl,
     flexGrow: 1,
     ...(center ? { justifyContent: 'center' } : null),
     ...contentStyle,
   };
+
+  const footerBlock = footer ? (
+    <View style={{ paddingTop: spacing.lg, gap: spacing.sm, width: '100%' }}>{footer}</View>
+  ) : null;
 
   return (
     <View style={{ flex: 1, backgroundColor: background }}>
@@ -57,29 +62,20 @@ export function ScreenContainer({
       ) : null}
       {scroll ? (
         <ScrollView
+          style={{ flex: 1 }}
           contentContainerStyle={inner}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           {body}
+          {footerBlock}
         </ScrollView>
       ) : (
-        <View style={inner}>{body}</View>
-      )}
-      {footer ? (
-        <View
-          style={{
-            width: '100%',
-            maxWidth,
-            alignSelf: 'center',
-            paddingHorizontal: spacing.lg,
-            paddingBottom: insets.bottom + spacing.lg,
-            paddingTop: spacing.sm,
-          }}
-        >
-          {footer}
+        <View style={[inner, { flex: 1 }]}>
+          {body}
+          {footerBlock}
         </View>
-      ) : null}
+      )}
     </View>
   );
 }

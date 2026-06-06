@@ -42,7 +42,8 @@ export default function LifeProfile() {
     );
   }
 
-  const memorial = node.status === 'memory_light' || node.isLiving === false;
+  const memorial =
+    node.status === 'memory_light' || node.status === 'memorial_pending' || node.isLiving === false;
   // A pet is owned by its creator and linked caretakers — it never has an
   // account to claim, so the claim flow doesn't apply.
   const isPetNode = getRelationshipsForNode(node.id).some((r) => r.relationshipType === 'pet');
@@ -54,6 +55,7 @@ export default function LifeProfile() {
 
   const scope = editScopeFor(node, account?.id);
   const canEdit = scope === 'owner' || scope === 'guardian';
+  const canInvite = canEdit && !isSelf && !isPetNode && !memorial && node.status !== 'claimed';
   const profile = node.profile ?? {};
   const pendingSuggestions = getSuggestedEditsForNode(node.id).filter((s) => s.status === 'pending').length;
 
@@ -72,11 +74,20 @@ export default function LifeProfile() {
     <ScreenContainer
       maxWidth={620}
       footer={
-        <Button
-          label="Add a memory"
-          variant="gold"
-          onPress={() => router.push({ pathname: '/memory/new', params: { nodeId: node.id } })}
-        />
+        <View style={{ gap: spacing.sm }}>
+          {memorial ? (
+            <Button
+              label="Open Memorial Page"
+              variant="gold"
+              onPress={() => router.push({ pathname: '/memorial/[nodeId]', params: { nodeId: node.id } })}
+            />
+          ) : null}
+          <Button
+            label="Add a memory"
+            variant={memorial ? 'secondary' : 'gold'}
+            onPress={() => router.push({ pathname: '/memory/new', params: { nodeId: node.id } })}
+          />
+        </View>
       }
     >
       <Pressable
@@ -124,7 +135,15 @@ export default function LifeProfile() {
             />
           </View>
         </View>
-        {canEdit && !isSelf && !isPetNode && node.status !== 'claimed' ? (
+        {canEdit && !isSelf && !isPetNode && memorial ? (
+          <View style={{ alignSelf: 'stretch', marginTop: spacing.sm }}>
+            <Button label="Invite to claim" variant="secondary" disabled />
+            <Caption align="center" style={{ marginTop: spacing.xs, color: colors.ashTaupe }}>
+              Invites are not available for someone who has passed.
+            </Caption>
+          </View>
+        ) : null}
+        {canInvite ? (
           <View style={{ alignSelf: 'stretch', marginTop: spacing.sm }}>
             <Button
               label="Invite to claim"
@@ -180,8 +199,31 @@ export default function LifeProfile() {
         </Body>
       </Card>
 
-      {/* Passing / Memorial */}
-      <PassingControl node={node} canEdit={canEdit} />
+      {/* Passing workflow — only while the person is still living */}
+      {!memorial ? <PassingControl node={node} canEdit={canEdit} /> : null}
+
+      {memorial ? (
+        <Card style={{ marginBottom: spacing.lg, backgroundColor: colors.candlelight, borderColor: colors.softGold }}>
+          <SectionHeader title="Memorial" />
+          <Body style={{ marginTop: spacing.sm }}>
+            Their tribute page, guestbook, and remembrance memories live on a separate Memorial Page.
+          </Body>
+          <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
+            <Button
+              label="View Memorial Page"
+              variant="gold"
+              onPress={() => router.push({ pathname: '/memorial/[nodeId]', params: { nodeId: node.id } })}
+            />
+            {canEdit ? (
+              <Button
+                label="Edit Memorial Page"
+                variant="secondary"
+                onPress={() => router.push({ pathname: '/memorial/edit', params: { nodeId: node.id } })}
+              />
+            ) : null}
+          </View>
+        </Card>
+      ) : null}
 
       {/* Relationships */}
       <Card style={{ marginBottom: spacing.lg }}>

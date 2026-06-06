@@ -3,8 +3,8 @@ import { View } from 'react-native';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { TomoraEmblem } from '@/components/brand/TomoraEmblem';
 import { CompanionChat } from '@/components/companion/CompanionChat';
-import { Caption, Display } from '@/components/ui/Typography';
-import { spacing } from '@/constants/theme';
+import { Body, Caption, Display } from '@/components/ui/Typography';
+import { colors, radii, spacing } from '@/constants/theme';
 import { useT } from '@/i18n';
 
 export default function CompanionScreen() {
@@ -18,6 +18,19 @@ export default function CompanionScreen() {
         <Display align="center" style={{ fontSize: 28 }}>
           {t('companion.title')}
         </Display>
+      </View>
+
+      <View
+        style={{
+          marginBottom: spacing.md,
+          padding: spacing.md,
+          borderRadius: radii.lg,
+          backgroundColor: colors.candlelight,
+          borderWidth: 1,
+          borderColor: colors.softGold,
+        }}
+      >
+        <Body style={{ fontSize: 14, color: colors.deepUmber, lineHeight: 20 }}>{t('companion.demoDisclaimer')}</Body>
       </View>
 
       <View style={{ flex: 1, minHeight: 420 }}>

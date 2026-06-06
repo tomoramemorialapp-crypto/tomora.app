@@ -1,4 +1,4 @@
-import { Linking, Modal, Platform, Pressable, View } from 'react-native';
+import { Linking, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
 
 import { colors, radii, shadows, spacing } from '@/constants/theme';
 import { Avatar } from '@/components/ui/Avatar';
@@ -84,10 +84,7 @@ export function OccasionDetailModal({
               backgroundColor: colors.paper,
               borderTopLeftRadius: radii.xl,
               borderTopRightRadius: radii.xl,
-              paddingHorizontal: spacing.lg,
-              paddingTop: spacing.lg,
-              paddingBottom: spacing.xl,
-              gap: spacing.lg,
+              maxHeight: '88%',
               maxWidth: 520,
               width: '100%',
               alignSelf: 'center',
@@ -95,74 +92,80 @@ export function OccasionDetailModal({
             shadows.soft,
           ]}
         >
-          <View style={{ alignItems: 'center', gap: spacing.xs }}>
-            <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: colors.mistBeige }} />
-          </View>
+          <ScrollView
+            showsVerticalScrollIndicator
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{
+              paddingHorizontal: spacing.lg,
+              paddingTop: spacing.lg,
+              paddingBottom: spacing.xl,
+              gap: spacing.lg,
+            }}
+          >
+            <View style={{ alignItems: 'center', gap: spacing.xs }}>
+              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: colors.mistBeige }} />
+            </View>
 
-          {/* Header */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-            {isFamily && node ? (
-              <Avatar
-                name={node.displayName}
-                size={56}
-                memorial={memorial}
-                uri={node.profile?.profilePhoto?.value ?? node.avatarUrl}
-              />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+              {isFamily && node ? (
+                <Avatar
+                  name={node.displayName}
+                  size={56}
+                  memorial={memorial}
+                  uri={node.profile?.profilePhoto?.value ?? node.avatarUrl}
+                />
+              ) : null}
+              <View style={{ flex: 1, gap: 4 }}>
+                <Title style={{ fontSize: 22 }}>{event.title}</Title>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' }}>
+                  <Badge label={isFamily ? `Family · ${KIND_LABEL[event.kind]}` : 'Holiday'} tone={isFamily ? 'gold' : 'soft'} />
+                </View>
+              </View>
+            </View>
+
+            <View style={{ gap: 4 }}>
+              <Body style={{ fontWeight: '600' }}>{formatLong(event.date)}</Body>
+              {event.subtitle ? <Caption style={{ color: colors.deepUmber }}>{event.subtitle}</Caption> : null}
+            </View>
+
+            {isFamily && onOpenProfile ? (
+              <Button label="Open Life Profile" variant="secondary" onPress={onOpenProfile} />
             ) : null}
-            <View style={{ flex: 1, gap: 4 }}>
-              <Title style={{ fontSize: 22 }}>{event.title}</Title>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                <Badge label={isFamily ? `Family · ${KIND_LABEL[event.kind]}` : 'Holiday'} tone={isFamily ? 'gold' : 'soft'} />
+
+            {onOpenOccasionPage ? (
+              <Button label="Open Occasion Page" variant="gold" onPress={onOpenOccasionPage} />
+            ) : null}
+
+            <View style={{ height: 1, backgroundColor: colors.hairline }} />
+            <Toggle
+              value={notify}
+              onValueChange={onToggleNotify}
+              label="Notify me when it starts"
+              description="We'll send a gentle reminder on the day."
+            />
+
+            <View style={{ height: 1, backgroundColor: colors.hairline }} />
+            <Toggle
+              value={calendarAdded}
+              onValueChange={handleCalendarToggle}
+              label="Add to my calendar"
+              description="Saves a yearly event (.ics for iCalendar, Apple, Outlook, or Google)."
+            />
+            {calendarAdded ? (
+              <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                <View style={{ flex: 1 }}>
+                  <Button label="Download .ics" variant="ghost" onPress={() => void addToCalendar(event)} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Button label="Google Calendar" variant="ghost" onPress={() => void openExternal(googleCalendarUrl(event))} />
+                </View>
               </View>
-            </View>
-          </View>
+            ) : null}
 
-          {/* Details */}
-          <View style={{ gap: 4 }}>
-            <Body style={{ fontWeight: '600' }}>{formatLong(event.date)}</Body>
-            {event.subtitle ? <Caption style={{ color: colors.deepUmber }}>{event.subtitle}</Caption> : null}
-          </View>
-
-          {/* Open Life Profile (family occasions) */}
-          {isFamily && onOpenProfile ? (
-            <Button label="Open Life Profile" variant="secondary" onPress={onOpenProfile} />
-          ) : null}
-
-          {onOpenOccasionPage ? (
-            <Button label="Open Occasion Page" variant="gold" onPress={onOpenOccasionPage} />
-          ) : null}
-
-          {/* Notify toggle */}
-          <View style={{ height: 1, backgroundColor: colors.hairline }} />
-          <Toggle
-            value={notify}
-            onValueChange={onToggleNotify}
-            label="Notify me when it starts"
-            description="We'll send a gentle reminder on the day."
-          />
-
-          {/* Add to calendar */}
-          <View style={{ height: 1, backgroundColor: colors.hairline }} />
-          <Toggle
-            value={calendarAdded}
-            onValueChange={handleCalendarToggle}
-            label="Add to my calendar"
-            description="Saves a yearly event (.ics for iCalendar, Apple, Outlook, or Google)."
-          />
-          {calendarAdded ? (
-            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-              <View style={{ flex: 1 }}>
-                <Button label="Download .ics" variant="ghost" onPress={() => void addToCalendar(event)} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Button label="Google Calendar" variant="ghost" onPress={() => void openExternal(googleCalendarUrl(event))} />
-              </View>
-            </View>
-          ) : null}
-
-          <Pressable onPress={onClose} accessibilityRole="button" style={{ alignItems: 'center', paddingVertical: spacing.sm }}>
-            <Body style={{ fontWeight: '600', color: colors.deepUmber }}>Done</Body>
-          </Pressable>
+            <Pressable onPress={onClose} accessibilityRole="button" style={{ alignItems: 'center', paddingVertical: spacing.sm }}>
+              <Body style={{ fontWeight: '600', color: colors.deepUmber }}>Done</Body>
+            </Pressable>
+          </ScrollView>
         </Pressable>
       </Pressable>
     </Modal>

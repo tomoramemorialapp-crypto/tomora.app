@@ -62,8 +62,10 @@ export async function updateNodeProfile(input: {
       performed_by_account_id: accountId,
       note: c.note ?? null,
     }));
-    const { error: logErr } = await supabase.from('node_change_log').insert(rows);
-    if (logErr) throw logErr;
+    // Fire-and-forget — don't block the save UI on audit log writes.
+    void supabase.from('node_change_log').insert(rows).then(({ error: logErr }) => {
+      if (logErr) console.warn('[tomora] change log insert failed', logErr.message);
+    });
   }
 
   return mapNode(data);

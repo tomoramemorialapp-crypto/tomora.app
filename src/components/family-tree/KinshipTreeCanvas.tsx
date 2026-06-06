@@ -124,6 +124,8 @@ export function KinshipTreeCanvas({
   mode = 'full',
   height = 460,
   onSelectNode,
+  onOpenMemorial,
+  onCompleteUnknown,
   onAddRelative,
 }: {
   nodes: FamilyNode[];
@@ -132,8 +134,11 @@ export function KinshipTreeCanvas({
   mode?: LayoutMode;
   height?: number;
   onSelectNode?: (nodeId: string) => void;
+  onOpenMemorial?: (nodeId: string) => void;
+  onCompleteUnknown?: (node: RenderNode) => void;
   onAddRelative?: () => void;
 }) {
+  const appNodeIds = useMemo(() => new Set(nodes.map((n) => n.id)), [nodes]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [orientation, setOrientation] = useState<FamilyTreeLayoutOrientation>('vertical_generational');
   const [filter, setFilter] = useState<FamilyTreeFilterState>(DEFAULT_FILTER);
@@ -585,7 +590,21 @@ export function KinshipTreeCanvas({
               edges: graph.edges,
             })}
             onOpenProfile={
-              selected.nodeType !== 'placeholder' && onSelectNode ? () => onSelectNode(selected.id) : undefined
+              appNodeIds.has(selected.id) && onSelectNode ? () => onSelectNode(selected.id) : undefined
+            }
+            onOpenMemorial={
+              appNodeIds.has(selected.id) &&
+              (selected.nodeType === 'deceased' ||
+                selected.status === 'memory_light' ||
+                selected.status === 'memorial_pending') &&
+              onOpenMemorial
+                ? () => onOpenMemorial(selected.id)
+                : undefined
+            }
+            onCompleteUnknown={
+              selected.nodeType === 'placeholder' && !appNodeIds.has(selected.id) && onCompleteUnknown
+                ? () => onCompleteUnknown(selected)
+                : undefined
             }
             onClose={() => setSelectedId(null)}
           />

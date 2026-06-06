@@ -9,12 +9,16 @@ export function RelationshipTooltip({
   label,
   explanation,
   onOpenProfile,
+  onOpenMemorial,
+  onCompleteUnknown,
   onClose,
 }: {
   name: string;
   label?: string;
   explanation?: string;
   onOpenProfile?: () => void;
+  onOpenMemorial?: () => void;
+  onCompleteUnknown?: () => void;
   onClose?: () => void;
 }) {
   return (
@@ -38,23 +42,23 @@ export function RelationshipTooltip({
         ) : null}
       </View>
       {explanation ? <Body style={{ fontSize: 15, color: colors.deepUmber }}>{explanation}</Body> : null}
-      <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-        {onOpenProfile ? (
-          <View style={{ flex: 1 }}>
-            <Button label="Open Life Profile" variant="gold" onPress={onOpenProfile} />
-          </View>
-        ) : null}
-        {onClose ? (
-          <Pressable
-            onPress={onClose}
-            accessibilityRole="button"
-            accessibilityLabel="Close"
-            style={{ paddingHorizontal: spacing.md, justifyContent: 'center' }}
-          >
-            <Body style={{ color: colors.deepUmber, fontWeight: '600' }}>Close</Body>
-          </Pressable>
+      <View style={{ gap: spacing.sm }}>
+        {onOpenProfile ? <Button label="Open Life Profile" variant="gold" onPress={onOpenProfile} /> : null}
+        {onOpenMemorial ? <Button label="Open Memorial Page" variant="secondary" onPress={onOpenMemorial} /> : null}
+        {onCompleteUnknown ? (
+          <Button label="Create Life Profile" variant="secondary" onPress={onCompleteUnknown} />
         ) : null}
       </View>
+      {onClose ? (
+        <Pressable
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+          style={{ alignItems: 'center', paddingVertical: spacing.xs }}
+        >
+          <Body style={{ color: colors.deepUmber, fontWeight: '600' }}>Close</Body>
+        </Pressable>
+      ) : null}
     </View>
   );
 }

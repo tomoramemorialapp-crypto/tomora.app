@@ -734,6 +734,10 @@ export type Database = {
         Args: { p_code: string; p_password?: string }
         Returns: Json
       }
+      peek_invite_code: {
+        Args: { p_code: string }
+        Returns: Json
+      }
       dispute_memorial: {
         Args: { p_reason?: string; p_request_id: string }
         Returns: Json

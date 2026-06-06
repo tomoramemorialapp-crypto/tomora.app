@@ -389,7 +389,7 @@ export default function NewMemory() {
             Tagged people are linked from this memory to their Life Profile.
           </Caption>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-            {nodes
+            {liveNodes
               .filter((n) => n.id !== recipientId)
               .map((n) => {
                 const active = taggedIds.includes(n.id);

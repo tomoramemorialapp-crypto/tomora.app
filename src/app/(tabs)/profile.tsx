@@ -18,6 +18,7 @@ import { useAppState } from '@/state/AppState';
 import { isEmailVerified } from '@/services/authService';
 import type { VisibilityLevel } from '@/types/models';
 import { formatBytes, STORAGE_QUOTA_BYTES } from '@/lib/media';
+import { copy } from '@/constants/copy';
 
 function daysUntil(iso?: string): number {
   if (!iso) return 0;
@@ -173,6 +174,28 @@ export default function YouScreen() {
             Family Tree.
           </Caption>
         </View>
+
+        {/* Claim from invite while signed in */}
+        <Card style={{ backgroundColor: colors.candlelight, borderColor: colors.softGold }}>
+          <View style={{ gap: spacing.sm }}>
+            <Title style={{ fontSize: 20 }}>{copy.youClaim.title}</Title>
+            <Body style={{ color: colors.deepUmber }}>{copy.youClaim.body}</Body>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs }}>
+              <Button
+                label={copy.youClaim.enterCode}
+                variant="gold"
+                fullWidth={false}
+                onPress={() => router.push('/(onboarding)/claim')}
+              />
+              <Button
+                label={copy.youClaim.scanQr}
+                variant="secondary"
+                fullWidth={false}
+                onPress={() => router.push({ pathname: '/(onboarding)/claim', params: { method: 'qr' } })}
+              />
+            </View>
+          </View>
+        </Card>
 
         {/* Account & settings */}
         <Card>

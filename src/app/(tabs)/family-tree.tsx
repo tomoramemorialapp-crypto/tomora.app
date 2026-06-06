@@ -7,6 +7,7 @@ import { KinshipTreeCanvas } from '@/components/family-tree/KinshipTreeCanvas';
 import { Badge } from '@/components/ui/Badge';
 import { Body, Caption, Display } from '@/components/ui/Typography';
 import { colors, spacing } from '@/constants/theme';
+import { activeNodes } from '@/lib/activeNodes';
 import { useAppState } from '@/state/AppState';
 
 export default function FamilyTreeScreen() {
@@ -17,7 +18,8 @@ export default function FamilyTreeScreen() {
   const [materializeError, setMaterializeError] = useState<string | null>(null);
   const [minimalView, setMinimalView] = useState(false);
 
-  const selfNode = nodes.find((n) => n.ownerAccountId) ?? nodes[0];
+  const liveNodes = activeNodes(nodes);
+  const selfNode = liveNodes.find((n) => n.ownerAccountId) ?? liveNodes[0];
   const [viewAnchorId, setViewAnchorId] = useState<string | undefined>(selfNode?.id);
 
   useEffect(() => {
@@ -49,7 +51,7 @@ export default function FamilyTreeScreen() {
       ) : null}
 
       <KinshipTreeCanvas
-        nodes={nodes}
+        nodes={liveNodes}
         relationships={relationships}
         anchorNodeId={viewAnchorId}
         homeAnchorNodeId={selfNode?.id}

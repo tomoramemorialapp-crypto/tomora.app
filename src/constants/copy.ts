@@ -58,6 +58,20 @@ export const copy = {
     passwordLabel: 'Node password',
     passwordPlaceholder: 'Password from the creator',
     cta: 'Claim my node',
+    notMe: 'This is not me',
+    needHelp: 'I need help',
+    authSaved: 'Your invite is ready — we’ll continue as soon as you’re signed in.',
+  },
+  claimReveal: {
+    title: 'You’ve joined the Family Tree.',
+    body: 'Your place is now protected.',
+    cta: 'View my Family Tree',
+  },
+  youClaim: {
+    title: 'Claim a node',
+    body: 'Have an invite code? Claim your place in a Family Tree.',
+    enterCode: 'Enter code',
+    scanQr: 'Scan QR',
   },
   choosePath: {
     prompt: 'What brings you to Tomora today?',

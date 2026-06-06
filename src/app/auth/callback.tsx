@@ -43,7 +43,7 @@ function isPasswordRecoveryReturn(next?: string): boolean {
 export default function AuthCallback() {
   const router = useRouter();
   const { next } = useLocalSearchParams<{ next?: string }>();
-  const { loading, isOnboarded, passwordRecoveryPending } = useAppState();
+  const { loading, isOnboarded, passwordRecoveryPending, pendingClaimReveal } = useAppState();
 
   const initialError = useMemo(() => readAuthErrorFromUrl(), []);
   const [status, setStatus] = useState<CallbackStatus>(initialError ? 'error' : 'working');
@@ -114,7 +114,13 @@ export default function AuthCallback() {
     if (loading) return;
 
     if (nextHint === 'claim') {
-      router.replace('/(onboarding)/claim');
+      if (pendingClaimReveal) {
+        router.replace(
+          `/(onboarding)/claim-reveal?nodeId=${encodeURIComponent(pendingClaimReveal.nodeId)}` as Href,
+        );
+      } else {
+        router.replace('/(onboarding)/claim?autoResume=1');
+      }
       return;
     }
 
@@ -124,7 +130,7 @@ export default function AuthCallback() {
     }
 
     router.replace(isOnboarded ? '/(tabs)' : '/welcome');
-  }, [status, loading, isOnboarded, passwordRecoveryPending, next, router]);
+  }, [status, loading, isOnboarded, passwordRecoveryPending, pendingClaimReveal, next, router]);
 
   const onResend = async () => {
     if (!email.trim()) {

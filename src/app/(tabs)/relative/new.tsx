@@ -17,6 +17,7 @@ import { relationshipChoices } from '@/constants/copy';
 import { goBack } from '@/lib/navigation';
 import { contextRelationshipChoices, previewInferredConnections } from '@/lib/contextualAdd';
 import { buildParentPartnershipEdge, type ParentPairingOpportunity } from '@/lib/parentPairing';
+import { activeNodes } from '@/lib/activeNodes';
 import { useAppState } from '@/state/AppState';
 import type { RelationshipType } from '@/types/models';
 
@@ -27,15 +28,16 @@ export default function NewRelative() {
   const router = useRouter();
   const { contextNodeId } = useLocalSearchParams<{ contextNodeId?: string }>();
   const { addRelative, createRelationship, nodes, relationships, account } = useAppState();
+  const liveNodes = useMemo(() => activeNodes(nodes), [nodes]);
 
   const anchorNode = useMemo(
     () =>
-      nodes.find((n) => n.ownerAccountId === account?.id) ??
-      nodes.find((n) => n.status === 'claimed') ??
-      nodes[0],
-    [nodes, account?.id],
+      liveNodes.find((n) => n.ownerAccountId === account?.id) ??
+      liveNodes.find((n) => n.status === 'claimed') ??
+      liveNodes[0],
+    [liveNodes, account?.id],
   );
-  const contextNode = contextNodeId ? nodes.find((n) => n.id === contextNodeId) : undefined;
+  const contextNode = contextNodeId ? liveNodes.find((n) => n.id === contextNodeId) : undefined;
   const isContextual = !!contextNode && contextNode.id !== anchorNode?.id;
 
   const [anchorChoice, setAnchorChoice] = useState<AnchorChoice | undefined>(undefined);

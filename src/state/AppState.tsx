@@ -45,6 +45,7 @@ import {
 import '@/lib/passwordRecovery';
 import { validateUsername } from '@/lib/username';
 import { childIdForParentEdge, detectParentPairingOpportunity } from '@/lib/parentPairing';
+import { activeNodes, activeRelationships, isActiveNode } from '@/lib/activeNodes';
 import { pickPrimaryRelationship } from '@/lib/relationshipUtils';
 import type { NodeInvite } from '@/services/inviteService';
 import type { AccountSettingsPatch } from '@/services/accountService';
@@ -60,6 +61,8 @@ interface OnboardingDraft {
   pendingUsername?: string;
   /** Invite code to auto-claim after the user creates an account. */
   pendingClaimCode?: string;
+  /** Claim password stored locally until auth completes (never in URL). */
+  pendingClaimPassword?: string;
 }
 
 interface AppStateValue {
@@ -149,6 +152,11 @@ interface AppStateValue {
   clearNodeInvite: (nodeId: string) => Promise<void>;
   /** Claim a node from an invite code (+ optional password), then reload. */
   claimNode: (code: string, password?: string) => Promise<inviteService.ClaimResult>;
+  /** Resume a saved pending claim after sign-in (clears draft on success). */
+  resumePendingClaim: () => Promise<inviteService.ClaimResult | null>;
+  /** Set after a successful claim so reveal / callback can route without URL secrets. */
+  pendingClaimReveal: inviteService.ClaimResult | null;
+  clearPendingClaimReveal: () => void;
 
   updateTreePrivacy: (patch: {
     defaultVisibility: VisibilityLevel;
@@ -288,6 +296,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [passwordRecoveryPending, setPasswordRecoveryPending] = useState(
     () => isPasswordRecoveryPendingSync(),
   );
+  const [pendingClaimReveal, setPendingClaimReveal] = useState<inviteService.ClaimResult | null>(null);
   const draftRef = useRef(draft);
   draftRef.current = draft;
 
@@ -308,10 +317,29 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     setTree(bundle.tree);
-    setNodes(bundle.nodes);
-    setRelationships(bundle.relationships);
+    const liveNodes = activeNodes(bundle.nodes);
+    setNodes(liveNodes);
+    setRelationships(activeRelationships(liveNodes, bundle.relationships));
     setMemories(bundle.memories);
     setSuggestedEdits(bundle.suggestedEdits);
+  }, []);
+
+  const setDraft = useCallback((patch: Partial<OnboardingDraft>) => {
+    setDraftState((prev) => {
+      const next = { ...prev, ...patch };
+      storeDraft(next);
+      draftRef.current = next;
+      return next;
+    });
+  }, []);
+
+  const clearPendingClaimDraft = useCallback(() => {
+    setDraftState((prev) => {
+      const next = { ...prev, pendingClaimCode: undefined, pendingClaimPassword: undefined };
+      storeDraft(next);
+      draftRef.current = next;
+      return next;
+    });
   }, []);
 
   // Load the signed-in user's data. If they have no tree yet but a saved draft
@@ -353,12 +381,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       const pendingClaim = draftRef.current.pendingClaimCode?.trim();
       if (pendingClaim) {
         try {
-          await inviteService.claimNode(pendingClaim);
-          setDraftState((prev) => {
-            const next = { ...prev, pendingClaimCode: undefined };
-            storeDraft(next);
-            return next;
-          });
+          const claimResult = await inviteService.claimNode(
+            pendingClaim,
+            draftRef.current.pendingClaimPassword,
+          );
+          clearPendingClaimDraft();
+          setPendingClaimReveal(claimResult);
           const refreshed = await treeService.loadMyTreeBundle(userId);
           applyBundle(refreshed);
         } catch (e) {
@@ -375,7 +403,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
       return !!bundle?.tree;
     },
-    [applyBundle],
+    [applyBundle, clearPendingClaimDraft],
   );
 
   const loadForUserRef = useRef(loadForUser);
@@ -431,14 +459,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     if (!s) return false;
     return loadForUser(s);
   }, [loadForUser]);
-
-  const setDraft = useCallback((patch: Partial<OnboardingDraft>) => {
-    setDraftState((prev) => {
-      const next = { ...prev, ...patch };
-      storeDraft(next);
-      return next;
-    });
-  }, []);
 
   const signUpAndStart = useCallback<AppStateValue['signUpAndStart']>(
     async (email, password, username) => {
@@ -688,13 +708,31 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setNodes((prev) => prev.map((n) => (n.id === nodeId ? updated : n)));
   }, []);
 
+  const clearPendingClaimReveal = useCallback(() => setPendingClaimReveal(null), []);
+
+  const resumePendingClaim = useCallback<AppStateValue['resumePendingClaim']>(async () => {
+    const code = draftRef.current.pendingClaimCode?.trim();
+    if (!code || !session) return null;
+    const result = await inviteService.claimNode(code, draftRef.current.pendingClaimPassword);
+    clearPendingClaimDraft();
+    setPendingClaimReveal(result);
+    const refreshed = await treeService.loadMyTreeBundle(session.user.id);
+    applyBundle(refreshed);
+    return result;
+  }, [session, applyBundle, clearPendingClaimDraft]);
+
   const claimNode = useCallback<AppStateValue['claimNode']>(
     async (code, password) => {
       const result = await inviteService.claimNode(code, password);
-      if (session) await loadForUser(session);
+      clearPendingClaimDraft();
+      setPendingClaimReveal(result);
+      if (session) {
+        const refreshed = await treeService.loadMyTreeBundle(session.user.id);
+        applyBundle(refreshed);
+      }
       return result;
     },
-    [session, loadForUser],
+    [session, applyBundle, clearPendingClaimDraft],
   );
 
   const updateTreePrivacy = useCallback<AppStateValue['updateTreePrivacy']>(
@@ -911,7 +949,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     [memories, canViewMemory],
   );
 
-  const getNode = useCallback((id: string) => nodes.find((n) => n.id === id), [nodes]);
+  const getNode = useCallback(
+    (id: string) => {
+      const node = nodes.find((n) => n.id === id);
+      return node && isActiveNode(node) ? node : undefined;
+    },
+    [nodes],
+  );
   const getMemory = useCallback(
     (id: string) => {
       const memory = memories.find((m) => m.id === id);
@@ -925,14 +969,18 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   );
   const getRelationshipForNode = useCallback(
     (id: string) => {
+      if (!getNode(id)) return undefined;
       const selfNode = nodes.find((n) => n.ownerAccountId === account?.id);
       return pickPrimaryRelationship(relationships, id, selfNode?.id);
     },
-    [relationships, nodes, account?.id],
+    [relationships, nodes, account?.id, getNode],
   );
   const getRelationshipsForNode = useCallback(
-    (id: string) => relationships.filter((r) => r.toNodeId === id || r.fromNodeId === id),
-    [relationships],
+    (id: string) => {
+      if (!getNode(id)) return [];
+      return relationships.filter((r) => r.toNodeId === id || r.fromNodeId === id);
+    },
+    [relationships, getNode],
   );
 
   const value = useMemo<AppStateValue>(
@@ -974,6 +1022,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       generateNodeInvite,
       clearNodeInvite,
       claimNode,
+      resumePendingClaim,
+      pendingClaimReveal,
+      clearPendingClaimReveal,
       updateTreePrivacy,
       updateNodeProfile,
       submitSuggestedEdit,
@@ -1039,6 +1090,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       generateNodeInvite,
       clearNodeInvite,
       claimNode,
+      resumePendingClaim,
+      pendingClaimReveal,
+      clearPendingClaimReveal,
       updateTreePrivacy,
       updateNodeProfile,
       submitSuggestedEdit,

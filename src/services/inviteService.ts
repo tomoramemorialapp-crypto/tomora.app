@@ -72,6 +72,39 @@ export interface ClaimResult {
   displayName: string;
 }
 
+export interface InvitePreview {
+  valid: boolean;
+  displayName?: string;
+  inviterName?: string;
+  treeName?: string;
+  requiresPassword?: boolean;
+  relationshipType?: string;
+  reason?: 'ALREADY_CLAIMED';
+}
+
+/** Pre-auth invite preview — display name and inviter only, no secrets. */
+export async function previewInvite(code: string): Promise<InvitePreview> {
+  const { data, error } = await supabase.rpc('peek_invite_code', {
+    p_code: code.trim().toUpperCase(),
+  });
+  if (error) return { valid: false };
+  const row = data as Record<string, unknown> | null;
+  if (!row?.valid) {
+    return {
+      valid: false,
+      reason: row?.reason === 'ALREADY_CLAIMED' ? 'ALREADY_CLAIMED' : undefined,
+    };
+  }
+  return {
+    valid: true,
+    displayName: String(row.display_name ?? ''),
+    inviterName: String(row.inviter_name ?? 'Someone in your family'),
+    treeName: String(row.tree_name ?? 'Family Tree'),
+    requiresPassword: !!row.requires_password,
+    relationshipType: row.relationship_type ? String(row.relationship_type) : undefined,
+  };
+}
+
 /** Friendly messages for the RPC's raised exceptions. */
 const CLAIM_ERRORS: Record<string, string> = {
   NOT_SIGNED_IN: 'Please sign in or create your account first, then claim.',

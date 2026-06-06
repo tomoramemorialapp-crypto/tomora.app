@@ -1,0 +1,32 @@
+{
+  "name": "Tomora",
+  "short_name": "Tomora",
+  "description": "Your family tree, memories, and moments together.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F7EFE6",
+  "theme_color": "#B8872F",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/icon-light.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-dark.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-light.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

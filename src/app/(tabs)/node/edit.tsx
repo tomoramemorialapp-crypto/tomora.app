@@ -30,6 +30,7 @@ import { colors, radii, spacing } from '@/constants/theme';
 import { useAppState } from '@/state/AppState';
 import type { VisibilityLevel } from '@/types/models';
 import { ProfilePhotoCropModal } from '@/components/media/ProfilePhotoCropModal';
+import { goBack } from '@/lib/navigation';
 import { capFor, formatBytes, isWithinCap, pickMedia, uploadMedia } from '@/lib/media';
 import type {
   DateValue,
@@ -202,7 +203,7 @@ export default function EditProfile() {
     return (
       <ScreenContainer center>
         <EmptyState title="This profile isn’t here." body="It may have been removed from your Family Tree." />
-        <Button label="Back" variant="secondary" onPress={() => router.back()} />
+        <Button label="Back" variant="secondary" onPress={() => goBack(router)} />
       </ScreenContainer>
     );
   }
@@ -322,7 +323,6 @@ export default function EditProfile() {
       <ScreenContainer
         maxWidth={620}
         showBack
-        onBack={() => router.back()}
         footer={<Button label="Suggest a Change" variant="gold" onPress={() => setSuggestOpen(true)} />}
       >
         <Display style={{ fontSize: 28, marginBottom: spacing.xs }}>{node.displayName}</Display>
@@ -356,7 +356,6 @@ export default function EditProfile() {
     <ScreenContainer
       maxWidth={620}
       showBack
-      onBack={() => router.back()}
       footer={
         <View style={{ gap: spacing.sm }}>
           {saveError ? <Caption style={{ color: colors.error, textAlign: 'center' }}>{saveError}</Caption> : null}

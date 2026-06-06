@@ -15,6 +15,7 @@ import { Body, Caption, Display, Title } from '@/components/ui/Typography';
 import { MediaLightbox, type LightboxItem } from '@/components/memories/MediaLightbox';
 import { colors, radii, spacing } from '@/constants/theme';
 import { useAppState } from '@/state/AppState';
+import { goBack } from '@/lib/navigation';
 import { formatBytes, getSignedUrl } from '@/lib/media';
 
 function formatDate(iso: string): string {
@@ -82,7 +83,7 @@ export default function MemoryDetail() {
     return (
       <ScreenContainer center>
         <EmptyState title="This memory isn’t here." body="It may have been removed." />
-        <Button label="Back" variant="secondary" onPress={() => router.back()} />
+        <Button label="Back" variant="secondary" onPress={() => goBack(router)} />
       </ScreenContainer>
     );
   }
@@ -109,7 +110,7 @@ export default function MemoryDetail() {
       setBusy(true);
       try {
         await deleteMemory(memory.id);
-        router.back();
+        goBack(router);
       } catch {
         setBusy(false);
       }

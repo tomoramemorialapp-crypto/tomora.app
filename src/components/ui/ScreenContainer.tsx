@@ -2,8 +2,10 @@ import React from 'react';
 import { ScrollView, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing } from '@/constants/theme';
+import { usePathname, useRouter } from 'expo-router';
 import { BackButton } from './BackButton';
 import { FadeIn } from './FadeIn';
+import { goBack } from '@/lib/navigation';
 
 /**
  * Ivory full-bleed screen wrapper. Centers content and caps width on wide/web
@@ -35,7 +37,10 @@ export function ScreenContainer({
   animate?: boolean;
 }) {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const pathname = usePathname();
   const body = animate ? <FadeIn>{children}</FadeIn> : children;
+  const handleBack = onBack ?? (showBack ? () => goBack(router, pathname) : undefined);
 
   const inner: ViewStyle = {
     width: '100%',
@@ -57,7 +62,7 @@ export function ScreenContainer({
     <View style={{ flex: 1, backgroundColor: background }}>
       {showBack ? (
         <View style={{ position: 'absolute', top: insets.top + spacing.xs, left: spacing.sm, zIndex: 10 }}>
-          <BackButton onPress={onBack} />
+          <BackButton onPress={handleBack} />
         </View>
       ) : null}
       {scroll ? (

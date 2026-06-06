@@ -10,6 +10,7 @@ import { SectionHeader } from '@/components/ui/SectionHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Body, Caption, Display } from '@/components/ui/Typography';
 import { colors, spacing } from '@/constants/theme';
+import { goBack } from '@/lib/navigation';
 import { useAppState } from '@/state/AppState';
 import type { ChangeLogAction, ProfileChangeLog, ProfileFieldKey, SuggestedEdit } from '@/types/profile';
 import { PROFILE_FIELD_LABELS } from '@/types/profile';
@@ -97,7 +98,7 @@ export default function ChangeHistory() {
     return (
       <ScreenContainer center>
         <EmptyState title="Nothing to show." body="This profile isn’t in your Family Tree." />
-        <Button label="Back" variant="secondary" onPress={() => router.back()} />
+        <Button label="Back" variant="secondary" onPress={() => goBack(router)} />
       </ScreenContainer>
     );
   }
@@ -111,7 +112,7 @@ export default function ChangeHistory() {
   }
 
   return (
-    <ScreenContainer maxWidth={620} showBack onBack={() => router.back()}>
+    <ScreenContainer maxWidth={620} showBack>
       <Display style={{ fontSize: 28, marginBottom: spacing.xs }}>Change History</Display>
       <Caption style={{ marginBottom: spacing.lg }}>{node.displayName}</Caption>
 

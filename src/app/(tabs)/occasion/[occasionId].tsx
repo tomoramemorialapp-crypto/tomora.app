@@ -45,7 +45,7 @@ export default function OccasionPageScreen() {
 
   if (!event) {
     return (
-      <ScreenContainer showBack onBack={() => router.back()} maxWidth={640}>
+      <ScreenContainer showBack maxWidth={640}>
         <EmptyState title={t('occasionPage.notFoundTitle')} body={t('occasionPage.notFoundBody')} />
       </ScreenContainer>
     );
@@ -54,7 +54,7 @@ export default function OccasionPageScreen() {
   const memorial = event.kind === 'death_anniversary';
 
   return (
-    <ScreenContainer showBack onBack={() => router.back()} maxWidth={640}>
+    <ScreenContainer showBack maxWidth={640}>
       <View style={{ gap: spacing.lg }}>
         <View style={{ alignItems: 'center', gap: spacing.md }}>
           {node ? (

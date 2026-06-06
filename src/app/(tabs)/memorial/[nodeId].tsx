@@ -13,6 +13,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Body, Caption, Display, Title } from '@/components/ui/Typography';
 import { MemoryCard } from '@/components/memories/MemoryCard';
+import { goBack } from '@/lib/navigation';
 import { colors, radii, spacing } from '@/constants/theme';
 import { useAppState } from '@/state/AppState';
 import { editScopeFor, formatDateValue } from '@/lib/profile';
@@ -160,7 +161,7 @@ export default function MemorialPage() {
           <View style={{ flex: 1, backgroundColor: colors.candlelight }} />
         )}
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => goBack(router)}
           style={{
             position: 'absolute',
             top: spacing.md,

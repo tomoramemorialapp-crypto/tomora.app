@@ -14,6 +14,7 @@ import { colors, radii, spacing } from '@/constants/theme';
 import { useAppState } from '@/state/AppState';
 import type { MemorialPrivacy } from '@/types/models';
 import { editScopeFor } from '@/lib/profile';
+import { goBack } from '@/lib/navigation';
 import { getSignedUrl, pickMedia, uploadMedia } from '@/lib/media';
 
 const PRIVACY: { id: MemorialPrivacy; label: string; hint: string }[] = [
@@ -45,7 +46,7 @@ export default function MemorialEdit() {
     return (
       <ScreenContainer center>
         <EmptyState title="Not found" body="This profile isn’t in your tree." />
-        <Button label="Back" variant="secondary" onPress={() => router.back()} />
+        <Button label="Back" variant="secondary" onPress={() => goBack(router)} />
       </ScreenContainer>
     );
   }
@@ -56,7 +57,7 @@ export default function MemorialEdit() {
     return (
       <ScreenContainer center>
         <EmptyState title="You can’t edit this memorial" body="Only the family stewards can edit this page." />
-        <Button label="Back" variant="secondary" onPress={() => router.back()} />
+        <Button label="Back" variant="secondary" onPress={() => goBack(router)} />
       </ScreenContainer>
     );
   }
@@ -106,7 +107,6 @@ export default function MemorialEdit() {
     <ScreenContainer
       maxWidth={620}
       showBack
-      onBack={() => router.back()}
       footer={<Button label={busy ? 'Saving…' : 'Save memorial'} variant="gold" disabled={busy} onPress={onSave} />}
     >
       <View style={{ gap: spacing.lg }}>

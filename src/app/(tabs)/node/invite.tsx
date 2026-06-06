@@ -11,6 +11,7 @@ import { SectionHeader } from '@/components/ui/SectionHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Body, Caption, Display, Title } from '@/components/ui/Typography';
 import { colors, fonts, radii, spacing } from '@/constants/theme';
+import { goBack } from '@/lib/navigation';
 import { useAppState } from '@/state/AppState';
 import { editScopeFor } from '@/lib/profile';
 import { claimLinkFor, type NodeInvite } from '@/services/inviteService';
@@ -37,14 +38,14 @@ export default function NodeInviteScreen() {
     return (
       <ScreenContainer center>
         <EmptyState title="This profile isn’t here." body="It may have been removed from your Family Tree." />
-        <Button label="Back" variant="secondary" onPress={() => router.back()} />
+        <Button label="Back" variant="secondary" onPress={() => goBack(router)} />
       </ScreenContainer>
     );
   }
 
   if (!canManage) {
     return (
-      <ScreenContainer maxWidth={560} showBack onBack={() => router.back()}>
+      <ScreenContainer maxWidth={560} showBack>
         <Display style={{ fontSize: 26, marginBottom: spacing.sm }}>Already claimed</Display>
         <Body>{node.displayName} has claimed this profile, so it can’t be invited again.</Body>
       </ScreenContainer>
@@ -88,7 +89,7 @@ export default function NodeInviteScreen() {
   };
 
   return (
-    <ScreenContainer maxWidth={560} showBack onBack={() => router.back()}>
+    <ScreenContainer maxWidth={560} showBack>
       <View style={{ gap: spacing.xs, marginBottom: spacing.lg }}>
         <Caption style={{ textTransform: 'uppercase', letterSpacing: 1.6 }}>Invite to claim</Caption>
         <Display style={{ fontSize: 30 }}>Invite {node.displayName}</Display>

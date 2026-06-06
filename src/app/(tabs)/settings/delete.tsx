@@ -10,6 +10,7 @@ import { TextField } from '@/components/ui/TextField';
 import { Badge } from '@/components/ui/Badge';
 import { Body, Caption, Display, Title } from '@/components/ui/Typography';
 import { colors, radii, spacing } from '@/constants/theme';
+import { goBack } from '@/lib/navigation';
 import { useAppState } from '@/state/AppState';
 
 function daysUntil(iso?: string): number {
@@ -43,7 +44,7 @@ export default function DeleteAccount() {
   // ---- Already vacated: management + undo view ----
   if (isVacated) {
     return (
-      <ScreenContainer maxWidth={560} showBack onBack={() => router.back()}>
+      <ScreenContainer maxWidth={560} showBack>
         <View style={{ gap: spacing.lg }}>
           <View style={{ alignItems: 'center', gap: spacing.sm }}>
             <Badge label="Vacated" tone="neutral" />
@@ -79,13 +80,13 @@ export default function DeleteAccount() {
               setBusy(true);
               try {
                 await undoAccountDeletion();
-                router.back();
+                goBack(router);
               } finally {
                 setBusy(false);
               }
             }}
           />
-          <Button label="Keep account closing" variant="ghost" onPress={() => router.back()} />
+          <Button label="Keep account closing" variant="ghost" onPress={() => goBack(router)} />
         </View>
       </ScreenContainer>
     );
@@ -97,11 +98,10 @@ export default function DeleteAccount() {
       <ScreenContainer
         maxWidth={560}
         showBack
-        onBack={() => router.back()}
         footer={
           <View style={{ gap: spacing.sm }}>
             <Button label="Continue" variant="secondary" onPress={() => setStep(1)} />
-            <Button label="Never mind — keep my account" variant="ghost" onPress={() => router.back()} />
+            <Button label="Never mind — keep my account" variant="ghost" onPress={() => goBack(router)} />
           </View>
         }
       >
@@ -144,7 +144,7 @@ export default function DeleteAccount() {
         footer={
           <View style={{ gap: spacing.sm }}>
             <Button label="I understand, continue" variant="secondary" disabled={!allAck} onPress={() => setStep(2)} />
-            <Button label="Cancel" variant="ghost" onPress={() => router.back()} />
+            <Button label="Cancel" variant="ghost" onPress={() => goBack(router)} />
           </View>
         }
       >
@@ -196,7 +196,7 @@ export default function DeleteAccount() {
               }
             }}
           />
-          <Button label="Keep my account" variant="ghost" onPress={() => router.back()} />
+          <Button label="Keep my account" variant="ghost" onPress={() => goBack(router)} />
         </View>
       }
     >

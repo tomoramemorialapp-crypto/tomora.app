@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Body, Caption, Display } from '@/components/ui/Typography';
 import { colors, radii, spacing } from '@/constants/theme';
+import { goBack } from '@/lib/navigation';
 import { useAppState } from '@/state/AppState';
 import type { Notification } from '@/types/models';
 
@@ -87,7 +88,7 @@ export default function Notifications() {
 
   return (
     <ScreenContainer maxWidth={640}>
-      <Pressable onPress={() => router.back()} accessibilityRole="button" style={{ marginBottom: spacing.md }}>
+      <Pressable onPress={() => goBack(router)} accessibilityRole="button" style={{ marginBottom: spacing.md }}>
         <Caption style={{ color: colors.deepUmber, fontSize: 15 }}>‹ Back</Caption>
       </Pressable>
 

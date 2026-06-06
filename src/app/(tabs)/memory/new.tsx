@@ -13,6 +13,7 @@ import { Body, Caption, Display } from '@/components/ui/Typography';
 import { colors, radii, spacing } from '@/constants/theme';
 import { useAppState } from '@/state/AppState';
 import type { MemoryMediaItem, MemoryType, VisibilityLevel } from '@/types/models';
+import { goBack } from '@/lib/navigation';
 import {
   capFor,
   formatBytes,
@@ -112,7 +113,7 @@ export default function NewMemory() {
     try {
       if (editing) {
         await updateMemory({ id: editing.id, title, body, caption, taggedNodeIds: taggedIds, visibility });
-        router.back();
+        goBack(router);
         return;
       }
 
@@ -129,7 +130,7 @@ export default function NewMemory() {
         const primaryType: MemoryType = memoryTypeForKind(files[0]?.kind ?? 'photo');
         await createMemory({ nodeId: targetNode.id, type: primaryType, title, caption, media: uploaded, taggedNodeIds: taggedIds, visibility });
       }
-      router.back();
+      goBack(router);
     } catch (e) {
       console.warn('[tomora] save memory failed', e);
       setPickError('Something went wrong saving this memory. Please try again.');
@@ -144,7 +145,7 @@ export default function NewMemory() {
         <Caption align="center" style={{ marginTop: spacing.sm }}>
           Open a Life Profile, then add a memory for that person.
         </Caption>
-        <Button label="Back" variant="secondary" onPress={() => router.back()} style={{ marginTop: spacing.lg }} />
+        <Button label="Back" variant="secondary" onPress={() => goBack(router)} style={{ marginTop: spacing.lg }} />
       </ScreenContainer>
     );
   }
@@ -155,7 +156,6 @@ export default function NewMemory() {
     <ScreenContainer
       maxWidth={620}
       showBack
-      onBack={() => router.back()}
       footer={
         <View style={{ gap: spacing.sm }}>
           <Button
@@ -173,14 +173,14 @@ export default function NewMemory() {
                 setBusy(true);
                 try {
                   await deleteMemory(editing.id);
-                  router.back();
+                  goBack(router);
                 } finally {
                   setBusy(false);
                 }
               }}
             />
           ) : (
-            <Button label="Cancel" variant="ghost" onPress={() => router.back()} />
+            <Button label="Cancel" variant="ghost" onPress={() => goBack(router)} />
           )}
         </View>
       }

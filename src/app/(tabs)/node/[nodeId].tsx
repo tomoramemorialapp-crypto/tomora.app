@@ -14,6 +14,7 @@ import { Body, Caption, Display } from '@/components/ui/Typography';
 import { colors, radii, spacing } from '@/constants/theme';
 import { copy } from '@/constants/copy';
 import { useAppState } from '@/state/AppState';
+import { goBack } from '@/lib/navigation';
 import { relationshipPath } from '@/lib/relationshipUtils';
 import { editScopeFor, formatDateValue, formatGenderSex, formatPlace } from '@/lib/profile';
 
@@ -91,7 +92,7 @@ export default function LifeProfile() {
       }
     >
       <Pressable
-        onPress={() => router.back()}
+        onPress={() => goBack(router)}
         accessibilityRole="button"
         accessibilityLabel="Go back"
         style={{ marginBottom: spacing.md }}

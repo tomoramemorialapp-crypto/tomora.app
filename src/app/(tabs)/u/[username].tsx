@@ -86,7 +86,7 @@ export default function PublicProfileScreen() {
 
   if (loading) {
     return (
-      <ScreenContainer maxWidth={620} showBack onBack={() => router.back()}>
+      <ScreenContainer maxWidth={620} showBack>
         <Caption>Loading…</Caption>
       </ScreenContainer>
     );
@@ -94,7 +94,7 @@ export default function PublicProfileScreen() {
 
   if (notFound || !profile) {
     return (
-      <ScreenContainer maxWidth={620} showBack onBack={() => router.back()}>
+      <ScreenContainer maxWidth={620} showBack>
         <EmptyState
           title="Profile unavailable"
           body={
@@ -115,7 +115,7 @@ export default function PublicProfileScreen() {
   const socials = SOCIAL_ORDER.filter((n) => (profile.socialLinks[n] ?? '').trim().length > 0);
 
   return (
-    <ScreenContainer maxWidth={640} showBack onBack={() => router.back()}>
+    <ScreenContainer maxWidth={640} showBack>
       {/* Banner + avatar header */}
       <View style={{ marginBottom: spacing.lg }}>
         <View

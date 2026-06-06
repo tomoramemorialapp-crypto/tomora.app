@@ -40,7 +40,7 @@ export default function BillingSettings() {
   const router = useRouter();
 
   return (
-    <ScreenContainer maxWidth={620} showBack onBack={() => router.back()}>
+    <ScreenContainer maxWidth={620} showBack>
       <View style={{ gap: spacing.xs, marginBottom: spacing.lg }}>
         <Display style={{ fontSize: 28 }}>Billing & subscription</Display>
         <Caption>Manage your plan, payment method, and invoices.</Caption>

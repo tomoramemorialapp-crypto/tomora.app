@@ -1,15 +1,13 @@
 import { Pressable, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
 import { colors } from '@/constants/theme';
+import { goBack } from '@/lib/navigation';
 
 /** A calm, brand-styled back affordance (drawn chevron, no icon dependency). */
 export function BackButton({ onPress, color = colors.deepUmber }: { onPress?: () => void; color?: string }) {
   const router = useRouter();
-  const handlePress =
-    onPress ??
-    (() => {
-      if (router.canGoBack()) router.back();
-    });
+  const pathname = usePathname();
+  const handlePress = onPress ?? (() => goBack(router, pathname));
 
   return (
     <Pressable

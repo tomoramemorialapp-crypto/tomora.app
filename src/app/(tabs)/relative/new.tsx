@@ -12,6 +12,7 @@ import { Body, Caption, Display, Title } from '@/components/ui/Typography';
 import { DisconnectedNodeBridgePrompt } from '@/components/family-tree/DisconnectedNodeBridgePrompt';
 import { colors, spacing } from '@/constants/theme';
 import { relationshipChoices } from '@/constants/copy';
+import { goBack } from '@/lib/navigation';
 import { useAppState } from '@/state/AppState';
 import type { RelationshipType } from '@/types/models';
 
@@ -42,7 +43,7 @@ export default function NewRelative() {
         isRemembered,
         tags: isUnsure ? ['Unknown link'] : undefined,
       });
-      router.back();
+      goBack(router);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Could not add this family member. Please try again.');
     } finally {
@@ -56,7 +57,7 @@ export default function NewRelative() {
       footer={
         <View style={{ gap: spacing.sm }}>
           <Button label="Add to my Family Tree" variant="gold" disabled={!canSave} loading={busy} onPress={onSave} />
-          <Button label="Cancel" variant="ghost" onPress={() => router.back()} />
+          <Button label="Cancel" variant="ghost" onPress={() => goBack(router)} />
         </View>
       }
     >

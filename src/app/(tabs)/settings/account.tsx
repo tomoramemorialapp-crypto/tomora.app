@@ -214,7 +214,7 @@ export default function AccountSettings() {
   };
 
   return (
-    <ScreenContainer maxWidth={620} showBack onBack={() => router.back()}>
+    <ScreenContainer maxWidth={620} showBack>
       <Display style={{ fontSize: 28, marginBottom: spacing.lg }}>Account & settings</Display>
 
       {/* Profile basics */}

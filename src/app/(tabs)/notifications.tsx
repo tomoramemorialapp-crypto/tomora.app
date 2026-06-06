@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Body, Caption, Display } from '@/components/ui/Typography';
+import { NotificationIcon } from '@/components/brand/NotificationIcons';
 import { colors, radii, spacing } from '@/constants/theme';
 import { goBack } from '@/lib/navigation';
 import { useAppState } from '@/state/AppState';
@@ -25,19 +26,6 @@ function timeAgo(iso: string): string {
   if (days < 7) return `${days}d ago`;
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
-
-const ICON: Partial<Record<Notification['type'], string>> = {
-  new_member: '🌱',
-  invite: '✉️',
-  request: '🤝',
-  suggested_edit: '✏️',
-  dispute: '⚖️',
-  access: '🔑',
-  memorial_pending: '🕯️',
-  memorial_created: '🕯️',
-  memorial_disputed: '⚖️',
-  system: '✦',
-};
 
 export default function Notifications() {
   const router = useRouter();
@@ -124,7 +112,7 @@ export default function Notifications() {
                       {node ? (
                         <Avatar name={node.displayName} size={40} memorial={node.isLiving === false} uri={node.profile?.profilePhoto?.value ?? node.avatarUrl} />
                       ) : (
-                        <Body style={{ fontSize: 22 }}>{ICON[n.type] ?? '✦'}</Body>
+                        <NotificationIcon type={n.type} size={22} />
                       )}
                       <View style={{ flex: 1, gap: 2 }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm }}>
@@ -158,7 +146,7 @@ export default function Notifications() {
                 >
                   <Card>
                     <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'center' }}>
-                      <Body style={{ fontSize: 22 }}>✏️</Body>
+                      <NotificationIcon type="suggested_edit" size={22} />
                       <View style={{ flex: 1 }}>
                         <Body style={{ fontWeight: '700' }}>
                           {node ? `A change was suggested for ${node.displayName}` : 'A change was suggested'}

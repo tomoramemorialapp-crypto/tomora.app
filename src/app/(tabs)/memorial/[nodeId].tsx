@@ -13,6 +13,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Body, Caption, Display, Title } from '@/components/ui/Typography';
 import { MemoryCard } from '@/components/memories/MemoryCard';
+import { RemembranceIcon } from '@/components/brand/OccasionIcons';
 import { goBack } from '@/lib/navigation';
 import { colors, radii, spacing } from '@/constants/theme';
 import { useAppState } from '@/state/AppState';
@@ -191,7 +192,15 @@ export default function MemorialPage() {
               {display.title}
             </Caption>
           ) : null}
-          {lifespan ? <Caption style={{ textAlign: 'center', marginTop: 4 }}>🕯️ {lifespan}{age ? ` · ${age} years` : ''}</Caption> : null}
+          {lifespan ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 4 }}>
+              <RemembranceIcon size={14} />
+              <Caption style={{ textAlign: 'center' }}>
+                {lifespan}
+                {age ? ` · ${age} years` : ''}
+              </Caption>
+            </View>
+          ) : null}
 
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
             <Badge label={display.privacy === 'public' ? 'Public memorial' : display.privacy === 'semi' ? 'Shared with password' : 'Family memorial'} tone="memorial" />

@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/Button';
 import { colors, radii, spacing } from '@/constants/theme';
 import { useAppState } from '@/state/AppState';
 import { useT } from '@/i18n';
+import { OccasionIcon } from '@/components/brand/OccasionIcons';
 import { getUpcomingEvents, nodeIsInMemory, whenLabel, type UpcomingEvent } from '@/lib/occasions';
 import { getCalendarIds, getNotifyIds, setCalendarAdded, setNotify } from '@/lib/occasionPrefs';
 import {
@@ -27,13 +28,6 @@ import {
   type OccasionFilterState,
   type OccasionSort,
 } from '@/lib/occasionFilters';
-
-const EVENT_EMOJI: Record<UpcomingEvent['kind'], string> = {
-  birthday: '🎂',
-  death_anniversary: '🕯️',
-  wedding_anniversary: '💍',
-  holiday: '✦',
-};
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { weekday: 'short', month: 'long', day: 'numeric' });
@@ -168,7 +162,7 @@ export default function OccasionsScreen() {
                         backgroundColor: colors.mistBeige,
                       }}
                     >
-                      <Body style={{ fontSize: 20 }}>{EVENT_EMOJI[e.kind]}</Body>
+                      <OccasionIcon kind={e.kind} size={22} />
                     </View>
                   )}
                   <View style={{ flex: 1, gap: 4 }}>

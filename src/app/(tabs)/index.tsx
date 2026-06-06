@@ -8,6 +8,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { MemoryThumb } from '@/components/memories/MemoryThumb';
 import { GoldStar } from '@/components/brand/GoldStar';
+import { OccasionIcon, occasionIconColor } from '@/components/brand/OccasionIcons';
 import { BellIcon } from '@/components/brand/TabIcons';
 import { Body, Caption, Display, Title } from '@/components/ui/Typography';
 import { colors, radii, spacing } from '@/constants/theme';
@@ -27,13 +28,6 @@ function timeAgo(iso: string): string {
   if (days < 7) return `${days}d ago`;
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
-
-const EVENT_EMOJI: Record<UpcomingEvent['kind'], string> = {
-  birthday: '🎂',
-  death_anniversary: '🕯️',
-  wedding_anniversary: '💍',
-  holiday: '✦',
-};
 
 export default function Home() {
   const router = useRouter();
@@ -96,7 +90,7 @@ export default function Home() {
                 }}
               >
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Body style={{ fontSize: 20 }}>{EVENT_EMOJI[e.kind]}</Body>
+                  <OccasionIcon kind={e.kind} size={22} color={occasionIconColor(e.kind)} />
                   <Badge label={whenLabel(e.daysUntil)} tone={e.daysUntil <= 1 ? 'gold' : 'soft'} />
                 </View>
                 <Body numberOfLines={2} style={{ fontWeight: '600' }}>{e.title}</Body>

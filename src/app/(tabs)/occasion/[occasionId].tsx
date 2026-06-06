@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { MemoryCard } from '@/components/memories/MemoryCard';
 import { Body, Caption, Display, Title } from '@/components/ui/Typography';
 import { colors, radii, spacing } from '@/constants/theme';
+import { OccasionIcon } from '@/components/brand/OccasionIcons';
 import { findOccasionById, nodeIsInMemory, whenLabel } from '@/lib/occasions';
 import { useAppState } from '@/state/AppState';
 import { useT } from '@/i18n';
@@ -77,7 +78,7 @@ export default function OccasionPageScreen() {
                 backgroundColor: colors.mistBeige,
               }}
             >
-              <Body style={{ fontSize: 36 }}>✦</Body>
+              <OccasionIcon kind={event.kind} size={40} />
             </View>
           )}
           <Display align="center" style={{ fontSize: 30 }}>

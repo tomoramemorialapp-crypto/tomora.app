@@ -160,6 +160,11 @@ export function getUpcomingEvents(
     .sort((a, b) => a.daysUntil - b.daysUntil);
 }
 
+/** Look up a single occasion by its stable id (e.g. `bday-{nodeId}`). */
+export function findOccasionById(eventId: string, nodes: FamilyNode[], now?: Date): UpcomingEvent | undefined {
+  return getUpcomingEvents(nodes, { withinDays: 366, now }).find((e) => e.id === eventId);
+}
+
 /** Friendly relative label for an event's distance in days. */
 export function whenLabel(daysUntil: number): string {
   if (daysUntil === 0) return 'Today';

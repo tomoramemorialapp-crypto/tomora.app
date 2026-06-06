@@ -115,6 +115,23 @@ export const en = {
   'memories.emptyTitle': 'No memories yet.',
   'memories.emptyBody': 'Add a photo, story, voice note, or video to keep this light close.',
   'memories.firstCta': 'Add your first memory',
+
+  // Companion
+  'companion.kicker': 'Tomora Companion',
+  'companion.title': 'A gentle guide',
+
+  // Occasion pages
+  'occasionPage.productTitle': 'Occasion Pages',
+  'occasionPage.productBody':
+    'Open any occasion to see a dedicated page with shared memories. Guestbook messages and support flows are on the way.',
+  'occasionPage.productHint': 'Tap an occasion, then choose Open Occasion Page.',
+  'occasionPage.notFoundTitle': 'Occasion not found',
+  'occasionPage.notFoundBody': 'This occasion may have passed or the link is no longer valid.',
+  'occasionPage.memoriesTitle': 'Shared memories',
+  'occasionPage.memoriesEmpty': 'No memories are linked to this occasion yet.',
+  'occasionPage.guestbookTitle': 'Guestbook',
+  'occasionPage.guestbookBody': 'Soon family and friends can leave warm notes, photos, and gentle support.',
+  'occasionPage.guestbookSoon': 'Guestbook coming soon',
 } satisfies Record<string, string>;
 
 export type TranslationKey = keyof typeof en;

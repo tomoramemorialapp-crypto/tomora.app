@@ -51,6 +51,7 @@ export function OccasionDetailModal({
   onToggleNotify,
   onToggleCalendar,
   onOpenProfile,
+  onOpenOccasionPage,
   onClose,
 }: {
   visible: boolean;
@@ -61,6 +62,7 @@ export function OccasionDetailModal({
   onToggleNotify: (on: boolean) => void;
   onToggleCalendar: (on: boolean) => void;
   onOpenProfile?: () => void;
+  onOpenOccasionPage?: () => void;
   onClose: () => void;
 }) {
   if (!event) return null;
@@ -124,6 +126,10 @@ export function OccasionDetailModal({
           {/* Open Life Profile (family occasions) */}
           {isFamily && onOpenProfile ? (
             <Button label="Open Life Profile" variant="secondary" onPress={onOpenProfile} />
+          ) : null}
+
+          {onOpenOccasionPage ? (
+            <Button label="Open Occasion Page" variant="gold" onPress={onOpenOccasionPage} />
           ) : null}
 
           {/* Notify toggle */}

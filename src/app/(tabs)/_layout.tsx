@@ -82,6 +82,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="settings/account" options={{ href: null }} />
       <Tabs.Screen name="settings/billing" options={{ href: null }} />
       <Tabs.Screen name="settings/delete" options={{ href: null }} />
+      <Tabs.Screen name="occasion/[occasionId]" options={{ href: null }} />
     </Tabs>
   );
 }

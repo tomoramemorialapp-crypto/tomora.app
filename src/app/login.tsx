@@ -11,6 +11,8 @@ import { AppFooter } from '@/components/brand/AppFooter';
 import { colors, spacing } from '@/constants/theme';
 import { useT } from '@/i18n';
 import { isEmailIdentifier, isUsernameIdentifier } from '@/lib/username';
+import * as authService from '@/services/authService';
+import { copy } from '@/constants/copy';
 import { useAppState } from '@/state/AppState';
 
 export default function Login() {
@@ -23,10 +25,23 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [oauthBusy, setOauthBusy] = useState<'google' | 'apple' | null>(null);
 
   const trimmed = identifier.trim();
   const validIdentifier = isEmailIdentifier(trimmed) || isUsernameIdentifier(trimmed);
   const canSubmit = validIdentifier && password.length >= 6 && !busy;
+
+  const onOAuth = async (provider: 'google' | 'apple') => {
+    setError(null);
+    setOauthBusy(provider);
+    try {
+      await authService.signInWithOAuth(provider);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "We couldn't log you in. Please try again.";
+      setError(message);
+      setOauthBusy(null);
+    }
+  };
 
   const onSubmit = async () => {
     setError(null);
@@ -48,6 +63,20 @@ export default function Login() {
       footer={
         <View style={{ gap: spacing.md }}>
           <Button label={t('login.cta')} variant="gold" disabled={!canSubmit} loading={busy} onPress={onSubmit} />
+          <Button
+            label={copy.save.google}
+            variant="secondary"
+            disabled={!!oauthBusy || busy}
+            loading={oauthBusy === 'google'}
+            onPress={() => onOAuth('google')}
+          />
+          <Button
+            label={copy.save.apple}
+            variant="secondary"
+            disabled={!!oauthBusy || busy}
+            loading={oauthBusy === 'apple'}
+            onPress={() => onOAuth('apple')}
+          />
           <Button
             label={t('login.noAccount')}
             variant="ghost"

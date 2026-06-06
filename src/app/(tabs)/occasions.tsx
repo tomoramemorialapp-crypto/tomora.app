@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
@@ -151,14 +151,9 @@ export default function OccasionsScreen() {
 
       <Card style={{ backgroundColor: colors.candlelight, borderColor: colors.softGold }}>
         <View style={{ gap: spacing.sm }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Title>Occasion Pages</Title>
-            <Badge label="Coming soon" tone="gold" />
-          </View>
-          <Body style={{ color: colors.deepUmber }}>
-            Soon you'll be able to host birthdays, weddings, reunions, and remembrances — with a guestbook, shared
-            memories, and gentle ways to send support.
-          </Body>
+          <Title>{t('occasionPage.productTitle')}</Title>
+          <Body style={{ color: colors.deepUmber }}>{t('occasionPage.productBody')}</Body>
+          <Caption style={{ color: colors.ashTaupe }}>{t('occasionPage.productHint')}</Caption>
         </View>
       </Card>
 
@@ -176,6 +171,15 @@ export default function OccasionsScreen() {
                 const id = selectedNode.id;
                 setSelected(null);
                 router.push({ pathname: '/node/[nodeId]', params: { nodeId: id } });
+              }
+            : undefined
+        }
+        onOpenOccasionPage={
+          selected
+            ? () => {
+                const id = selected.id;
+                setSelected(null);
+                router.push(`/(tabs)/occasion/${encodeURIComponent(id)}` as Href);
               }
             : undefined
         }

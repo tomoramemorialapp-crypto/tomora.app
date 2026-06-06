@@ -12,6 +12,7 @@ import { GoldStar } from '@/components/brand/GoldStar';
 import { colors, spacing } from '@/constants/theme';
 import { copy } from '@/constants/copy';
 import { normalizeUsername, validateUsername } from '@/lib/username';
+import * as authService from '@/services/authService';
 import { useAppState } from '@/state/AppState';
 
 export default function Save() {
@@ -25,11 +26,25 @@ export default function Save() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmEmail, setConfirmEmail] = useState(false);
+  const [oauthBusy, setOauthBusy] = useState<'google' | 'apple' | null>(null);
 
   const normalizedUsername = normalizeUsername(username);
   const usernameError = username ? validateUsername(normalizedUsername) : 'Choose a username.';
   const canSave =
     /\S+@\S+\.\S+/.test(email) && !usernameError && normalizedUsername.length > 0 && password.length >= 6 && !busy;
+
+  const onOAuth = async (provider: 'google' | 'apple') => {
+    setError(null);
+    setOauthBusy(provider);
+    try {
+      await authService.signInWithOAuth(provider);
+      // Web redirects away; native completes via exchangeCodeForSession + auth listener.
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Could not sign in. Please try again.';
+      setError(message);
+      setOauthBusy(null);
+    }
+  };
 
   const onSave = async () => {
     setError(null);
@@ -76,8 +91,20 @@ export default function Save() {
       footer={
         <View style={{ gap: spacing.md }}>
           <Button label="Save my Family Tree" variant="gold" disabled={!canSave} loading={busy} onPress={onSave} />
-          <Button label={`${copy.save.google} · Soon`} variant="secondary" disabled />
-          <Button label={`${copy.save.apple} · Soon`} variant="secondary" disabled />
+          <Button
+            label={copy.save.google}
+            variant="secondary"
+            disabled={!!oauthBusy || busy}
+            loading={oauthBusy === 'google'}
+            onPress={() => onOAuth('google')}
+          />
+          <Button
+            label={copy.save.apple}
+            variant="secondary"
+            disabled={!!oauthBusy || busy}
+            loading={oauthBusy === 'apple'}
+            onPress={() => onOAuth('apple')}
+          />
         </View>
       }
     >
@@ -129,7 +156,7 @@ export default function Save() {
 
         {error ? <Caption style={{ color: colors.error, fontSize: 14 }}>{error}</Caption> : null}
         <Caption style={{ color: colors.deepUmber, fontSize: 14 }}>
-          Google & Apple sign-in are coming soon — continue with email for now.
+          Google and Apple sign-in require provider setup in your Supabase project. Email sign-up always includes a username.
         </Caption>
 
         <View style={{ alignItems: 'center', marginTop: spacing.sm, gap: spacing.sm }}>

@@ -96,10 +96,18 @@ Visibility levels: `private`, `selected_people`, `family_tree`, `invite_link`,
 `public`. Defaults are private/family-only; public sharing is always opt-in.
 Privacy is never a paywalled feature.
 
+## OAuth setup (Google / Apple)
+
+Enable providers in the [Supabase Auth dashboard](https://supabase.com/dashboard) and add redirect URLs:
+
+- `https://tomora.app/auth/callback` (production)
+- `http://localhost:8081/auth/callback` (local web)
+
+On native builds, Expo Linking generates the callback URL automatically.
+
 ## Coming soon
 
-Tomora Companion (AI), Occasion Pages, billing/subscriptions, Google/Apple
-sign-in, push notifications, and full i18n coverage.
+Billing/subscriptions, push notifications, guestbook on Occasion Pages, multi-tree merge UX, Playwright E2E tests, and full i18n coverage.
 
 ## Source of truth
 

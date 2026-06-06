@@ -12,7 +12,7 @@ import { useAppState } from '@/state/AppState';
 
 export default function MemoriesScreen() {
   const router = useRouter();
-  const { memories, nodes, getNode } = useAppState();
+  const { visibleMemories, nodes, getNode } = useAppState();
   const selfNode = nodes.find((n) => n.ownerAccountId) ?? nodes[0];
 
   // From the Memories tab, a new memory defaults to the user, with a picker to
@@ -26,14 +26,14 @@ export default function MemoriesScreen() {
   return (
     <ScreenContainer
       maxWidth={620}
-      footer={memories.length > 0 ? <Button label="Add a memory" variant="gold" onPress={goAdd} /> : undefined}
+      footer={visibleMemories.length > 0 ? <Button label="Add a memory" variant="gold" onPress={goAdd} /> : undefined}
     >
       <View style={{ gap: spacing.xs, marginBottom: spacing.lg }}>
         <Caption style={{ textTransform: 'uppercase', letterSpacing: 1.6 }}>Kept close</Caption>
         <Display style={{ fontSize: 32 }}>Memories</Display>
       </View>
 
-      {memories.length === 0 ? (
+      {visibleMemories.length === 0 ? (
         <EmptyState
           title={copy.emptyMemories.title}
           body={copy.emptyMemories.body}
@@ -41,7 +41,7 @@ export default function MemoriesScreen() {
         />
       ) : (
         <View style={{ gap: spacing.md }}>
-          {memories.map((m) => (
+          {visibleMemories.map((m) => (
             <MemoryCard
               key={m.id}
               memory={m}

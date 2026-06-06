@@ -37,7 +37,7 @@ const EVENT_EMOJI: Record<UpcomingEvent['kind'], string> = {
 export default function Home() {
   const router = useRouter();
   const t = useT();
-  const { account, nodes, memories, getNode, unreadNotificationCount } = useAppState();
+  const { account, nodes, visibleMemories, getNode, unreadNotificationCount } = useAppState();
 
   const events = useMemo(() => getUpcomingEvents(nodes, { withinDays: 120 }).slice(0, 6), [nodes]);
 
@@ -45,10 +45,10 @@ export default function Home() {
   // new members) live in the Notifications tab.
   const feed = useMemo<Memory[]>(
     () =>
-      [...memories]
+      [...visibleMemories]
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 40),
-    [memories],
+    [visibleMemories],
   );
 
   const firstName = (account?.displayName ?? 'there').split(' ')[0];

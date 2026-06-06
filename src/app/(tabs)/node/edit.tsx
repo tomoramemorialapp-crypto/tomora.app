@@ -127,6 +127,8 @@ export default function EditProfile() {
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const onUploadPhoto = async () => {
     if (!account) return;
@@ -153,11 +155,13 @@ export default function EditProfile() {
   const onDeleteNode = async () => {
     if (!node) return;
     setDeleting(true);
+    setDeleteError(null);
     try {
       await deleteNode(node.id);
       router.replace('/(tabs)/family-tree');
     } catch (e) {
       console.warn('[tomora] delete node failed', e);
+      setDeleteError('Could not remove this profile. Please try again.');
       setDeleting(false);
     }
   };
@@ -251,6 +255,7 @@ export default function EditProfile() {
   async function onSave() {
     if (!canEdit) return;
     setSaving(true);
+    setSaveError(null);
     try {
       const { next, log, nextTags } = buildProfileAndLog();
       await updateNodeProfile({
@@ -263,6 +268,7 @@ export default function EditProfile() {
       router.back();
     } catch (e) {
       console.warn('[tomora] profile save failed', e);
+      setSaveError('Could not save these changes. Please try again.');
       setSaving(false);
     }
   }
@@ -321,7 +327,10 @@ export default function EditProfile() {
       showBack
       onBack={() => router.back()}
       footer={
-        <Button label={saving ? 'Saving…' : 'Save changes'} variant="gold" disabled={saving} onPress={onSave} />
+        <View style={{ gap: spacing.sm }}>
+          {saveError ? <Caption style={{ color: colors.error, textAlign: 'center' }}>{saveError}</Caption> : null}
+          <Button label={saving ? 'Saving…' : 'Save changes'} variant="gold" disabled={saving} onPress={onSave} />
+        </View>
       }
     >
       <Display style={{ fontSize: 28, marginBottom: spacing.xs }}>Edit Profile</Display>
@@ -506,6 +515,7 @@ export default function EditProfile() {
             ) : (
               <Button label="Remove from tree" variant="secondary" onPress={() => setConfirmDelete(true)} />
             )}
+            {deleteError ? <Caption style={{ color: colors.error }}>{deleteError}</Caption> : null}
           </View>
         </Card>
       ) : null}

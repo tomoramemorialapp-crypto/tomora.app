@@ -43,7 +43,7 @@ function LocalizedTheme({ children }: { children: ReactNode }) {
   const { account } = useAppState();
   return (
     <LanguageProvider initialLanguage={account?.language}>
-      <ThemeProvider>{children}</ThemeProvider>
+      <ThemeProvider accountPreference={account?.themePreference}>{children}</ThemeProvider>
     </LanguageProvider>
   );
 }

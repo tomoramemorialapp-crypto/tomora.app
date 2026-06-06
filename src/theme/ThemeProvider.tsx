@@ -70,9 +70,23 @@ function syncWebDocument(mode: ThemeMode): void {
  * place and re-renders the whole subtree, so every screen reading `colors.x`
  * updates without per-component wiring. Transitions are kept calm and quick.
  */
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
+export function ThemeProvider({
+  children,
+  /** When signed in, hydrate from the account's saved theme preference. */
+  accountPreference,
+}: {
+  children: React.ReactNode;
+  accountPreference?: AppearancePreference | null;
+}) {
   const [appearancePreference, setPref] = useState<AppearancePreference>(() => readStoredPreference());
   const [systemScheme, setSystemScheme] = useState<'light' | 'dark'>(() => normalizeScheme(Appearance.getColorScheme()));
+
+  useEffect(() => {
+    if (accountPreference === 'light' || accountPreference === 'dark' || accountPreference === 'system') {
+      persistPreference(accountPreference);
+      setPref(accountPreference);
+    }
+  }, [accountPreference]);
 
   useEffect(() => {
     const sub = Appearance.addChangeListener(({ colorScheme }) => setSystemScheme(normalizeScheme(colorScheme)));

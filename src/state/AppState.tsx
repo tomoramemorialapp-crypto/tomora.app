@@ -21,8 +21,10 @@ import type {
   Notification,
   Relationship,
   RelationshipType,
+  TreeRole,
   VisibilityLevel,
 } from '@/types/models';
+import { canViewContent } from '@/lib/visibility';
 import type { NodeProfile, ProfileChangeLog, ProfileFieldKey, SuggestedEdit } from '@/types/profile';
 import { supabase } from '@/lib/supabase';
 import * as authService from '@/services/authService';
@@ -56,6 +58,8 @@ interface AppStateValue {
   nodes: FamilyNode[];
   relationships: Relationship[];
   memories: Memory[];
+  /** Memories the current viewer is allowed to see (visibility-filtered). */
+  visibleMemories: Memory[];
   suggestedEdits: SuggestedEdit[];
   notifications: Notification[];
   unreadNotificationCount: number;
@@ -708,11 +712,38 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     [notifications],
   );
 
+  const familyTreeMembership = useMemo(() => {
+    if (!account || !tree) return null;
+    const role: TreeRole = tree.createdByAccountId === account.id ? 'creator' : 'member';
+    return { role };
+  }, [account, tree]);
+
+  const canViewMemory = useCallback(
+    (memory: Memory) =>
+      canViewContent({
+        viewer: account,
+        content: { visibility: memory.visibility, createdByAccountId: memory.createdByAccountId },
+        familyTreeMembership,
+      }),
+    [account, familyTreeMembership],
+  );
+
+  const visibleMemories = useMemo(
+    () => memories.filter(canViewMemory),
+    [memories, canViewMemory],
+  );
+
   const getNode = useCallback((id: string) => nodes.find((n) => n.id === id), [nodes]);
-  const getMemory = useCallback((id: string) => memories.find((m) => m.id === id), [memories]);
+  const getMemory = useCallback(
+    (id: string) => {
+      const memory = memories.find((m) => m.id === id);
+      return memory && canViewMemory(memory) ? memory : undefined;
+    },
+    [memories, canViewMemory],
+  );
   const getMemoriesForNode = useCallback(
-    (id: string) => memories.filter((m) => m.nodeId === id),
-    [memories],
+    (id: string) => visibleMemories.filter((m) => m.nodeId === id),
+    [visibleMemories],
   );
   const getRelationshipForNode = useCallback(
     (id: string) => relationships.find((r) => r.toNodeId === id || r.fromNodeId === id),
@@ -732,6 +763,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       nodes,
       relationships,
       memories,
+      visibleMemories,
       suggestedEdits,
       notifications,
       unreadNotificationCount,
@@ -790,6 +822,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       nodes,
       relationships,
       memories,
+      visibleMemories,
       suggestedEdits,
       notifications,
       unreadNotificationCount,

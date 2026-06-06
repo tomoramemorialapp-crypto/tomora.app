@@ -15,6 +15,7 @@ import { VisibilitySelector } from '@/components/ui/VisibilitySelector';
 import { DateValueInput } from '@/components/ui/DateValueInput';
 import { Dropdown } from '@/components/ui/Dropdown';
 import { MultiSelect } from '@/components/ui/MultiSelect';
+import { PlaceField } from '@/components/ui/PlaceField';
 import { SuggestChangeModal } from '@/components/profile/SuggestChangeModal';
 import { ConnectionsEditor } from '@/components/profile/ConnectionsEditor';
 import {
@@ -93,10 +94,8 @@ export default function EditProfile() {
     node?.status === 'memorial_pending' ||
     !!profile.dateOfDeath?.value;
 
-  const [pobName, setPobName] = useState(profile.placeOfBirth?.value?.displayName ?? '');
-  const [pobCity, setPobCity] = useState(profile.placeOfBirth?.value?.city ?? '');
-  const [pobCountry, setPobCountry] = useState(profile.placeOfBirth?.value?.country ?? '');
-  const [podName, setPodName] = useState(profile.placeOfDeath?.value?.displayName ?? '');
+  const [pob, setPob] = useState<PlaceReference | undefined>(profile.placeOfBirth?.value);
+  const [pod, setPod] = useState<PlaceReference | undefined>(profile.placeOfDeath?.value);
 
   const [genderIdentity, setGenderIdentity] = useState(profile.genderSex?.value?.genderIdentity ?? '');
   const [sexRecorded, setSexRecorded] = useState(profile.genderSex?.value?.sexAssignedOrRecorded ?? '');
@@ -219,15 +218,8 @@ export default function EditProfile() {
     // Death details are only persisted for nodes already marked as passed.
     apply('dateOfDeath', passed ? dod : undefined, !passed || !dod);
 
-    const pob: PlaceReference = {
-      displayName: pobName.trim() || [pobCity, pobCountry].filter(Boolean).join(', '),
-      city: pobCity.trim() || undefined,
-      country: pobCountry.trim() || undefined,
-      certainty: 'exact',
-    };
-    apply('placeOfBirth', pob, !placeHasValue(pob));
-    const pod: PlaceReference = { displayName: podName.trim(), certainty: 'exact' };
-    apply('placeOfDeath', passed ? pod : undefined, !passed || !podName.trim());
+    apply('placeOfBirth', pob, !pob || !placeHasValue(pob));
+    apply('placeOfDeath', passed ? pod : undefined, !passed || !pod || !placeHasValue(pod));
 
     const gs: GenderSexField = {
       genderIdentity: genderIdentity.trim() || undefined,
@@ -379,21 +371,13 @@ export default function EditProfile() {
           <DateValueInput label="Date of birth" value={dob} onChange={setDob} />
           <VisibilitySelector value={vis.dateOfBirth ?? 'private'} onChange={setFieldVis('dateOfBirth')} label="Birth date visibility" />
 
-          <TextField label="Place of birth" value={pobName} onChangeText={setPobName} placeholder="City, Country" />
-          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-            <View style={{ flex: 1 }}>
-              <TextField label="City" value={pobCity} onChangeText={setPobCity} placeholder="City" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Dropdown label="Country" value={pobCountry} onChange={setPobCountry} options={toOptions(COUNTRIES)} placeholder="Country" searchable allowOther />
-            </View>
-          </View>
+          <PlaceField label="Place of birth" value={pob} onChange={setPob} placeholder="Search for a birthplace" />
           <VisibilitySelector value={vis.placeOfBirth ?? 'family_tree'} onChange={setFieldVis('placeOfBirth')} label="Place of birth visibility" />
 
           {passed ? (
             <View style={{ gap: spacing.md }}>
               <DateValueInput label="Date of death" value={dod} onChange={setDod} />
-              <TextField label="Place of death" value={podName} onChangeText={setPodName} placeholder="City, Country" />
+              <PlaceField label="Place of death" value={pod} onChange={setPod} placeholder="Search for a place" />
             </View>
           ) : !isSelf ? (
             <View

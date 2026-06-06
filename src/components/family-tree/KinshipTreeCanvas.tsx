@@ -383,7 +383,9 @@ export function KinshipTreeCanvas({
     if (!view) return [];
     const q = searchQuery.trim().toLowerCase();
     return view.visibleNodes
-      .filter((n) => n.status !== 'placeholder' && n.nodeType !== 'placeholder')
+      // Exclude only synthetic bridge nodes — unclaimed people keep a
+      // 'placeholder' status but are still real, searchable nodes.
+      .filter((n) => n.nodeType !== 'placeholder')
       .filter((n) => (q ? n.displayName.toLowerCase().includes(q) : true))
       .slice(0, 8);
   }, [view, searchQuery]);

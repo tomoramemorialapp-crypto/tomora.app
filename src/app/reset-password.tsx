@@ -14,7 +14,7 @@ import { useAppState } from '@/state/AppState';
 
 export default function ResetPassword() {
   const router = useRouter();
-  const { session, loading, isOnboarded } = useAppState();
+  const { session, loading, finishPasswordRecovery } = useAppState();
 
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -24,7 +24,8 @@ export default function ResetPassword() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (loading) return;
+    // Recovery mode keeps loading false without hydrating — show form once session exists.
+    if (loading && !session) return;
     setReady(true);
   }, [loading, session]);
 
@@ -37,7 +38,8 @@ export default function ResetPassword() {
     setBusy(true);
     try {
       await authService.completePasswordReset(password);
-      router.replace(isOnboarded ? '/(tabs)' : '/welcome');
+      const onboarded = await finishPasswordRecovery();
+      router.replace(onboarded ? '/(tabs)' : '/welcome');
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : copy.passwordReset.completeError);
     } finally {

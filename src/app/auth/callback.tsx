@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Platform, View } from 'react-native';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 
@@ -9,6 +9,12 @@ import { Body, Caption, Display } from '@/components/ui/Typography';
 import { colors, spacing } from '@/constants/theme';
 import * as authService from '@/services/authService';
 import { supabase } from '@/lib/supabase';
+import {
+  capturePasswordRecoveryFromCurrentUrl,
+  isPasswordRecoveryPendingSync,
+  markPasswordRecoveryPending,
+  urlIndicatesPasswordRecovery,
+} from '@/lib/passwordRecovery';
 import { useAppState } from '@/state/AppState';
 
 type CallbackStatus = 'working' | 'error';
@@ -30,16 +36,14 @@ function readAuthErrorFromUrl(): string | null {
 }
 
 function isPasswordRecoveryReturn(next?: string): boolean {
-  if (next === 'reset-password') return true;
-  const params = readUrlAuthParams();
-  return params?.get('type') === 'recovery';
+  return urlIndicatesPasswordRecovery(next) || isPasswordRecoveryPendingSync();
 }
 
 /** OAuth / email-verification return route — completes session exchange and resumes onboarding. */
 export default function AuthCallback() {
   const router = useRouter();
   const { next } = useLocalSearchParams<{ next?: string }>();
-  const { loading, isOnboarded } = useAppState();
+  const { loading, isOnboarded, passwordRecoveryPending } = useAppState();
 
   const initialError = useMemo(() => readAuthErrorFromUrl(), []);
   const [status, setStatus] = useState<CallbackStatus>(initialError ? 'error' : 'working');
@@ -47,6 +51,13 @@ export default function AuthCallback() {
   const [email, setEmail] = useState('');
   const [resendBusy, setResendBusy] = useState(false);
   const [resendNote, setResendNote] = useState<string | null>(null);
+
+  useLayoutEffect(() => {
+    const captured = capturePasswordRecoveryFromCurrentUrl(
+      typeof next === 'string' ? next : next?.[0],
+    );
+    if (captured) void markPasswordRecoveryPending();
+  }, [next]);
 
   useEffect(() => {
     if (status === 'error') return;
@@ -87,20 +98,28 @@ export default function AuthCallback() {
   }, [status]);
 
   useEffect(() => {
-    if (status === 'error' || loading) return;
+    if (status === 'error') return;
 
-    if (isPasswordRecoveryReturn(next)) {
+    const nextHint = typeof next === 'string' ? next : next?.[0];
+    const recovery =
+      passwordRecoveryPending ||
+      isPasswordRecoveryPendingSync() ||
+      isPasswordRecoveryReturn(nextHint);
+
+    if (recovery) {
       router.replace('/reset-password' as Href);
       return;
     }
 
-    if (next === 'claim') {
+    if (loading) return;
+
+    if (nextHint === 'claim') {
       router.replace('/(onboarding)/claim');
       return;
     }
 
     router.replace(isOnboarded ? '/(tabs)' : '/welcome');
-  }, [status, loading, isOnboarded, next, router]);
+  }, [status, loading, isOnboarded, passwordRecoveryPending, next, router]);
 
   const onResend = async () => {
     if (!email.trim()) {

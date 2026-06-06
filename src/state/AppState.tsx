@@ -37,6 +37,12 @@ import * as accountService from '@/services/accountService';
 import * as inviteService from '@/services/inviteService';
 import * as notificationService from '@/services/notificationService';
 import * as memorialService from '@/services/memorialService';
+import {
+  clearPasswordRecoveryPending,
+  isPasswordRecoveryPending,
+  isPasswordRecoveryPendingSync,
+} from '@/lib/passwordRecovery';
+import '@/lib/passwordRecovery';
 import { validateUsername } from '@/lib/username';
 import { pickPrimaryRelationship } from '@/lib/relationshipUtils';
 import type { NodeInvite } from '@/services/inviteService';
@@ -69,6 +75,8 @@ interface AppStateValue {
   notifications: Notification[];
   unreadNotificationCount: number;
   isOnboarded: boolean;
+  /** User opened a password-reset link — skip normal sign-in routing until password is saved. */
+  passwordRecoveryPending: boolean;
   draft: OnboardingDraft;
 
   setDraft: (patch: Partial<OnboardingDraft>) => void;
@@ -80,6 +88,8 @@ interface AppStateValue {
     username: string,
   ) => Promise<{ needsEmailConfirmation: boolean; alreadyRegistered?: boolean }>;
   signInAndLoad: (identifier: string, password: string) => Promise<void>;
+  /** After a successful password reset — load tree data and clear recovery mode. */
+  finishPasswordRecovery: () => Promise<boolean>;
   resetAll: () => Promise<void>;
 
   // account settings + lifecycle
@@ -274,8 +284,17 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [suggestedEdits, setSuggestedEdits] = useState<SuggestedEdit[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [draft, setDraftState] = useState<OnboardingDraft>(() => loadStoredDraft());
+  const [passwordRecoveryPending, setPasswordRecoveryPending] = useState(
+    () => isPasswordRecoveryPendingSync(),
+  );
   const draftRef = useRef(draft);
   draftRef.current = draft;
+
+  useEffect(() => {
+    void isPasswordRecoveryPending().then((pending) => {
+      if (pending) setPasswordRecoveryPending(true);
+    });
+  }, []);
 
   const applyBundle = useCallback((bundle: treeService.TreeBundle | null) => {
     if (!bundle) {
@@ -297,7 +316,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   // Load the signed-in user's data. If they have no tree yet but a saved draft
   // exists (e.g. after an email-confirmation redirect), persist it now.
   const loadForUser = useCallback(
-    async (activeSession: Session) => {
+    async (activeSession: Session): Promise<boolean> => {
       const userId = activeSession.user.id;
       const displayName = draftRef.current.selfName || activeSession.user.email?.split('@')[0] || 'You';
       let acct = (await treeService.getAccount(userId)) ?? (await treeService.ensureAccount(userId, displayName));
@@ -352,9 +371,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         console.warn('[tomora] notifications load failed', e);
         setNotifications([]);
       }
+
+      return !!bundle?.tree;
     },
     [applyBundle],
   );
+
+  const loadForUserRef = useRef(loadForUser);
+  loadForUserRef.current = loadForUser;
 
   useEffect(() => {
     let mounted = true;
@@ -370,8 +394,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Recovery link — session only until the user sets a new password on /reset-password.
-      if (event === 'PASSWORD_RECOVERY') {
+      // Recovery link — keep session but skip tree hydrate until /reset-password completes.
+      if (
+        event === 'PASSWORD_RECOVERY' ||
+        isPasswordRecoveryPendingSync() ||
+        (await isPasswordRecoveryPending())
+      ) {
+        setPasswordRecoveryPending(true);
         if (mounted) setLoading(false);
         return;
       }
@@ -379,7 +408,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       // Hydrate on cold start and after sign-in (e.g. email-confirmation redirect).
       if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
         try {
-          await loadForUser(newSession);
+          await loadForUserRef.current(newSession);
         } catch (e) {
           console.warn('[tomora] auth hydrate failed', e);
         } finally {
@@ -392,7 +421,15 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       mounted = false;
       sub.subscription.unsubscribe();
     };
-  }, [applyBundle, loadForUser]);
+  }, [applyBundle]);
+
+  const finishPasswordRecovery = useCallback(async (): Promise<boolean> => {
+    await clearPasswordRecoveryPending();
+    setPasswordRecoveryPending(false);
+    const s = await authService.getSession();
+    if (!s) return false;
+    return loadForUser(s);
+  }, [loadForUser]);
 
   const setDraft = useCallback((patch: Partial<OnboardingDraft>) => {
     setDraftState((prev) => {
@@ -898,10 +935,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       notifications,
       unreadNotificationCount,
       isOnboarded: !!session && !!tree,
+      passwordRecoveryPending,
       draft,
       setDraft,
       signUpAndStart,
       signInAndLoad,
+      finishPasswordRecovery,
       resetAll,
       updateAccountSettings,
       setUsername,
@@ -961,10 +1000,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       suggestedEdits,
       notifications,
       unreadNotificationCount,
+      passwordRecoveryPending,
       draft,
       setDraft,
       signUpAndStart,
       signInAndLoad,
+      finishPasswordRecovery,
       resetAll,
       updateAccountSettings,
       setUsername,

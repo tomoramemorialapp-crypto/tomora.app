@@ -1,3 +1,6 @@
+// Capture password-recovery intent from the URL hash before detectSessionInUrl runs.
+import '@/lib/passwordRecovery';
+
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';

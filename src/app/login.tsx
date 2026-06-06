@@ -9,10 +9,11 @@ import { Body, Caption, Display } from '@/components/ui/Typography';
 import { GoldStar } from '@/components/brand/GoldStar';
 import { AppFooter } from '@/components/brand/AppFooter';
 import { colors, spacing } from '@/constants/theme';
+import { OAUTH_SIGN_IN_ENABLED } from '@/constants/app';
+import { copy } from '@/constants/copy';
 import { useT } from '@/i18n';
 import { isEmailIdentifier, isUsernameIdentifier } from '@/lib/username';
 import * as authService from '@/services/authService';
-import { copy } from '@/constants/copy';
 import { useAppState } from '@/state/AppState';
 
 export default function Login() {
@@ -64,17 +65,17 @@ export default function Login() {
         <View style={{ gap: spacing.md }}>
           <Button label={t('login.cta')} variant="gold" disabled={!canSubmit} loading={busy} onPress={onSubmit} />
           <Button
-            label={copy.save.google}
+            label={OAUTH_SIGN_IN_ENABLED ? copy.save.google : `${copy.save.google} · Soon`}
             variant="secondary"
-            disabled={!!oauthBusy || busy}
-            loading={oauthBusy === 'google'}
+            disabled={!OAUTH_SIGN_IN_ENABLED || !!oauthBusy || busy}
+            loading={OAUTH_SIGN_IN_ENABLED && oauthBusy === 'google'}
             onPress={() => onOAuth('google')}
           />
           <Button
-            label={copy.save.apple}
+            label={OAUTH_SIGN_IN_ENABLED ? copy.save.apple : `${copy.save.apple} · Soon`}
             variant="secondary"
-            disabled={!!oauthBusy || busy}
-            loading={oauthBusy === 'apple'}
+            disabled={!OAUTH_SIGN_IN_ENABLED || !!oauthBusy || busy}
+            loading={OAUTH_SIGN_IN_ENABLED && oauthBusy === 'apple'}
             onPress={() => onOAuth('apple')}
           />
           <Button

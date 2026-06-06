@@ -10,6 +10,7 @@ import { LightDivider } from '@/components/brand/LightDivider';
 import { Body, Caption, Display, Title } from '@/components/ui/Typography';
 import { GoldStar } from '@/components/brand/GoldStar';
 import { colors, spacing } from '@/constants/theme';
+import { OAUTH_SIGN_IN_ENABLED } from '@/constants/app';
 import { copy } from '@/constants/copy';
 import { normalizeUsername, validateUsername } from '@/lib/username';
 import * as authService from '@/services/authService';
@@ -92,17 +93,17 @@ export default function Save() {
         <View style={{ gap: spacing.md }}>
           <Button label="Save my Family Tree" variant="gold" disabled={!canSave} loading={busy} onPress={onSave} />
           <Button
-            label={copy.save.google}
+            label={OAUTH_SIGN_IN_ENABLED ? copy.save.google : `${copy.save.google} · Soon`}
             variant="secondary"
-            disabled={!!oauthBusy || busy}
-            loading={oauthBusy === 'google'}
+            disabled={!OAUTH_SIGN_IN_ENABLED || !!oauthBusy || busy}
+            loading={OAUTH_SIGN_IN_ENABLED && oauthBusy === 'google'}
             onPress={() => onOAuth('google')}
           />
           <Button
-            label={copy.save.apple}
+            label={OAUTH_SIGN_IN_ENABLED ? copy.save.apple : `${copy.save.apple} · Soon`}
             variant="secondary"
-            disabled={!!oauthBusy || busy}
-            loading={oauthBusy === 'apple'}
+            disabled={!OAUTH_SIGN_IN_ENABLED || !!oauthBusy || busy}
+            loading={OAUTH_SIGN_IN_ENABLED && oauthBusy === 'apple'}
             onPress={() => onOAuth('apple')}
           />
         </View>
@@ -156,7 +157,7 @@ export default function Save() {
 
         {error ? <Caption style={{ color: colors.error, fontSize: 14 }}>{error}</Caption> : null}
         <Caption style={{ color: colors.deepUmber, fontSize: 14 }}>
-          Google and Apple sign-in require provider setup in your Supabase project. Email sign-up always includes a username.
+          Google & Apple sign-in are coming soon — continue with email for now.
         </Caption>
 
         <View style={{ alignItems: 'center', marginTop: spacing.sm, gap: spacing.sm }}>

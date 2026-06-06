@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { colors, fonts } from '@/constants/theme';
@@ -25,7 +26,13 @@ export function Avatar({
   memorial?: boolean;
   uri?: string;
 }) {
-  const resolvedUri = useMediaUri(uri);
+  const trimmedUri = uri?.trim() || undefined;
+  const resolvedUri = useMediaUri(trimmedUri);
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [trimmedUri, resolvedUri]);
 
   const ring = {
     width: size,
@@ -39,7 +46,7 @@ export function Avatar({
     overflow: 'hidden' as const,
   };
 
-  if (resolvedUri) {
+  if (resolvedUri && !imageFailed) {
     return (
       <View accessibilityRole="image" accessibilityLabel={name} style={ring}>
         <Image
@@ -47,6 +54,7 @@ export function Avatar({
           style={{ width: size, height: size }}
           contentFit="cover"
           transition={150}
+          onError={() => setImageFailed(true)}
         />
       </View>
     );

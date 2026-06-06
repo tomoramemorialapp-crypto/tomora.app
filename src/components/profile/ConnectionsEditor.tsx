@@ -78,6 +78,7 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
   const [newTargetId, setNewTargetId] = useState<string | undefined>(undefined);
   const [newType, setNewType] = useState<RelationshipType>('parent');
   const [newDetail, setNewDetail] = useState<RelationshipDetail | undefined>(undefined);
+  const [typeTouched, setTypeTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pairingOpportunity, setPairingOpportunity] = useState<ParentPairingOpportunity | null>(null);
@@ -95,11 +96,10 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
   useEffect(() => {
     if (!newTargetId || !newTarget) return;
     const suggested = suggestInLawType(node.id, newTargetId, relationships);
-    const type = suggested ?? newType;
-    if (suggested) setNewType(suggested);
+    const type = suggested && !typeTouched ? suggested : newType;
+    if (suggested && !typeTouched) setNewType(suggested);
     setNewDetail(suggestDetailForType(type, newTarget));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-suggest when target or graph changes
-  }, [newTargetId, relationships, node.id]);
+  }, [newTargetId, newTarget, newType, relationships, node.id, typeTouched]);
 
   const onChangeType = async (
     relId: string,
@@ -346,6 +346,7 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
                 value={newTargetId ?? ''}
                 onChange={(v) => {
                   setNewTargetId(v || undefined);
+                  setTypeTouched(false);
                   setError(null);
                 }}
                 options={candidates.map((c) => ({ value: c.id, label: c.displayName }))}
@@ -364,6 +365,7 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
               value={newType}
               onChange={(v) => {
                 const t = v as RelationshipType;
+                setTypeTouched(true);
                 setNewType(t);
                 if (newTarget) {
                   setNewDetail(suggestDetailForType(t, newTarget));
@@ -376,10 +378,18 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
               <Dropdown
                 label="Specific term"
                 value={newDetail ?? ''}
-                onChange={(v) => setNewDetail((v || undefined) as RelationshipDetail | undefined)}
+                onChange={(v) => {
+                  setTypeTouched(true);
+                  setNewDetail((v || undefined) as RelationshipDetail | undefined);
+                }}
                 options={detailOptionsForType(newType).map((o) => ({ value: o.id, label: o.label }))}
-                placeholder="Choose father, mother, son, daughter…"
+                placeholder="Choose father, mother, son-in-law…"
               />
+            ) : null}
+            {newTarget ? (
+              <Caption style={{ color: colors.deepUmber }}>
+                {newTarget.displayName} {connectionCaption(node.displayName, newType, newDetail)}
+              </Caption>
             ) : null}
             {error ? <Caption style={{ color: colors.error }}>{error}</Caption> : null}
             <View style={{ gap: spacing.sm }}>
@@ -400,7 +410,16 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
             </View>
           </View>
         ) : candidates.length > 0 ? (
-          <Button label="Add a connection" variant="secondary" onPress={() => setAdding(true)} />
+          <Button
+            label="Add a connection"
+            variant="secondary"
+            onPress={() => {
+              setAdding(true);
+              setTypeTouched(false);
+              setNewType('parent');
+              setNewDetail(undefined);
+            }}
+          />
         ) : null}
       </View>
     </Card>

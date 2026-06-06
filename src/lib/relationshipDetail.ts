@@ -235,6 +235,15 @@ export function storedDetail(
   return INVERSE_RELATIONSHIP_DETAIL[perspectiveDetailValue];
 }
 
+function childIdsOf(viewerId: string, relationships: Relationship[]): string[] {
+  const ids = new Set<string>();
+  for (const r of relationships) {
+    if (r.fromNodeId === viewerId && r.relationshipType === 'child') ids.add(r.toNodeId);
+    if (r.toNodeId === viewerId && r.relationshipType === 'parent') ids.add(r.fromNodeId);
+  }
+  return [...ids];
+}
+
 /** True when `otherId` is a biological parent of the viewer's spouse/partner. */
 export function isSpousesParent(viewerId: string, otherId: string, relationships: Relationship[]): boolean {
   for (const r of relationships) {
@@ -258,6 +267,23 @@ export function isSpousesParent(viewerId: string, otherId: string, relationships
   return false;
 }
 
+/** True when `otherId` is the spouse/partner of one of the viewer's children. */
+export function isSpouseOfViewerChild(viewerId: string, otherId: string, relationships: Relationship[]): boolean {
+  for (const childId of childIdsOf(viewerId, relationships)) {
+    const linked = relationships.some(
+      (r) =>
+        (r.fromNodeId === childId &&
+          r.toNodeId === otherId &&
+          (r.relationshipType === 'spouse' || r.relationshipType === 'partner')) ||
+        (r.fromNodeId === otherId &&
+          r.toNodeId === childId &&
+          (r.relationshipType === 'spouse' || r.relationshipType === 'partner')),
+    );
+    if (linked) return true;
+  }
+  return false;
+}
+
 /** Suggest parent-in-law vs child-in-law based on spouse linkage. */
 export function suggestInLawType(
   viewerId: string,
@@ -265,6 +291,7 @@ export function suggestInLawType(
   relationships: Relationship[],
 ): RelationshipType | null {
   if (isSpousesParent(viewerId, otherId, relationships)) return 'parent_in_law';
+  if (isSpouseOfViewerChild(viewerId, otherId, relationships)) return 'child_in_law';
 
   for (const r of relationships) {
     let spouseId: string | null = null;

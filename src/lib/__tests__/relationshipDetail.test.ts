@@ -4,6 +4,7 @@ import type { FamilyNode, Relationship } from '@/types/models';
 import {
   INVERSE_RELATIONSHIP_TYPE,
   connectionLabel,
+  isSpouseOfViewerChild,
   isSpousesParent,
   perspectiveDetail,
   perspectiveType,
@@ -80,5 +81,14 @@ describe('relationshipDetail', () => {
     ];
     expect(isSpousesParent('father', 'mgf', relationships)).toBe(true);
     expect(suggestInLawType('father', 'mgf', relationships)).toBe('parent_in_law');
+  });
+
+  it('detects spouse of child as child-in-law (son-in-law)', () => {
+    const relationships = [
+      rel('mgm', 'mother', 'child', 'daughter'),
+      rel('mother', 'father', 'spouse'),
+    ];
+    expect(isSpouseOfViewerChild('mgm', 'father', relationships)).toBe(true);
+    expect(suggestInLawType('mgm', 'father', relationships)).toBe('child_in_law');
   });
 });

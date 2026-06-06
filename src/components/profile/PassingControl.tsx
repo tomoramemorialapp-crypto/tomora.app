@@ -4,12 +4,13 @@ import { useRouter } from 'expo-router';
 
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { TextField } from '@/components/ui/TextField';
+import { DateValueInput, dateValueToParts } from '@/components/ui/DateValueInput';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Body, Caption } from '@/components/ui/Typography';
 import { colors, radii, spacing } from '@/constants/theme';
 import { useAppState } from '@/state/AppState';
 import type { FamilyNode, MemorialRequest } from '@/types/models';
+import type { DateValue } from '@/types/profile';
 
 function fmt(iso?: string): string {
   if (!iso) return '';
@@ -29,9 +30,7 @@ export function PassingControl({ node, canEdit }: { node: FamilyNode; canEdit: b
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
-  const [year, setYear] = useState('');
-  const [month, setMonth] = useState('');
-  const [day, setDay] = useState('');
+  const [passingDate, setPassingDate] = useState<DateValue | undefined>(undefined);
 
   const memorial = node.isLiving === false || node.status === 'memory_light';
 
@@ -46,11 +45,11 @@ export function PassingControl({ node, canEdit }: { node: FamilyNode; canEdit: b
   }, [node.id, node.status, fetchMemorialRequestForNode]);
 
   const deathDate = (): string | undefined => {
-    const y = parseInt(year, 10);
-    if (!y) return undefined;
-    const m = Math.min(Math.max(parseInt(month, 10) || 1, 1), 12);
-    const d = Math.min(Math.max(parseInt(day, 10) || 1, 1), 31);
-    return `${y.toString().padStart(4, '0')}-${m.toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`;
+    const { day, month, year } = dateValueToParts(passingDate);
+    if (!year) return undefined;
+    const m = Math.min(Math.max(month || 1, 1), 12);
+    const d = Math.min(Math.max(day || 1, 1), 31);
+    return `${year.toString().padStart(4, '0')}-${m.toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`;
   };
 
   const onReport = async () => {
@@ -162,18 +161,7 @@ export function PassingControl({ node, canEdit }: { node: FamilyNode; canEdit: b
             Mark {node.displayName}’s passing. If you steward this node and no admin oversees the tree, it lights a
             Memory Light immediately. Otherwise the family gets a review window.
           </Body>
-          <Caption>Date of passing (optional)</Caption>
-          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-            <View style={{ flex: 1 }}>
-              <TextField label="Day" value={day} onChangeText={setDay} placeholder="1" keyboardType="number-pad" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <TextField label="Month" value={month} onChangeText={setMonth} placeholder="1" keyboardType="number-pad" />
-            </View>
-            <View style={{ flex: 1.2 }}>
-              <TextField label="Year" value={year} onChangeText={setYear} placeholder="2026" keyboardType="number-pad" />
-            </View>
-          </View>
+          <DateValueInput label="Date of passing (optional)" value={passingDate} onChange={setPassingDate} />
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
             <View style={{ flex: 1 }}>
               <Button label={busy ? 'Reporting…' : 'Confirm passing'} variant="gold" disabled={busy} onPress={onReport} />

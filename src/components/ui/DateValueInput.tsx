@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { colors, fonts, radii, spacing } from '@/constants/theme';
+import { Dropdown } from './Dropdown';
 import type { CertaintyLevel, DateValue } from '@/types/profile';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
-const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTH_OPTIONS = MONTHS.map((m, i) => ({ value: String(i + 1), label: m }));
 
 interface DateParts {
   day?: number;
@@ -110,32 +111,13 @@ export function DateValueInput({
         </Text>
       ) : null}
 
-      {/* Month chips */}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-        {MONTHS_SHORT.map((m, i) => {
-          const active = month === i + 1;
-          return (
-            <Pressable
-              key={m}
-              onPress={() => setMonth((cur) => (cur === i + 1 ? undefined : i + 1))}
-              accessibilityRole="button"
-              accessibilityLabel={MONTHS[i]}
-              style={{
-                backgroundColor: active ? 'rgba(184,135,47,0.14)' : colors.white,
-                borderColor: active ? colors.guardianGold : colors.mistBeige,
-                borderWidth: 1.5,
-                borderRadius: radii.pill,
-                paddingHorizontal: 11,
-                paddingVertical: 6,
-              }}
-            >
-              <Text style={{ fontFamily: fonts.body, fontSize: 13, color: active ? colors.guardianGold : colors.charcoal }}>
-                {m}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      {/* Month dropdown */}
+      <Dropdown
+        value={month ? String(month) : ''}
+        onChange={(v) => setMonth(v ? Number(v) : undefined)}
+        options={[{ value: '', label: 'No month' }, ...MONTH_OPTIONS]}
+        placeholder="Month (optional)"
+      />
 
       {/* Day + Year */}
       <View style={{ flexDirection: 'row', gap: spacing.sm }}>

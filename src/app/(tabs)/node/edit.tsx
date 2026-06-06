@@ -13,8 +13,18 @@ import { Body, Caption, Display } from '@/components/ui/Typography';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { VisibilitySelector } from '@/components/ui/VisibilitySelector';
 import { DateValueInput } from '@/components/ui/DateValueInput';
+import { Dropdown } from '@/components/ui/Dropdown';
+import { MultiSelect } from '@/components/ui/MultiSelect';
 import { SuggestChangeModal } from '@/components/profile/SuggestChangeModal';
 import { ConnectionsEditor } from '@/components/profile/ConnectionsEditor';
+import {
+  COUNTRIES,
+  GENDER_OPTIONS,
+  SEX_OPTIONS,
+  SUGGESTED_TAGS,
+  WORLD_LANGUAGES,
+  toOptions,
+} from '@/constants/options';
 import { colors, radii, spacing } from '@/constants/theme';
 import { useAppState } from '@/state/AppState';
 import type { VisibilityLevel } from '@/types/models';
@@ -74,6 +84,14 @@ export default function EditProfile() {
 
   const [dob, setDob] = useState<DateValue | undefined>(profile.dateOfBirth?.value);
   const [dod, setDod] = useState<DateValue | undefined>(profile.dateOfDeath?.value);
+  // Passing is owned by the single Passing control on the Life Profile (which runs
+  // the consensus / memorial flow). The editor only reflects that state: death
+  // details appear once a node has actually been marked as having passed.
+  const passed =
+    node?.isLiving === false ||
+    node?.status === 'memory_light' ||
+    node?.status === 'memorial_pending' ||
+    !!profile.dateOfDeath?.value;
 
   const [pobName, setPobName] = useState(profile.placeOfBirth?.value?.displayName ?? '');
   const [pobCity, setPobCity] = useState(profile.placeOfBirth?.value?.city ?? '');
@@ -86,12 +104,12 @@ export default function EditProfile() {
     profile.genderSex?.value?.displayPreference ?? 'show_gender',
   );
 
-  const [languages, setLanguages] = useState(listToString(profile.languages?.value));
+  const [languages, setLanguages] = useState<string[]>(profile.languages?.value ?? []);
   const [notes, setNotes] = useState(profile.notesHistory?.value?.notes ?? '');
   const [lifeHistory, setLifeHistory] = useState(profile.notesHistory?.value?.lifeHistory ?? '');
   const [knownFor, setKnownFor] = useState(listToString(profile.notesHistory?.value?.knownFor));
   const [occupation, setOccupation] = useState(listToString(profile.notesHistory?.value?.occupationOrRole));
-  const [tags, setTags] = useState(listToString(node?.tags));
+  const [tags, setTags] = useState<string[]>(node?.tags ?? []);
 
   // Per-field visibility, seeded from existing field metadata or sensible defaults.
   const [vis, setVis] = useState<Partial<Record<ProfileFieldKey, VisibilityLevel>>>(() => {
@@ -198,7 +216,8 @@ export default function EditProfile() {
     apply('alternateNames', stringToList(altNames), stringToList(altNames).length === 0);
 
     apply('dateOfBirth', dob, !dob);
-    apply('dateOfDeath', dod, !dod);
+    // Death details are only persisted for nodes already marked as passed.
+    apply('dateOfDeath', passed ? dod : undefined, !passed || !dod);
 
     const pob: PlaceReference = {
       displayName: pobName.trim() || [pobCity, pobCountry].filter(Boolean).join(', '),
@@ -208,7 +227,7 @@ export default function EditProfile() {
     };
     apply('placeOfBirth', pob, !placeHasValue(pob));
     const pod: PlaceReference = { displayName: podName.trim(), certainty: 'exact' };
-    apply('placeOfDeath', pod, !podName.trim());
+    apply('placeOfDeath', passed ? pod : undefined, !passed || !podName.trim());
 
     const gs: GenderSexField = {
       genderIdentity: genderIdentity.trim() || undefined,
@@ -217,7 +236,7 @@ export default function EditProfile() {
     };
     apply('genderSex', gs, !gs.genderIdentity && !gs.sexAssignedOrRecorded);
 
-    apply('languages', stringToList(languages), stringToList(languages).length === 0);
+    apply('languages', languages, languages.length === 0);
 
     const history = {
       notes: notes.trim() || undefined,
@@ -229,7 +248,7 @@ export default function EditProfile() {
       !history.notes && !history.lifeHistory && history.knownFor.length === 0 && history.occupationOrRole.length === 0;
     apply('notesHistory', history, historyEmpty);
 
-    const nextTags = stringToList(tags);
+    const nextTags = tags;
     if (JSON.stringify(nextTags) !== JSON.stringify(node!.tags)) {
       log.push({ fieldKey: 'tags', action: 'tags_updated', previousValue: node!.tags, newValue: nextTags });
     }
@@ -360,20 +379,44 @@ export default function EditProfile() {
           <DateValueInput label="Date of birth" value={dob} onChange={setDob} />
           <VisibilitySelector value={vis.dateOfBirth ?? 'private'} onChange={setFieldVis('dateOfBirth')} label="Birth date visibility" />
 
-          <DateValueInput label="Date of death (leave blank if living)" value={dod} onChange={setDod} />
-
           <TextField label="Place of birth" value={pobName} onChangeText={setPobName} placeholder="City, Country" />
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
             <View style={{ flex: 1 }}>
               <TextField label="City" value={pobCity} onChangeText={setPobCity} placeholder="City" />
             </View>
             <View style={{ flex: 1 }}>
-              <TextField label="Country" value={pobCountry} onChangeText={setPobCountry} placeholder="Country" />
+              <Dropdown label="Country" value={pobCountry} onChange={setPobCountry} options={toOptions(COUNTRIES)} placeholder="Country" searchable allowOther />
             </View>
           </View>
           <VisibilitySelector value={vis.placeOfBirth ?? 'family_tree'} onChange={setFieldVis('placeOfBirth')} label="Place of birth visibility" />
 
-          <TextField label="Place of death" value={podName} onChangeText={setPodName} placeholder="City, Country" />
+          {passed ? (
+            <View style={{ gap: spacing.md }}>
+              <DateValueInput label="Date of death" value={dod} onChange={setDod} />
+              <TextField label="Place of death" value={podName} onChangeText={setPodName} placeholder="City, Country" />
+            </View>
+          ) : !isSelf ? (
+            <View
+              style={{
+                gap: spacing.sm,
+                backgroundColor: colors.candlelight,
+                borderColor: colors.softGold,
+                borderWidth: 1,
+                borderRadius: radii.md,
+                padding: spacing.md,
+              }}
+            >
+              <Caption style={{ color: colors.deepUmber }}>
+                {node.displayName} is marked as living. To record a passing — and light a Memory Light — use “Report a
+                passing” on their Life Profile. Date and place of passing can be added here afterward.
+              </Caption>
+              <Button
+                label="Go to Life Profile"
+                variant="secondary"
+                onPress={() => router.push({ pathname: '/node/[nodeId]', params: { nodeId: node.id } })}
+              />
+            </View>
+          ) : null}
         </View>
       </Card>
 
@@ -382,8 +425,24 @@ export default function EditProfile() {
         <SectionHeader title="Personal Details" />
         <Caption style={{ marginTop: spacing.xs }}>Optional. Kept private by default.</Caption>
         <View style={{ gap: spacing.md, marginTop: spacing.sm }}>
-          <TextField label="Gender" value={genderIdentity} onChangeText={setGenderIdentity} placeholder="e.g. Woman, Man, Non-binary…" />
-          <TextField label="Sex recorded / known as" value={sexRecorded} onChangeText={setSexRecorded} placeholder="Optional" />
+          <Dropdown
+            label="Gender"
+            value={genderIdentity}
+            onChange={setGenderIdentity}
+            options={GENDER_OPTIONS}
+            placeholder="Select gender"
+            allowOther
+            otherLabel="Other (type your own)…"
+          />
+          <Dropdown
+            label="Sex recorded / known as"
+            value={sexRecorded}
+            onChange={setSexRecorded}
+            options={SEX_OPTIONS}
+            placeholder="Select (optional)"
+            allowOther
+            otherLabel="Other (type your own)…"
+          />
           <ChipRow
             label="Show"
             options={GENDER_DISPLAY.map((g) => ({ id: g as string, label: genderDisplayLabel(g) }))}
@@ -398,7 +457,14 @@ export default function EditProfile() {
       <Card style={sectionGap}>
         <SectionHeader title="Languages" />
         <View style={{ gap: spacing.md, marginTop: spacing.sm }}>
-          <TextField label="Languages" value={languages} onChangeText={setLanguages} placeholder="Comma separated" />
+          <MultiSelect
+            label="Languages"
+            values={languages}
+            onChange={setLanguages}
+            options={toOptions(WORLD_LANGUAGES)}
+            placeholder="Search and choose languages"
+            otherPlaceholder="Add another language"
+          />
           <VisibilitySelector value={vis.languages ?? 'family_tree'} onChange={setFieldVis('languages')} label="Languages visibility" />
         </View>
       </Card>
@@ -419,8 +485,15 @@ export default function EditProfile() {
       <Card style={sectionGap}>
         <SectionHeader title="Tags" />
         <View style={{ gap: spacing.md, marginTop: spacing.sm }}>
-          <TextField label="Family tags" value={tags} onChangeText={setTags} placeholder="e.g. Mother's side, Japan branch" />
-          <Caption>Tags help you filter the Family Tree.</Caption>
+          <MultiSelect
+            label="Family tags"
+            values={tags}
+            onChange={setTags}
+            options={[...toOptions(SUGGESTED_TAGS), ...toOptions(COUNTRIES)]}
+            placeholder="Choose tags like Mother's side or a country"
+            otherPlaceholder="Add your own tag"
+            helperText="Tags help you filter the Family Tree — pick a side, a current country, or add your own."
+          />
         </View>
       </Card>
 

@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Dropdown } from '@/components/ui/Dropdown';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Body, Caption } from '@/components/ui/Typography';
 import { colors, radii, spacing } from '@/constants/theme';
@@ -68,6 +69,7 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
   const [newTargetId, setNewTargetId] = useState<string | undefined>(undefined);
   const [newType, setNewType] = useState<RelationshipType>('parent');
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Nodes available to connect to (exclude self + already-connected).
   const connectedIds = new Set(
@@ -98,13 +100,20 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
   };
 
   const onAdd = async () => {
-    if (!newTargetId) return;
+    if (!newTargetId) {
+      setError('Choose who to connect to first.');
+      return;
+    }
     setBusy(true);
+    setError(null);
     try {
       await createRelationship({ fromNodeId: node.id, toNodeId: newTargetId, relationshipType: newType });
+      // Only dismiss the form once the connection actually persisted.
       setAdding(false);
       setNewTargetId(undefined);
       setNewType('parent');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not add this connection. Please try again.');
     } finally {
       setBusy(false);
     }
@@ -149,26 +158,45 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
 
       <View style={{ marginTop: spacing.md }}>
         {adding ? (
-          <View style={{ gap: spacing.sm }}>
-            <Caption style={{ color: colors.ashTaupe }}>Connect to</Caption>
+          <View style={{ gap: spacing.md }}>
             {candidates.length === 0 ? (
               <Caption>Everyone is already connected to {node.displayName}.</Caption>
             ) : (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={{ flexDirection: 'row', gap: 6 }}>
-                  {candidates.map((c) => (
-                    <Chip key={c.id} label={c.displayName} active={c.id === newTargetId} onPress={() => setNewTargetId(c.id)} />
-                  ))}
-                </View>
-              </ScrollView>
+              <Dropdown
+                label="Connect to"
+                value={newTargetId ?? ''}
+                onChange={(v) => {
+                  setNewTargetId(v || undefined);
+                  setError(null);
+                }}
+                options={candidates.map((c) => ({ value: c.id, label: c.displayName }))}
+                placeholder="Choose a person"
+                searchable
+              />
             )}
-            <Caption style={{ color: colors.ashTaupe, marginTop: 4 }}>Relationship</Caption>
-            <TypeChips value={newType} onChange={setNewType} />
-            <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }}>
-              <View style={{ flex: 1 }}>
-                <Button label={busy ? 'Adding…' : 'Add connection'} variant="gold" disabled={busy || !newTargetId} onPress={onAdd} />
-              </View>
-              <Button label="Cancel" variant="ghost" onPress={() => setAdding(false)} />
+            <Dropdown
+              label={`Relationship — they are ${node.displayName}’s…`}
+              value={newType}
+              onChange={(v) => setNewType(v as RelationshipType)}
+              options={OPTIONS.map((o) => ({ value: o.id, label: o.label }))}
+              placeholder="Choose a relationship"
+            />
+            {error ? <Caption style={{ color: colors.error }}>{error}</Caption> : null}
+            <View style={{ gap: spacing.sm }}>
+              <Button
+                label={busy ? 'Adding…' : 'Add connection'}
+                variant="gold"
+                disabled={busy || !newTargetId || candidates.length === 0}
+                onPress={onAdd}
+              />
+              <Button
+                label="Cancel"
+                variant="ghost"
+                onPress={() => {
+                  setAdding(false);
+                  setError(null);
+                }}
+              />
             </View>
           </View>
         ) : candidates.length > 0 ? (

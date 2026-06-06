@@ -6,10 +6,13 @@ import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { Card } from '@/components/ui/Card';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
+import { MemoryThumb } from '@/components/memories/MemoryThumb';
 import { GoldStar } from '@/components/brand/GoldStar';
+import { BellIcon } from '@/components/brand/TabIcons';
 import { Body, Caption, Display, Title } from '@/components/ui/Typography';
 import { colors, radii, spacing } from '@/constants/theme';
 import { useAppState } from '@/state/AppState';
+import { useT } from '@/i18n';
 import type { Memory } from '@/types/models';
 import { getUpcomingEvents, whenLabel, type UpcomingEvent } from '@/lib/occasions';
 
@@ -33,6 +36,7 @@ const EVENT_EMOJI: Record<UpcomingEvent['kind'], string> = {
 
 export default function Home() {
   const router = useRouter();
+  const t = useT();
   const { account, nodes, memories, getNode, unreadNotificationCount } = useAppState();
 
   const events = useMemo(() => getUpcomingEvents(nodes, { withinDays: 120 }).slice(0, 6), [nodes]);
@@ -53,9 +57,9 @@ export default function Home() {
     <ScreenContainer maxWidth={640}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg }}>
         <View style={{ gap: spacing.xs, flex: 1 }}>
-          <Caption style={{ textTransform: 'uppercase', letterSpacing: 1.6 }}>Welcome back</Caption>
-          <Display style={{ fontSize: 34 }}>Hello, {firstName}</Display>
-          <Body style={{ fontSize: 17, color: colors.deepUmber }}>Here's what's happening across your family.</Body>
+          <Caption style={{ textTransform: 'uppercase', letterSpacing: 1.6 }}>{t('home.welcomeBack')}</Caption>
+          <Display style={{ fontSize: 34 }}>{t('home.hello', { name: firstName })}</Display>
+          <Body style={{ fontSize: 17, color: colors.deepUmber }}>{t('home.subtitle')}</Body>
         </View>
         <NotificationBell
           count={unreadNotificationCount}
@@ -67,9 +71,9 @@ export default function Home() {
       {events.length > 0 ? (
         <View style={{ marginBottom: spacing.lg }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
-            <Title>Upcoming</Title>
+            <Title>{t('home.upcoming')}</Title>
             <Pressable onPress={() => router.push('/(tabs)/occasions')} hitSlop={8}>
-              <Caption style={{ color: colors.guardianGold, fontWeight: '700' }}>See all ›</Caption>
+              <Caption style={{ color: colors.guardianGold, fontWeight: '700' }}>{t('common.seeAll')} ›</Caption>
             </Pressable>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm, paddingRight: spacing.md }}>
@@ -92,7 +96,10 @@ export default function Home() {
                   <Badge label={whenLabel(e.daysUntil)} tone={e.daysUntil <= 1 ? 'gold' : 'soft'} />
                 </View>
                 <Body numberOfLines={2} style={{ fontWeight: '600' }}>{e.title}</Body>
-                {e.subtitle ? <Caption numberOfLines={1}>{e.subtitle}</Caption> : null}
+                <Caption numberOfLines={1} style={{ color: e.scope === 'family' ? colors.guardianGold : colors.ashTaupe, fontWeight: '700' }}>
+                  {e.scope === 'family' ? 'Family' : 'Holiday'}
+                  {e.subtitle ? ` · ${e.subtitle}` : ''}
+                </Caption>
               </Pressable>
             ))}
           </ScrollView>
@@ -101,17 +108,17 @@ export default function Home() {
 
       {/* Memories feed */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
-        <Title>For you</Title>
+        <Title>{t('home.forYou')}</Title>
         <GoldStar size={14} />
       </View>
 
       {feed.length === 0 ? (
         <Card>
           <View style={{ gap: spacing.sm }}>
-            <Title>Your feed is just beginning</Title>
-            <Body>As your family shares memories, they'll gather here for you.</Body>
+            <Title>{t('home.feedEmptyTitle')}</Title>
+            <Body>{t('home.feedEmptyBody')}</Body>
             <Pressable onPress={() => router.push('/(tabs)/family-tree')} hitSlop={8}>
-              <Caption style={{ color: colors.guardianGold, fontWeight: '700' }}>Open your Family Tree ›</Caption>
+              <Caption style={{ color: colors.guardianGold, fontWeight: '700' }}>{t('home.openTree')} ›</Caption>
             </Pressable>
           </View>
         </Card>
@@ -149,7 +156,7 @@ function NotificationBell({ count, onPress }: { count: number; onPress: () => vo
         borderColor: colors.hairline,
       }}
     >
-      <Body style={{ fontSize: 20 }}>🔔</Body>
+      <BellIcon color={colors.ink} size={22} />
       {count > 0 ? (
         <View
           style={{
@@ -178,6 +185,7 @@ function FeedShell({
   avatarName,
   memorial,
   uri,
+  leading,
   heading,
   time,
   children,
@@ -186,6 +194,8 @@ function FeedShell({
   avatarName: string;
   memorial?: boolean;
   uri?: string;
+  /** Optional custom leading visual (e.g. a media thumbnail) replacing the avatar. */
+  leading?: React.ReactNode;
   heading: string;
   time: string;
   children?: React.ReactNode;
@@ -194,7 +204,7 @@ function FeedShell({
   return (
     <Card onPress={onPress} accessibilityLabel={heading}>
       <View style={{ flexDirection: 'row', gap: spacing.md }}>
-        <Avatar name={avatarName} size={44} memorial={memorial} uri={uri} />
+        {leading ?? <Avatar name={avatarName} size={44} memorial={memorial} uri={uri} />}
         <View style={{ flex: 1, gap: 4 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing.sm }}>
             <Body style={{ flex: 1, fontWeight: '600' }}>{heading}</Body>
@@ -222,6 +232,7 @@ function MemoryFeedCard({
       avatarName={node?.displayName ?? 'A memory'}
       memorial={node?.isLiving === false}
       uri={node?.profile?.profilePhoto?.value ?? node?.avatarUrl}
+      leading={<MemoryThumb memory={memory} size={48} />}
       heading={node ? `New memory for ${node.displayName}` : 'A new memory'}
       time={timeAgo(memory.createdAt)}
       onPress={onOpen}

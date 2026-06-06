@@ -29,6 +29,8 @@ import type { Tables } from '@/types/database.types';
 /** Map Supabase rows (snake_case) to the app's camelCase domain models. */
 
 export function mapAccount(row: Tables<'accounts'>): Account {
+  const prefs = (row.preferences ?? {}) as { publicProfile?: Partial<Account['publicProfile']> };
+  const pp = prefs.publicProfile ?? {};
   return {
     id: row.id,
     displayName: row.display_name,
@@ -39,6 +41,13 @@ export function mapAccount(row: Tables<'accounts'>): Account {
     themePreference: (row.theme_preference as Account['themePreference']) ?? 'system',
     inviteCode: row.invite_code ?? undefined,
     status: (row.status as Account['status']) ?? 'active',
+    publicProfile: {
+      enabled: pp.enabled ?? false,
+      bio: pp.bio ?? '',
+      showSocial: pp.showSocial ?? true,
+      showMemories: pp.showMemories ?? true,
+    },
+    usernameChanges: row.username_changes ?? [],
     deletionRequestedAt: row.deletion_requested_at ?? undefined,
     deletionScheduledFor: row.deletion_scheduled_for ?? undefined,
     createdAt: row.created_at,

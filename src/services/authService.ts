@@ -35,3 +35,26 @@ export async function getSession(): Promise<Session | null> {
   const { data } = await supabase.auth.getSession();
   return data.session;
 }
+
+/** Whether the signed-in user's email has been confirmed. */
+export function isEmailVerified(session: Session | null): boolean {
+  const user = session?.user;
+  if (!user) return false;
+  return Boolean(user.email_confirmed_at || user.confirmed_at);
+}
+
+/** Resend the confirmation email for an unverified address. */
+export async function resendEmailConfirmation(email: string): Promise<void> {
+  const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim() });
+  if (error) throw error;
+}
+
+/** Re-fetch the user from Supabase to pick up a freshly-confirmed email. */
+export async function refreshUser(): Promise<Session | null> {
+  const { error } = await supabase.auth.refreshSession();
+  if (error) {
+    // fall back to current session if refresh isn't possible
+    return getSession();
+  }
+  return getSession();
+}

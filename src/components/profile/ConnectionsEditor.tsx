@@ -22,6 +22,7 @@ const OPTIONS: { id: RelationshipType; label: string }[] = [
   { id: 'cousin', label: 'Cousin' },
   { id: 'friend', label: 'Friend' },
   { id: 'pet', label: 'Pet' },
+  { id: 'caretaker', label: 'Caretaker' },
   { id: 'chosen_family', label: 'Chosen family' },
   { id: 'other', label: 'Not sure yet' },
 ];
@@ -40,8 +41,8 @@ const INVERSE: Record<RelationshipType, RelationshipType> = {
   spouse: 'spouse',
   partner: 'partner',
   friend: 'friend',
-  pet: 'other',
-  caretaker: 'other',
+  pet: 'caretaker',
+  caretaker: 'pet',
   chosen_family: 'chosen_family',
   other: 'other',
 };

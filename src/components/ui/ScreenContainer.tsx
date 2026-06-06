@@ -3,6 +3,7 @@ import { ScrollView, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing } from '@/constants/theme';
 import { BackButton } from './BackButton';
+import { FadeIn } from './FadeIn';
 
 /**
  * Ivory full-bleed screen wrapper. Centers content and caps width on wide/web
@@ -18,6 +19,7 @@ export function ScreenContainer({
   footer,
   showBack = false,
   onBack,
+  animate = true,
 }: {
   children: React.ReactNode;
   scroll?: boolean;
@@ -28,8 +30,11 @@ export function ScreenContainer({
   footer?: React.ReactNode;
   showBack?: boolean;
   onBack?: () => void;
+  /** Calm fade-in entrance for the screen content. */
+  animate?: boolean;
 }) {
   const insets = useSafeAreaInsets();
+  const body = animate ? <FadeIn>{children}</FadeIn> : children;
 
   const inner: ViewStyle = {
     width: '100%',
@@ -56,10 +61,10 @@ export function ScreenContainer({
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {children}
+          {body}
         </ScrollView>
       ) : (
-        <View style={inner}>{children}</View>
+        <View style={inner}>{body}</View>
       )}
       {footer ? (
         <View

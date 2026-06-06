@@ -75,20 +75,18 @@ export default function AddLovedOne() {
               />
             </View>
 
-            {!isPet ? (
-              <Card style={{ backgroundColor: colors.candlelight, borderColor: colors.softGold }}>
-                <Toggle
-                  value={isRemembered}
-                  onValueChange={setIsRemembered}
-                  label="In loving memory"
-                  description="Turn this on if they’ve passed away. Their node is kept by you and never needs to be claimed."
-                />
-              </Card>
-            ) : (
-              <Body style={{ fontSize: 15, color: colors.deepUmber }}>
-                Pets are cared for in your Family Tree and never need to be claimed.
-              </Body>
-            )}
+            <Card style={{ backgroundColor: colors.candlelight, borderColor: colors.softGold }}>
+              <Toggle
+                value={isRemembered}
+                onValueChange={setIsRemembered}
+                label="In loving memory"
+                description={
+                  isPet
+                    ? 'Turn this on if your companion has passed away. Their node is kept by you and becomes a Memory Light.'
+                    : 'Turn this on if they’ve passed away. Their node is kept by you and never needs to be claimed.'
+                }
+              />
+            </Card>
           </View>
         ) : null}
       </View>

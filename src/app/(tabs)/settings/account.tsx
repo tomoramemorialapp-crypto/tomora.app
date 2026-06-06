@@ -8,23 +8,36 @@ import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Body, Caption, Display } from '@/components/ui/Typography';
+import { SocialIcon, SOCIAL_LABELS, type SocialNetwork } from '@/components/brand/SocialIcon';
 import { colors, radii, spacing } from '@/constants/theme';
 import { useAppState } from '@/state/AppState';
-import type { SocialLinks, ThemePreference } from '@/types/models';
+import { useTheme, type AppearancePreference } from '@/theme';
+import { useLanguage } from '@/i18n';
+import { isEmailVerified, resendEmailConfirmation } from '@/services/authService';
+import { usernameChangesRemaining } from '@/services/accountService';
+import { Badge } from '@/components/ui/Badge';
+import { Toggle } from '@/components/ui/Toggle';
+import type { PublicProfileConfig, SocialLinks, ThemePreference } from '@/types/models';
 
-const LANGUAGES: { id: string; label: string }[] = [
-  { id: 'en', label: 'English' },
-  { id: 'fil', label: 'Filipino' },
-  { id: 'es', label: 'Español' },
-  { id: 'ja', label: '日本語' },
-  { id: 'zh', label: '中文' },
-  { id: 'fr', label: 'Français' },
+const SOCIAL_FIELDS: { key: SocialNetwork; placeholder: string }[] = [
+  { key: 'website', placeholder: 'https://…' },
+  { key: 'instagram', placeholder: '@handle' },
+  { key: 'facebook', placeholder: 'Profile URL' },
+  { key: 'x', placeholder: '@handle' },
+  { key: 'linkedin', placeholder: 'Profile URL' },
+  { key: 'youtube', placeholder: 'Channel URL' },
+  { key: 'tiktok', placeholder: '@handle' },
+  { key: 'spotify', placeholder: 'Profile/artist URL' },
+  { key: 'whatsapp', placeholder: 'wa.me/… or number' },
+  { key: 'telegram', placeholder: '@handle' },
+  { key: 'github', placeholder: '@username' },
+  { key: 'threads', placeholder: '@handle' },
 ];
 
-const THEMES: { id: ThemePreference; label: string }[] = [
-  { id: 'system', label: 'System' },
+const THEMES: { id: AppearancePreference; label: string }[] = [
   { id: 'light', label: 'Light' },
-  { id: 'dark', label: 'Dark' },
+  { id: 'dark', label: 'Night' },
+  { id: 'system', label: 'Use system setting' },
 ];
 
 function Chips<T extends string>({
@@ -65,17 +78,92 @@ function Chips<T extends string>({
 
 export default function AccountSettings() {
   const router = useRouter();
-  const { account, session, updateAccountSettings, updateEmail, updatePassword } = useAppState();
+  const {
+    account,
+    session,
+    updateAccountSettings,
+    setUsername: applyUsername,
+    updatePublicProfile,
+    updateEmail,
+    updatePassword,
+  } = useAppState();
+  const { appearancePreference, setAppearancePreference } = useTheme();
+  const { language: activeLanguage, setLanguage: applyLanguage, languages } = useLanguage();
 
   const [displayName, setDisplayName] = useState(account?.displayName ?? '');
-  const [username, setUsername] = useState(account?.username ?? '');
-  const [language, setLanguage] = useState(account?.language ?? 'en');
-  const [theme, setTheme] = useState<ThemePreference>(account?.themePreference ?? 'system');
+  const [username, setUsernameInput] = useState(account?.username ?? '');
+  const [language, setLanguage] = useState(activeLanguage);
+  const [theme, setTheme] = useState<AppearancePreference>(appearancePreference);
   const [social, setSocial] = useState<SocialLinks>(account?.socialLinks ?? {});
+
+  // Username (rate-limited, unique) saved via its own RPC-backed action.
+  const [savingUsername, setSavingUsername] = useState(false);
+  const [usernameMsg, setUsernameMsg] = useState<string | null>(null);
+  const changesLeft = usernameChangesRemaining(account);
+
+  const onSaveUsername = async () => {
+    setSavingUsername(true);
+    setUsernameMsg(null);
+    try {
+      await applyUsername(username);
+      setUsernameMsg('Username saved.');
+    } catch (e) {
+      setUsernameMsg(e instanceof Error ? e.message : 'Could not save username.');
+    } finally {
+      setSavingUsername(false);
+    }
+  };
+
+  // Owner-controlled public profile config.
+  const [pub, setPub] = useState<PublicProfileConfig>(
+    account?.publicProfile ?? { enabled: false, bio: '', showSocial: true, showMemories: true },
+  );
+  const [pubMsg, setPubMsg] = useState<string | null>(null);
+
+  const savePublic = async (patch: Partial<PublicProfileConfig>) => {
+    const next = { ...pub, ...patch };
+    setPub(next);
+    setPubMsg(null);
+    try {
+      await updatePublicProfile(patch);
+    } catch {
+      setPubMsg('Could not save. Please try again.');
+    }
+  };
+
+  const languageOptions = languages.map((l) => ({ id: l.code, label: l.label }));
+
+  // Appearance applies live (and persists locally); also saved to the account.
+  const onChangeAppearance = (pref: AppearancePreference) => {
+    setTheme(pref);
+    setAppearancePreference(pref);
+    void updateAccountSettings({ themePreference: pref as ThemePreference }).catch(() => {});
+  };
+
+  // Language applies live across the UI, persists locally, and saves to the account.
+  const onChangeLanguage = (code: string) => {
+    setLanguage(code);
+    applyLanguage(code);
+    void updateAccountSettings({ language: code }).catch(() => {});
+  };
 
   const [email, setEmail] = useState(session?.user?.email ?? '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [resendMsg, setResendMsg] = useState<string | null>(null);
+
+  const verified = isEmailVerified(session);
+  const currentEmail = session?.user?.email ?? '';
+
+  const onResendVerification = async () => {
+    setResendMsg(null);
+    try {
+      await resendEmailConfirmation(currentEmail);
+      setResendMsg('Verification email sent. Check your inbox.');
+    } catch (e) {
+      setResendMsg(e instanceof Error ? e.message : 'Could not send verification email.');
+    }
+  };
 
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileMsg, setProfileMsg] = useState<string | null>(null);
@@ -88,7 +176,7 @@ export default function AccountSettings() {
     setSavingProfile(true);
     setProfileMsg(null);
     try {
-      await updateAccountSettings({ displayName, username, language, themePreference: theme, socialLinks: social });
+      await updateAccountSettings({ displayName, socialLinks: social });
       setProfileMsg('Saved.');
     } catch {
       setProfileMsg('Could not save. Please try again.');
@@ -122,9 +210,6 @@ export default function AccountSettings() {
     }
   };
 
-  const themeNote =
-    theme === 'dark' ? 'Dark theme is rolling out — your preference is saved.' : undefined;
-
   return (
     <ScreenContainer maxWidth={620} showBack onBack={() => router.back()}>
       <Display style={{ fontSize: 28, marginBottom: spacing.lg }}>Account & settings</Display>
@@ -134,7 +219,29 @@ export default function AccountSettings() {
         <SectionHeader title="Profile" />
         <View style={{ gap: spacing.md, marginTop: spacing.sm }}>
           <TextField label="Display name" value={displayName} onChangeText={setDisplayName} placeholder="Your name" />
-          <TextField label="Username" value={username} onChangeText={setUsername} placeholder="username" autoCapitalize="none" />
+          <View style={{ gap: spacing.sm }}>
+            <TextField
+              label="Username"
+              value={username}
+              onChangeText={(v) => setUsernameInput(v.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+              placeholder="username"
+              autoCapitalize="none"
+            />
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm }}>
+              <Caption style={{ flex: 1 }}>
+                Your unique handle for your public profile. You can change it {changesLeft} more{' '}
+                {changesLeft === 1 ? 'time' : 'times'} in the next 30 days.
+              </Caption>
+              <Button
+                label={savingUsername ? 'Saving…' : 'Save'}
+                variant="secondary"
+                fullWidth={false}
+                disabled={savingUsername || !username || username === (account?.username ?? '')}
+                onPress={onSaveUsername}
+              />
+            </View>
+            {usernameMsg ? <Caption style={{ color: colors.deepUmber }}>{usernameMsg}</Caption> : null}
+          </View>
           <Caption>Edit your photo, dates, and life details from your Life Profile.</Caption>
         </View>
       </Card>
@@ -144,22 +251,34 @@ export default function AccountSettings() {
         <SectionHeader title="Preferences" />
         <View style={{ gap: spacing.md, marginTop: spacing.sm }}>
           <Caption style={{ color: colors.deepUmber }}>Language</Caption>
-          <Chips options={LANGUAGES} value={language} onChange={setLanguage} />
+          <Chips options={languageOptions} value={language} onChange={onChangeLanguage} />
           <Caption style={{ color: colors.deepUmber, marginTop: spacing.sm }}>Appearance</Caption>
-          <Chips options={THEMES} value={theme} onChange={setTheme} />
-          {themeNote ? <Caption>{themeNote}</Caption> : null}
+          <Chips options={THEMES} value={theme} onChange={onChangeAppearance} />
+          <Caption>Choose how Tomora appears. Your memories stay warm in either light.</Caption>
         </View>
       </Card>
 
       {/* Social links */}
       <Card style={{ marginBottom: spacing.lg }}>
         <SectionHeader title="Social links" />
-        <View style={{ gap: spacing.md, marginTop: spacing.sm }}>
-          <TextField label="Website" value={social.website ?? ''} onChangeText={setSocialField('website')} placeholder="https://…" autoCapitalize="none" />
-          <TextField label="Instagram" value={social.instagram ?? ''} onChangeText={setSocialField('instagram')} placeholder="@handle" autoCapitalize="none" />
-          <TextField label="Facebook" value={social.facebook ?? ''} onChangeText={setSocialField('facebook')} placeholder="Profile URL" autoCapitalize="none" />
-          <TextField label="X" value={social.x ?? ''} onChangeText={setSocialField('x')} placeholder="@handle" autoCapitalize="none" />
-          <TextField label="LinkedIn" value={social.linkedin ?? ''} onChangeText={setSocialField('linkedin')} placeholder="Profile URL" autoCapitalize="none" />
+        <Caption style={{ marginTop: 2 }}>Add the ones you use — they appear on your public profile.</Caption>
+        <View style={{ gap: spacing.md, marginTop: spacing.md }}>
+          {SOCIAL_FIELDS.map(({ key, placeholder }) => (
+            <View key={key} style={{ flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm }}>
+              <View style={{ paddingBottom: 6 }}>
+                <SocialIcon network={key} tile size={20} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <TextField
+                  label={SOCIAL_LABELS[key]}
+                  value={social[key] ?? ''}
+                  onChangeText={setSocialField(key)}
+                  placeholder={placeholder}
+                  autoCapitalize="none"
+                />
+              </View>
+            </View>
+          ))}
         </View>
       </Card>
 
@@ -168,11 +287,87 @@ export default function AccountSettings() {
         {profileMsg ? <Caption align="center" style={{ color: colors.deepUmber }}>{profileMsg}</Caption> : null}
       </View>
 
-      {/* Email */}
+      {/* Public profile (social page) */}
       <Card style={{ marginBottom: spacing.lg }}>
-        <SectionHeader title="Email" />
+        <SectionHeader title="Public profile" />
+        <Caption style={{ marginTop: 2 }}>
+          A separate, shareable social page at your username. You choose what shows — it's not your Family Tree Life
+          Profile.
+        </Caption>
+        <View style={{ gap: spacing.md, marginTop: spacing.md }}>
+          <Toggle
+            value={pub.enabled}
+            onValueChange={(v) => savePublic({ enabled: v })}
+            label="Make my profile public"
+            description={
+              account?.username
+                ? `Anyone with the link tomora.app/u/${account.username} can view it.`
+                : 'Set a username above first to enable your public link.'
+            }
+          />
+          {pub.enabled ? (
+            <>
+              <TextField
+                label="Short bio"
+                value={pub.bio ?? ''}
+                onChangeText={(v) => setPub((p) => ({ ...p, bio: v }))}
+                placeholder="A line about you"
+                multiline
+              />
+              <Button label="Save bio" variant="ghost" fullWidth={false} onPress={() => savePublic({ bio: pub.bio })} />
+              <Toggle
+                value={pub.showSocial}
+                onValueChange={(v) => savePublic({ showSocial: v })}
+                label="Show social links"
+              />
+              <Toggle
+                value={pub.showMemories}
+                onValueChange={(v) => savePublic({ showMemories: v })}
+                label="Show my public memories"
+              />
+              {account?.username ? (
+                <Button
+                  label="View public profile"
+                  variant="secondary"
+                  onPress={() => router.push({ pathname: '/u/[username]', params: { username: account.username! } })}
+                />
+              ) : null}
+            </>
+          ) : null}
+          {pubMsg ? <Caption style={{ color: colors.deepUmber }}>{pubMsg}</Caption> : null}
+        </View>
+      </Card>
+
+      {/* Email + verification */}
+      <Card style={{ marginBottom: spacing.lg }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <SectionHeader title="Email" />
+          {currentEmail ? (
+            <Badge label={verified ? 'Verified' : 'Unverified'} tone={verified ? 'gold' : 'neutral'} />
+          ) : null}
+        </View>
         <View style={{ gap: spacing.md, marginTop: spacing.sm }}>
+          {currentEmail && !verified ? (
+            <View
+              style={{
+                gap: spacing.sm,
+                padding: spacing.md,
+                borderRadius: radii.md,
+                backgroundColor: colors.candlelight,
+                borderWidth: 1,
+                borderColor: colors.softGold,
+              }}
+            >
+              <Body style={{ color: colors.deepUmber }}>
+                Confirm <Body style={{ fontWeight: '700' }}>{currentEmail}</Body> to secure your account and unlock
+                invites and sharing.
+              </Body>
+              <Button label="Resend verification email" variant="secondary" onPress={onResendVerification} />
+              {resendMsg ? <Caption>{resendMsg}</Caption> : null}
+            </View>
+          ) : null}
           <TextField label="Email address" value={email} onChangeText={setEmail} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" />
+          <Caption>Changing your email sends a confirmation link to the new address before it takes effect.</Caption>
           <Button label="Update email" variant="secondary" onPress={onChangeEmail} />
           {emailMsg ? <Caption>{emailMsg}</Caption> : null}
         </View>

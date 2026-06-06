@@ -21,6 +21,8 @@ export const demoAccount: Account = {
   language: 'en',
   themePreference: 'system',
   status: 'active',
+  publicProfile: { enabled: false, bio: '', showSocial: true, showMemories: true },
+  usernameChanges: [],
   createdAt: now,
   updatedAt: now,
 };

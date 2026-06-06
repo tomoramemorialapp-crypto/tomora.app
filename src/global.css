@@ -1,15 +1,23 @@
-/* Tomora web fonts — premium serif + readable sans. Loaded on web only; native
-   falls back to system fonts (see src/constants/theme.ts). */
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+/* Tomora web fonts — premium serif + readable sans, plus Noto fallbacks so
+   non-Latin UI languages (CJK, Arabic, Thai, Devanagari, etc.) render cleanly
+   and stay visually consistent. Loaded on web only; native uses system fonts. */
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Sans+KR:wght@400;500;700&family=Noto+Sans+Thai:wght@400;500;700&family=Noto+Sans+Arabic:wght@400;500;700&family=Noto+Sans+Devanagari:wght@400;500;700&family=Noto+Sans+Khmer:wght@400;500;700&display=swap');
 
 html,
 body,
 #root {
   margin: 0;
   padding: 0;
-  background-color: #f7efe6; /* ivory */
+  background-color: #f7efe6; /* ivory (default; overridden by ThemeProvider) */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+:root[data-theme='dark'],
+:root[data-theme='dark'] body,
+:root[data-theme='dark'] #root {
+  background-color: #101112; /* Midnight Ink */
 }
 
 /* respect reduced motion preferences */

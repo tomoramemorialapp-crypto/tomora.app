@@ -89,13 +89,17 @@ export default function NewRelative() {
               />
             </View>
 
-            {!isPet && !isUnsure ? (
+            {!isUnsure ? (
               <Card style={{ backgroundColor: colors.candlelight, borderColor: colors.softGold }}>
                 <Toggle
                   value={isRemembered}
                   onValueChange={setIsRemembered}
                   label="In loving memory"
-                  description="Turn this on if they’ve passed away. Their node never needs to be claimed."
+                  description={
+                    isPet
+                      ? 'Turn this on if your companion has passed away. Their node is kept by you and becomes a Memory Light.'
+                      : 'Turn this on if they’ve passed away. Their node never needs to be claimed.'
+                  }
                 />
               </Card>
             ) : null}

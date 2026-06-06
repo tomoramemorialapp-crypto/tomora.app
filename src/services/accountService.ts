@@ -1,26 +1,24 @@
 import { supabase } from '@/lib/supabase';
-import type { Account, FamilyNode, SocialLinks, ThemePreference } from '@/types/models';
-import type { Json, TablesUpdate } from '@/types/database.types';
+import type { Account, FamilyNode, PublicProfileConfig, SocialLinks, ThemePreference } from '@/types/models';
+import type { Json, Tables, TablesUpdate } from '@/types/database.types';
 import { mapAccount, mapNode } from './mappers';
 
 const GRACE_DAYS = 30;
 
 export interface AccountSettingsPatch {
   displayName?: string;
-  username?: string;
   socialLinks?: SocialLinks;
   language?: string;
   themePreference?: ThemePreference;
 }
 
-/** Update editable account-level settings. */
+/** Update editable account-level settings. Username is handled via setUsername. */
 export async function updateAccountSettings(
   accountId: string,
   patch: AccountSettingsPatch,
 ): Promise<Account> {
   const row: TablesUpdate<'accounts'> = { updated_at: new Date().toISOString() };
   if (patch.displayName !== undefined) row.display_name = patch.displayName.trim() || 'You';
-  if (patch.username !== undefined) row.username = patch.username.trim() || null;
   if (patch.socialLinks !== undefined) row.social_links = patch.socialLinks as Json;
   if (patch.language !== undefined) row.language = patch.language;
   if (patch.themePreference !== undefined) row.theme_preference = patch.themePreference;
@@ -28,6 +26,51 @@ export async function updateAccountSettings(
   const { data, error } = await supabase
     .from('accounts')
     .update(row)
+    .eq('id', accountId)
+    .select()
+    .single();
+  if (error) throw error;
+  return mapAccount(data);
+}
+
+/**
+ * Set or change the username. Enforced server-side: 3–30 chars [a-z0-9_],
+ * one user per username (case-insensitive), max 2 changes per rolling 30 days.
+ * Throws with a human-readable message on violation.
+ */
+export async function setUsername(username: string): Promise<Account> {
+  const { data, error } = await supabase.rpc('set_username', { p_username: username });
+  if (error) throw new Error(error.message);
+  return mapAccount(data as Tables<'accounts'>);
+}
+
+/** How many username changes remain in the trailing 30-day window. */
+export function usernameChangesRemaining(account: Account | null): number {
+  if (!account) return 2;
+  const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const recent = account.usernameChanges.filter((ts) => new Date(ts).getTime() > cutoff).length;
+  return Math.max(0, 2 - recent);
+}
+
+/** Update the owner-controlled public profile config (merged into preferences). */
+export async function updatePublicProfile(
+  accountId: string,
+  patch: Partial<PublicProfileConfig>,
+): Promise<Account> {
+  const { data: current, error: readErr } = await supabase
+    .from('accounts')
+    .select('preferences')
+    .eq('id', accountId)
+    .single();
+  if (readErr) throw readErr;
+  const prefs = ((current?.preferences ?? {}) as Record<string, unknown>) || {};
+  const existing = (prefs.publicProfile ?? {}) as Partial<PublicProfileConfig>;
+  const merged = { ...existing, ...patch };
+  const nextPrefs = { ...prefs, publicProfile: merged } as Json;
+
+  const { data, error } = await supabase
+    .from('accounts')
+    .update({ preferences: nextPrefs, updated_at: new Date().toISOString() })
     .eq('id', accountId)
     .select()
     .single();

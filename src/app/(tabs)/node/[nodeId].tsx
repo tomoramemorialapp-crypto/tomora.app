@@ -20,8 +20,15 @@ import { editScopeFor, formatDateValue, formatGenderSex, formatPlace } from '@/l
 export default function LifeProfile() {
   const router = useRouter();
   const { nodeId } = useLocalSearchParams<{ nodeId: string }>();
-  const { getNode, getMemoriesForNode, getRelationshipForNode, getSuggestedEditsForNode, nodes, account } =
-    useAppState();
+  const {
+    getNode,
+    getMemoriesForNode,
+    getRelationshipForNode,
+    getRelationshipsForNode,
+    getSuggestedEditsForNode,
+    nodes,
+    account,
+  } = useAppState();
   const { width } = useWindowDimensions();
   const stackActions = width < 480;
 
@@ -36,6 +43,9 @@ export default function LifeProfile() {
   }
 
   const memorial = node.status === 'memory_light' || node.isLiving === false;
+  // A pet is owned by its creator and linked caretakers — it never has an
+  // account to claim, so the claim flow doesn't apply.
+  const isPetNode = getRelationshipsForNode(node.id).some((r) => r.relationshipType === 'pet');
   const memories = getMemoriesForNode(node.id);
   const rel = getRelationshipForNode(node.id);
   const other = rel ? nodes.find((n) => n.id !== node.id && (n.id === rel.fromNodeId || n.id === rel.toNodeId)) : undefined;
@@ -114,7 +124,7 @@ export default function LifeProfile() {
             />
           </View>
         </View>
-        {canEdit && !isSelf && node.status !== 'claimed' ? (
+        {canEdit && !isSelf && !isPetNode && node.status !== 'claimed' ? (
           <View style={{ alignSelf: 'stretch', marginTop: spacing.sm }}>
             <Button
               label="Invite to claim"
@@ -164,7 +174,9 @@ export default function LifeProfile() {
             ? 'A Memory Light kept gently by the family. Add a tribute, a story, or a photo to keep this light close.'
             : isSelf
               ? 'This is your place in the Family Tree. You choose what to share and what to keep private.'
-              : `${node.displayName} has a place in your Family Tree. Invite them to claim their node when you’re ready.`}
+              : isPetNode
+                ? `${node.displayName} is a cherished companion in your Family Tree, cared for by you and any caretakers you add.`
+                : `${node.displayName} has a place in your Family Tree. Invite them to claim their node when you’re ready.`}
         </Body>
       </Card>
 

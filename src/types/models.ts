@@ -74,6 +74,14 @@ export type TreeRole =
 export type MemoryType = 'text' | 'photo' | 'video' | 'audio' | 'document' | 'link';
 export type ApprovalStatus = 'draft' | 'pending' | 'approved' | 'rejected';
 
+/** Owner-controlled config for the shareable public (social) profile page. */
+export interface PublicProfileConfig {
+  enabled: boolean;
+  bio?: string;
+  showSocial: boolean;
+  showMemories: boolean;
+}
+
 export interface Account {
   id: string;
   email?: string;
@@ -85,6 +93,10 @@ export interface Account {
   themePreference: ThemePreference;
   inviteCode?: string;
   status: AccountStatus;
+  /** Owner-editable public profile settings (stored under preferences). */
+  publicProfile: PublicProfileConfig;
+  /** Timestamps of past username changes (max 2 per rolling 30 days). */
+  usernameChanges: string[];
   /** When the user requested deletion (start of the 30-day grace period). */
   deletionRequestedAt?: string;
   /** When the account + owned data will be permanently purged. */

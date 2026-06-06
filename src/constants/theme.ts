@@ -6,7 +6,13 @@ import { Platform } from 'react-native';
  * swapped later without touching screens.
  */
 
-export const colors = {
+/**
+ * Tomora's two palettes share identical keys, so every screen that reads
+ * `colors.x` themes automatically — the active palette is swapped in place by
+ * the ThemeProvider (see src/theme). Light = warm paper & candlelight; Night =
+ * a midnight archive lit by soft gold.
+ */
+export const lightColors = {
   ivory: '#F7EFE6',
   paper: '#FBF6EF',
   guardianGold: '#B8872F',
@@ -27,7 +33,42 @@ export const colors = {
   hairline: 'rgba(30, 34, 36, 0.08)',
   overlay: 'rgba(30, 34, 36, 0.45)',
   white: '#FFFFFF',
-} as const;
+};
+
+export type Palette = Record<keyof typeof lightColors, string>;
+
+/** Night Mode: warm charcoal + brighter gold, never pure black/neon. */
+export const darkColors: Palette = {
+  ivory: '#101112', // main background (Midnight Ink)
+  paper: '#181A1B', // cards / panels (Deep Charcoal)
+  guardianGold: '#D2AE67', // brighter on dark for contrast
+  softGold: '#F0D9A0', // candle glow
+  ink: '#F7EFE6', // primary text (Warm Ivory)
+  charcoal: '#D8CEC2', // body copy (Soft Linen)
+  mistBeige: '#222426', // inputs / tracks (Warm Graphite)
+  ashTaupe: '#A99E91', // captions (Ash Taupe)
+  candlelight: '#1C1B18', // warm dark surface
+  deepUmber: '#D8CEC2', // secondary text on dark
+  success: '#9BAF85',
+  warning: '#E2B866',
+  error: '#D98A7A',
+  info: '#9EB7C2',
+  disabled: '#5E5A54',
+  goldGlow: 'rgba(210, 174, 103, 0.14)',
+  hairline: 'rgba(247, 239, 230, 0.10)',
+  overlay: 'rgba(0, 0, 0, 0.6)',
+  white: '#222426', // "white" surfaces become an elevated graphite
+};
+
+export type ThemeMode = 'light' | 'dark';
+
+/** The live palette every component reads. Mutated in place on theme change. */
+export const colors: Palette = { ...lightColors };
+
+/** Swap the active palette in place (keeps the same object reference). */
+export function applyPalette(mode: ThemeMode): void {
+  Object.assign(colors, mode === 'dark' ? darkColors : lightColors);
+}
 
 export const radii = {
   sm: 8,

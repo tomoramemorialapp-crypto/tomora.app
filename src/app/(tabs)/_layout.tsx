@@ -1,22 +1,11 @@
 import { Tabs } from 'expo-router';
-import { Platform, View, type ColorValue } from 'react-native';
+import { Platform } from 'react-native';
 import { colors, fonts } from '@/constants/theme';
-
-function Dot({ color, active }: { color: ColorValue; active: boolean }) {
-  return (
-    <View
-      style={{
-        width: active ? 8 : 6,
-        height: active ? 8 : 6,
-        borderRadius: 999,
-        backgroundColor: color,
-        opacity: active ? 1 : 0.6,
-      }}
-    />
-  );
-}
+import { TabIcon } from '@/components/brand/TabIcons';
+import { useT } from '@/i18n';
 
 export default function TabsLayout() {
+  const t = useT();
   return (
     <Tabs
       screenOptions={{
@@ -37,43 +26,43 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color, focused }) => <Dot color={color} active={focused} />,
+          title: t('nav.home'),
+          tabBarIcon: ({ color, focused }) => <TabIcon name="home" color={color} focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="family-tree"
         options={{
-          title: 'Family Tree',
-          tabBarIcon: ({ color, focused }) => <Dot color={color} active={focused} />,
+          title: t('nav.familyTree'),
+          tabBarIcon: ({ color, focused }) => <TabIcon name="tree" color={color} focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="memories"
         options={{
-          title: 'Memories',
-          tabBarIcon: ({ color, focused }) => <Dot color={color} active={focused} />,
+          title: t('nav.memories'),
+          tabBarIcon: ({ color, focused }) => <TabIcon name="memories" color={color} focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="occasions"
         options={{
-          title: 'Occasions',
-          tabBarIcon: ({ color, focused }) => <Dot color={color} active={focused} />,
+          title: t('nav.occasions'),
+          tabBarIcon: ({ color, focused }) => <TabIcon name="occasions" color={color} focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="companion"
         options={{
-          title: 'Companion',
-          tabBarIcon: ({ color, focused }) => <Dot color={color} active={focused} />,
+          title: t('nav.companion'),
+          tabBarIcon: ({ color, focused }) => <TabIcon name="companion" color={color} focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'You',
-          tabBarIcon: ({ color, focused }) => <Dot color={color} active={focused} />,
+          title: t('nav.you'),
+          tabBarIcon: ({ color, focused }) => <TabIcon name="you" color={color} focused={focused} />,
         }}
       />
 
@@ -88,6 +77,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="memory/[memoryId]" options={{ href: null }} />
       <Tabs.Screen name="memorial/[nodeId]" options={{ href: null }} />
       <Tabs.Screen name="memorial/edit" options={{ href: null }} />
+      <Tabs.Screen name="u/[username]" options={{ href: null }} />
       <Tabs.Screen name="relative/new" options={{ href: null }} />
       <Tabs.Screen name="settings/account" options={{ href: null }} />
       <Tabs.Screen name="settings/billing" options={{ href: null }} />

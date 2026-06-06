@@ -9,9 +9,13 @@ import type { DateValue } from '@/types/profile';
 
 export type OccasionKind = 'birthday' | 'death_anniversary' | 'holiday';
 
+/** Family = tied to a specific person/node. Public = generic/international holiday. */
+export type OccasionScope = 'family' | 'public';
+
 export interface UpcomingEvent {
   id: string;
   kind: OccasionKind;
+  scope: OccasionScope;
   title: string;
   subtitle?: string;
   date: string; // ISO date of the next occurrence
@@ -109,6 +113,7 @@ export function getUpcomingEvents(
         events.push({
           id: `bday-${node.id}`,
           kind: 'birthday',
+          scope: 'family',
           title: `${node.displayName}'s birthday`,
           subtitle: turning && turning > 0 ? `Turning ${turning}` : undefined,
           date: date.toISOString(),
@@ -125,6 +130,7 @@ export function getUpcomingEvents(
         events.push({
           id: `death-${node.id}`,
           kind: 'death_anniversary',
+          scope: 'family',
           title: `Remembering ${node.displayName}`,
           subtitle: years && years > 0 ? `${ordinal(years)} anniversary` : 'Death anniversary',
           date: date.toISOString(),
@@ -141,6 +147,7 @@ export function getUpcomingEvents(
     events.push({
       id: `holiday-${h.id}`,
       kind: 'holiday',
+      scope: 'public',
       title: h.title,
       subtitle: h.subtitle,
       date: date.toISOString(),

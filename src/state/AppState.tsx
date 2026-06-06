@@ -68,6 +68,8 @@ interface AppStateValue {
 
   // account settings + lifecycle
   updateAccountSettings: (patch: AccountSettingsPatch) => Promise<void>;
+  setUsername: (username: string) => Promise<void>;
+  updatePublicProfile: (patch: Partial<import('@/types/models').PublicProfileConfig>) => Promise<void>;
   updateEmail: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
   requestAccountDeletion: () => Promise<void>;
@@ -369,6 +371,23 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     async (patch) => {
       if (!account) throw new Error('No account loaded.');
       const updated = await accountService.updateAccountSettings(account.id, patch);
+      setAccount((prev) => ({ ...updated, email: prev?.email }));
+    },
+    [account],
+  );
+
+  const setUsername = useCallback<AppStateValue['setUsername']>(
+    async (username) => {
+      const updated = await accountService.setUsername(username);
+      setAccount((prev) => ({ ...updated, email: prev?.email }));
+    },
+    [],
+  );
+
+  const updatePublicProfile = useCallback<AppStateValue['updatePublicProfile']>(
+    async (patch) => {
+      if (!account) throw new Error('No account loaded.');
+      const updated = await accountService.updatePublicProfile(account.id, patch);
       setAccount((prev) => ({ ...updated, email: prev?.email }));
     },
     [account],
@@ -694,6 +713,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       signInAndLoad,
       resetAll,
       updateAccountSettings,
+      setUsername,
+      updatePublicProfile,
       updateEmail,
       updatePassword,
       requestAccountDeletion,
@@ -749,6 +770,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       signInAndLoad,
       resetAll,
       updateAccountSettings,
+      setUsername,
+      updatePublicProfile,
       updateEmail,
       updatePassword,
       requestAccountDeletion,

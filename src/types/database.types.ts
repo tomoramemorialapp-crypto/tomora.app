@@ -30,6 +30,7 @@ export type Database = {
           theme_preference: string
           updated_at: string
           username: string | null
+          username_changes: string[]
         }
         Insert: {
           avatar_url?: string | null
@@ -46,6 +47,7 @@ export type Database = {
           theme_preference?: string
           updated_at?: string
           username?: string | null
+          username_changes?: string[]
         }
         Update: {
           avatar_url?: string | null
@@ -62,6 +64,7 @@ export type Database = {
           theme_preference?: string
           updated_at?: string
           username?: string | null
+          username_changes?: string[]
         }
         Relationships: []
       }
@@ -728,11 +731,32 @@ export type Database = {
         Args: { p_node_id: string; p_password?: string }
         Returns: Json
       }
+      get_public_profile: { Args: { p_username: string }; Returns: Json }
       is_tree_member: { Args: { p_tree_id: string }; Returns: boolean }
       process_due_account_deletions: { Args: never; Returns: number }
       request_passing: {
         Args: { p_death_date?: string; p_node_id: string; p_reason?: string }
         Returns: Json
+      }
+      set_username: {
+        Args: { p_username: string }
+        Returns: {
+          avatar_url: string | null
+          created_at: string
+          deletion_requested_at: string | null
+          deletion_scheduled_for: string | null
+          display_name: string
+          id: string
+          invite_code: string | null
+          language: string
+          preferences: Json
+          social_links: Json
+          status: string
+          theme_preference: string
+          updated_at: string
+          username: string | null
+          username_changes: string[]
+        }
       }
     }
     Enums: {

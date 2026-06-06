@@ -583,7 +583,7 @@ export function KinshipTreeCanvas({
               edges: graph.edges,
             })}
             onOpenProfile={
-              selected.status !== 'placeholder' && onSelectNode ? () => onSelectNode(selected.id) : undefined
+              selected.nodeType !== 'placeholder' && onSelectNode ? () => onSelectNode(selected.id) : undefined
             }
             onClose={() => setSelectedId(null)}
           />

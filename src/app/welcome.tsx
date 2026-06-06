@@ -10,7 +10,7 @@ import { LightDivider } from '@/components/brand/LightDivider';
 import { AppFooter } from '@/components/brand/AppFooter';
 import { Body, Caption } from '@/components/ui/Typography';
 import { colors, spacing } from '@/constants/theme';
-import { copy } from '@/constants/copy';
+import { useT } from '@/i18n';
 
 // Brand lockup proportions (emblem → wordmark → divider → tagline), per brand sketch.
 const EMBLEM_SIZE = 176;
@@ -20,6 +20,7 @@ const DIVIDER_LINE = Math.round(WORDMARK_WIDTH * 0.36);
 
 export default function Welcome() {
   const router = useRouter();
+  const t = useT();
   const glow = useRef(new Animated.Value(0.4)).current;
   const fade = useRef(new Animated.Value(0)).current;
   const rise = useRef(new Animated.Value(16)).current;
@@ -76,21 +77,21 @@ export default function Welcome() {
               fontWeight: '500',
             }}
           >
-            {copy.welcome.tagline}
+            {t('welcome.tagline')}
           </Caption>
         </View>
 
         <Body align="center" style={{ maxWidth: 360, fontSize: 18, marginTop: spacing.xl }}>
-          {copy.welcome.body}
+          {t('welcome.body')}
         </Body>
       </Animated.View>
 
       <View style={{ height: spacing.xxl }} />
 
       <View style={{ gap: spacing.md, width: '100%' }}>
-        <Button label={copy.welcome.primaryCta} variant="gold" onPress={() => router.push('/(onboarding)/add-self')} />
-        <Button label={copy.welcome.secondaryCta} variant="secondary" onPress={() => router.push('/(onboarding)/claim')} />
-        <Button label={copy.welcome.login} variant="ghost" onPress={() => router.push('/login')} />
+        <Button label={t('welcome.primaryCta')} variant="gold" onPress={() => router.push('/(onboarding)/add-self')} />
+        <Button label={t('welcome.secondaryCta')} variant="secondary" onPress={() => router.push('/(onboarding)/claim')} />
+        <Button label={t('welcome.login')} variant="ghost" onPress={() => router.push('/login')} />
       </View>
 
       <AppFooter showLogo={false} />

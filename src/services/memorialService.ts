@@ -99,6 +99,61 @@ export async function getMemorialPage(
   return { node: r.node ?? {}, memories: r.memories ?? [] };
 }
 
+export interface MemorialVoteSummary {
+  confirm: number;
+  dispute: number;
+  myVote?: 'confirm' | 'dispute';
+}
+
+/** Family votes on a pending passing report. */
+export async function castMemorialVote(requestId: string, vote: 'confirm' | 'dispute'): Promise<void> {
+  const { data: session } = await supabase.auth.getSession();
+  const userId = session.session?.user?.id;
+  if (!userId) throw new Error('Please sign in first.');
+
+  const { data: request, error: reqErr } = await supabase
+    .from('memorial_requests')
+    .select('id, family_tree_id')
+    .eq('id', requestId)
+    .maybeSingle();
+  if (reqErr) throw reqErr;
+  if (!request) throw new Error('That request no longer exists.');
+
+  const { error } = await supabase.from('memorial_votes').upsert(
+    {
+      request_id: requestId,
+      family_tree_id: request.family_tree_id,
+      account_id: userId,
+      vote,
+    },
+    { onConflict: 'request_id,account_id' },
+  );
+  if (error) throw new Error(friendly(error.message));
+}
+
+/** Vote totals for a memorial request, including the signed-in member's vote. */
+export async function fetchMemorialVotes(requestId: string): Promise<MemorialVoteSummary> {
+  const { data: session } = await supabase.auth.getSession();
+  const userId = session.session?.user?.id;
+
+  const { data, error } = await supabase.from('memorial_votes').select('vote, account_id').eq('request_id', requestId);
+  if (error) throw error;
+
+  let confirm = 0;
+  let dispute = 0;
+  let myVote: MemorialVoteSummary['myVote'];
+
+  for (const row of data ?? []) {
+    if (row.vote === 'confirm') confirm += 1;
+    if (row.vote === 'dispute') dispute += 1;
+    if (userId && row.account_id === userId && (row.vote === 'confirm' || row.vote === 'dispute')) {
+      myVote = row.vote;
+    }
+  }
+
+  return { confirm, dispute, myVote };
+}
+
 function friendly(message: string): string {
   if (message.includes('NOT_SIGNED_IN')) return 'Please sign in first.';
   if (message.includes('NOT_A_MEMBER')) return 'You are not part of this family tree.';

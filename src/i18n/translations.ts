@@ -88,6 +88,33 @@ export const en = {
   'you.storage': 'Media storage',
   'you.signOut': 'Sign out',
   'you.deleteAccount': 'Delete account',
+
+  // Welcome
+  'welcome.tagline': 'ALWAYS WITH YOU',
+  'welcome.body': 'Create a private Family Tree for the people, memories, and moments you want to keep close.',
+  'welcome.primaryCta': 'Start my Family Tree',
+  'welcome.secondaryCta': 'I was invited',
+  'welcome.login': 'Log in',
+
+  // Login
+  'login.prompt': 'Welcome back.',
+  'login.body': 'Log in with your email or username to return to your Family Tree.',
+  'login.cta': 'Log in',
+  'login.noAccount': 'New here? Start your Family Tree',
+  'login.identifier': 'Email or username',
+
+  // Claim
+  'claim.prompt': 'Claim your place.',
+  'claim.body': "Someone saved a space for you. Choose how you'd like to claim your node.",
+  'claim.cta': 'Claim my node',
+
+  // Memories
+  'memories.kicker': 'Kept close',
+  'memories.title': 'Memories',
+  'memories.add': 'Add a memory',
+  'memories.emptyTitle': 'No memories yet.',
+  'memories.emptyBody': 'Add a photo, story, voice note, or video to keep this light close.',
+  'memories.firstCta': 'Add your first memory',
 } satisfies Record<string, string>;
 
 export type TranslationKey = keyof typeof en;

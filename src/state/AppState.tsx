@@ -36,6 +36,7 @@ import * as inviteService from '@/services/inviteService';
 import * as notificationService from '@/services/notificationService';
 import * as memorialService from '@/services/memorialService';
 import { validateUsername } from '@/lib/username';
+import { pickPrimaryRelationship } from '@/lib/relationshipUtils';
 import type { NodeInvite } from '@/services/inviteService';
 import type { AccountSettingsPatch } from '@/services/accountService';
 import type { ChangeLogEntryInput } from '@/services/profileService';
@@ -48,6 +49,8 @@ interface OnboardingDraft {
   lovedOneIsRemembered: boolean;
   /** Chosen at signup; applied via set_username once a session exists. */
   pendingUsername?: string;
+  /** Invite code to auto-claim after the user creates an account. */
+  pendingClaimCode?: string;
 }
 
 interface AppStateValue {
@@ -113,7 +116,7 @@ interface AppStateValue {
   /** Revoke a node's invite. */
   clearNodeInvite: (nodeId: string) => Promise<void>;
   /** Claim a node from an invite code (+ optional password), then reload. */
-  claimNode: (code: string, password?: string) => Promise<void>;
+  claimNode: (code: string, password?: string) => Promise<inviteService.ClaimResult>;
 
   updateTreePrivacy: (patch: {
     defaultVisibility: VisibilityLevel;
@@ -185,6 +188,8 @@ interface AppStateValue {
   requestPassing: (input: { nodeId: string; deathDate?: string; reason?: string }) => Promise<RequestPassingResult>;
   finalizeMemorial: (requestId: string) => Promise<void>;
   disputeMemorial: (requestId: string, reason?: string) => Promise<void>;
+  castMemorialVote: (requestId: string, vote: 'confirm' | 'dispute') => Promise<void>;
+  fetchMemorialVotes: (requestId: string) => Promise<memorialService.MemorialVoteSummary>;
   fetchMemorialRequestForNode: (nodeId: string) => Promise<MemorialRequest | null>;
   updateMemorialPage: (nodeId: string, patch: MemorialPagePatch) => Promise<FamilyNode>;
 
@@ -303,6 +308,23 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         clearStoredDraft();
       }
       applyBundle(bundle);
+
+      const pendingClaim = draftRef.current.pendingClaimCode?.trim();
+      if (pendingClaim) {
+        try {
+          await inviteService.claimNode(pendingClaim);
+          setDraftState((prev) => {
+            const next = { ...prev, pendingClaimCode: undefined };
+            storeDraft(next);
+            return next;
+          });
+          const refreshed = await treeService.loadMyTreeBundle(userId);
+          applyBundle(refreshed);
+        } catch (e) {
+          console.warn('[tomora] pending claim failed', e);
+        }
+      }
+
       try {
         setNotifications(await notificationService.fetchNotifications(userId));
       } catch (e) {
@@ -525,8 +547,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const claimNode = useCallback<AppStateValue['claimNode']>(
     async (code, password) => {
-      await inviteService.claimNode(code, password);
+      const result = await inviteService.claimNode(code, password);
       if (session) await loadForUser(session);
+      return result;
     },
     [session, loadForUser],
   );
@@ -684,6 +707,18 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     [session, loadForUser],
   );
 
+  const castMemorialVote = useCallback<AppStateValue['castMemorialVote']>(
+    async (requestId, vote) => {
+      await memorialService.castMemorialVote(requestId, vote);
+    },
+    [],
+  );
+
+  const fetchMemorialVotes = useCallback<AppStateValue['fetchMemorialVotes']>(
+    (requestId) => memorialService.fetchMemorialVotes(requestId),
+    [],
+  );
+
   const fetchMemorialRequestForNode = useCallback<AppStateValue['fetchMemorialRequestForNode']>(
     (nodeId) => memorialService.fetchMemorialRequestForNode(nodeId),
     [],
@@ -746,8 +781,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     [visibleMemories],
   );
   const getRelationshipForNode = useCallback(
-    (id: string) => relationships.find((r) => r.toNodeId === id || r.fromNodeId === id),
-    [relationships],
+    (id: string) => {
+      const selfNode = nodes.find((n) => n.ownerAccountId === account?.id);
+      return pickPrimaryRelationship(relationships, id, selfNode?.id);
+    },
+    [relationships, nodes, account?.id],
   );
   const getRelationshipsForNode = useCallback(
     (id: string) => relationships.filter((r) => r.toNodeId === id || r.fromNodeId === id),
@@ -805,6 +843,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       requestPassing,
       finalizeMemorial,
       disputeMemorial,
+      castMemorialVote,
+      fetchMemorialVotes,
       fetchMemorialRequestForNode,
       updateMemorialPage,
       mediaUsageBytes,
@@ -863,6 +903,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       requestPassing,
       finalizeMemorial,
       disputeMemorial,
+      castMemorialVote,
+      fetchMemorialVotes,
       fetchMemorialRequestForNode,
       updateMemorialPage,
       mediaUsageBytes,

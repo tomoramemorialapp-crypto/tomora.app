@@ -10,6 +10,7 @@ import { Body, Caption } from '@/components/ui/Typography';
 import { colors, radii, spacing } from '@/constants/theme';
 import { useAppState } from '@/state/AppState';
 import type { FamilyNode, MemorialRequest } from '@/types/models';
+import type { MemorialVoteSummary } from '@/services/memorialService';
 import type { DateValue } from '@/types/profile';
 
 function fmt(iso?: string): string {
@@ -24,9 +25,17 @@ function fmt(iso?: string): string {
 /** The passing toggle + dispute/consensus controls shown on a Life Profile. */
 export function PassingControl({ node, canEdit }: { node: FamilyNode; canEdit: boolean }) {
   const router = useRouter();
-  const { requestPassing, finalizeMemorial, disputeMemorial, fetchMemorialRequestForNode } = useAppState();
+  const {
+    requestPassing,
+    finalizeMemorial,
+    disputeMemorial,
+    castMemorialVote,
+    fetchMemorialRequestForNode,
+    fetchMemorialVotes,
+  } = useAppState();
 
   const [request, setRequest] = useState<MemorialRequest | null>(null);
+  const [votes, setVotes] = useState<MemorialVoteSummary | null>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -34,15 +43,29 @@ export function PassingControl({ node, canEdit }: { node: FamilyNode; canEdit: b
 
   const memorial = node.isLiving === false || node.status === 'memory_light';
 
+  const refreshVotes = async (requestId: string) => {
+    try {
+      setVotes(await fetchMemorialVotes(requestId));
+    } catch {
+      setVotes(null);
+    }
+  };
+
   useEffect(() => {
     let alive = true;
     fetchMemorialRequestForNode(node.id)
-      .then((r) => alive && setRequest(r))
+      .then(async (r) => {
+        if (!alive) return;
+        setRequest(r);
+        if (r && (r.status === 'pending' || r.status === 'disputed')) {
+          await refreshVotes(r.id);
+        }
+      })
       .catch(() => {});
     return () => {
       alive = false;
     };
-  }, [node.id, node.status, fetchMemorialRequestForNode]);
+  }, [node.id, node.status, fetchMemorialRequestForNode, fetchMemorialVotes]);
 
   const deathDate = (): string | undefined => {
     const { day, month, year } = dateValueToParts(passingDate);
@@ -61,7 +84,10 @@ export function PassingControl({ node, canEdit }: { node: FamilyNode; canEdit: b
       if (result.mode === 'finalized') {
         setNote('A Memory Light has been lit. The family has been notified.');
       } else {
-        setNote('Passing reported. The family has a review window before it’s confirmed.');
+        setNote("Passing reported. The family has a review window before it's confirmed.");
+        const r = await fetchMemorialRequestForNode(node.id);
+        setRequest(r);
+        if (r) await refreshVotes(r.id);
       }
     } catch (e) {
       setNote(e instanceof Error ? e.message : 'Could not report this right now.');
@@ -89,6 +115,7 @@ export function PassingControl({ node, canEdit }: { node: FamilyNode; canEdit: b
     try {
       await disputeMemorial(request.id);
       setNote('Disputed. The family can resolve this together.');
+      await refreshVotes(request.id);
     } catch (e) {
       setNote(e instanceof Error ? e.message : 'Could not dispute right now.');
     } finally {
@@ -96,7 +123,20 @@ export function PassingControl({ node, canEdit }: { node: FamilyNode; canEdit: b
     }
   };
 
-  // Memorial already lit → link to the tribute page.
+  const onVote = async (vote: 'confirm' | 'dispute') => {
+    if (!request) return;
+    setBusy(true);
+    try {
+      await castMemorialVote(request.id, vote);
+      await refreshVotes(request.id);
+      setNote(vote === 'confirm' ? 'Your vote to confirm has been recorded.' : 'Your dispute has been recorded.');
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : 'Could not record your vote.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (memorial) {
     return (
       <Card style={{ marginBottom: spacing.lg }}>
@@ -141,6 +181,12 @@ export function PassingControl({ node, canEdit }: { node: FamilyNode; canEdit: b
             {request?.resolveAfter ? ` (by ${fmt(request.resolveAfter)})` : ''}, unless disputed. A family consensus
             can confirm it sooner.
           </Body>
+          {votes ? (
+            <Caption style={{ color: colors.deepUmber }}>
+              Family votes — {votes.confirm} confirm · {votes.dispute} dispute
+              {votes.myVote ? ` · You voted to ${votes.myVote}` : ''}
+            </Caption>
+          ) : null}
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
             <View style={{ flex: 1 }}>
               <Button label={busy ? '…' : 'Confirm now'} variant="gold" disabled={busy} onPress={onConfirm} />
@@ -149,16 +195,39 @@ export function PassingControl({ node, canEdit }: { node: FamilyNode; canEdit: b
               <Button label="Dispute" variant="ghost" disabled={busy} onPress={onDispute} />
             </View>
           </View>
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            <View style={{ flex: 1 }}>
+              <Button
+                label={votes?.myVote === 'confirm' ? 'Voted confirm' : 'Vote confirm'}
+                variant="secondary"
+                disabled={busy || votes?.myVote === 'confirm'}
+                onPress={() => onVote('confirm')}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Button
+                label={votes?.myVote === 'dispute' ? 'Voted dispute' : 'Vote dispute'}
+                variant="secondary"
+                disabled={busy || votes?.myVote === 'dispute'}
+                onPress={() => onVote('dispute')}
+              />
+            </View>
+          </View>
         </View>
       ) : disputed ? (
         <View style={{ gap: spacing.sm }}>
           <Body>This passing report is disputed. The family can confirm it together once resolved.</Body>
+          {votes ? (
+            <Caption style={{ color: colors.deepUmber }}>
+              Family votes — {votes.confirm} confirm · {votes.dispute} dispute
+            </Caption>
+          ) : null}
           <Button label={busy ? '…' : 'Confirm by consensus'} variant="gold" disabled={busy} onPress={onConfirm} />
         </View>
       ) : open ? (
         <View style={{ gap: spacing.sm }}>
           <Body>
-            Mark {node.displayName}’s passing. If you steward this node and no admin oversees the tree, it lights a
+            Mark {node.displayName}'s passing. If you steward this node and no admin oversees the tree, it lights a
             Memory Light immediately. Otherwise the family gets a review window.
           </Body>
           <DateValueInput label="Date of passing (optional)" value={passingDate} onChange={setPassingDate} />

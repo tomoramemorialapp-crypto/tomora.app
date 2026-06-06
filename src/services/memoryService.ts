@@ -27,6 +27,18 @@ export interface CreateMemoryInput {
 export async function createMemory(input: CreateMemoryInput): Promise<Memory> {
   const media = input.media ?? [];
   const totalBytes = media.reduce((s, m) => s + (m.sizeBytes || 0), 0);
+  if (totalBytes > 0) {
+    const { error: quotaErr } = await supabase.rpc('assert_storage_quota', {
+      p_account_id: input.accountId,
+      p_add_bytes: totalBytes,
+    });
+    if (quotaErr) {
+      if (quotaErr.message.includes('STORAGE_QUOTA_EXCEEDED')) {
+        throw new Error('You have reached your media storage limit. Remove some memories to free space.');
+      }
+      throw quotaErr;
+    }
+  }
   const first = media[0];
   const { data, error } = await supabase
     .from('memories')

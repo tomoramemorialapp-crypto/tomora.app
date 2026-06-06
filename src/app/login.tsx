@@ -9,13 +9,14 @@ import { Body, Caption, Display } from '@/components/ui/Typography';
 import { GoldStar } from '@/components/brand/GoldStar';
 import { AppFooter } from '@/components/brand/AppFooter';
 import { colors, spacing } from '@/constants/theme';
-import { copy } from '@/constants/copy';
+import { useT } from '@/i18n';
 import { isEmailIdentifier, isUsernameIdentifier } from '@/lib/username';
 import { useAppState } from '@/state/AppState';
 
 export default function Login() {
   const router = useRouter();
   const { signInAndLoad } = useAppState();
+  const t = useT();
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -46,9 +47,9 @@ export default function Login() {
       showBack
       footer={
         <View style={{ gap: spacing.md }}>
-          <Button label={copy.login.cta} variant="gold" disabled={!canSubmit} loading={busy} onPress={onSubmit} />
+          <Button label={t('login.cta')} variant="gold" disabled={!canSubmit} loading={busy} onPress={onSubmit} />
           <Button
-            label={copy.login.noAccount}
+            label={t('login.noAccount')}
             variant="ghost"
             onPress={() => router.replace('/(onboarding)/add-self')}
           />
@@ -59,13 +60,13 @@ export default function Login() {
       <View style={{ gap: spacing.lg }}>
         <View style={{ alignItems: 'flex-start', gap: spacing.sm }}>
           <GoldStar size={22} />
-          <Display style={{ fontSize: 34 }}>{copy.login.prompt}</Display>
-          <Body style={{ fontSize: 18 }}>{copy.login.body}</Body>
+          <Display style={{ fontSize: 34 }}>{t('login.prompt')}</Display>
+          <Body style={{ fontSize: 18 }}>{t('login.body')}</Body>
         </View>
 
         <View style={{ gap: spacing.md }}>
           <TextField
-            label="Email or username"
+            label={t('login.identifier')}
             value={identifier}
             onChangeText={setIdentifier}
             placeholder="you@example.com or yourname"

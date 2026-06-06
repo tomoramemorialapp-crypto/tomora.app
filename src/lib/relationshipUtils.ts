@@ -1,4 +1,4 @@
-import type { NodeStatus, RelationshipType } from '@/types/models';
+import type { NodeStatus, Relationship, RelationshipType } from '@/types/models';
 
 /** Generate a small unique id (good enough for mock/local state). */
 export function createId(prefix = 'id'): string {
@@ -77,4 +77,49 @@ export function relationshipPath(type: RelationshipType): string {
   if (type === 'pet') return 'Your companion';
   if (type === 'other') return 'Someone remembered';
   return `Your ${relationshipLabel(type)}`;
+}
+
+const RELATIONSHIP_PRIORITY: RelationshipType[] = [
+  'parent',
+  'child',
+  'spouse',
+  'partner',
+  'sibling',
+  'grandparent',
+  'grandchild',
+  'aunt_uncle',
+  'niece_nephew',
+  'cousin',
+  'caretaker',
+  'pet',
+  'friend',
+  'chosen_family',
+  'other',
+];
+
+/**
+ * Pick the best relationship edge for a node from the viewer's perspective.
+ * Prefers the edge that touches the viewer's own node, then the most specific type.
+ */
+export function pickPrimaryRelationship(
+  relationships: Relationship[],
+  nodeId: string,
+  selfNodeId?: string,
+): Relationship | undefined {
+  const rels = relationships.filter((r) => r.fromNodeId === nodeId || r.toNodeId === nodeId);
+  if (!rels.length) return undefined;
+
+  if (selfNodeId) {
+    const viaSelf = rels.filter((r) => r.fromNodeId === selfNodeId || r.toNodeId === selfNodeId);
+    if (viaSelf.length === 1) return viaSelf[0];
+    if (viaSelf.length > 1) {
+      return [...viaSelf].sort(
+        (a, b) => RELATIONSHIP_PRIORITY.indexOf(a.relationshipType) - RELATIONSHIP_PRIORITY.indexOf(b.relationshipType),
+      )[0];
+    }
+  }
+
+  return [...rels].sort(
+    (a, b) => RELATIONSHIP_PRIORITY.indexOf(a.relationshipType) - RELATIONSHIP_PRIORITY.indexOf(b.relationshipType),
+  )[0];
 }

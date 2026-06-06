@@ -7,12 +7,13 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Button } from '@/components/ui/Button';
 import { Caption, Display } from '@/components/ui/Typography';
 import { spacing } from '@/constants/theme';
-import { copy } from '@/constants/copy';
 import { useAppState } from '@/state/AppState';
+import { useT } from '@/i18n';
 
 export default function MemoriesScreen() {
   const router = useRouter();
   const { visibleMemories, nodes, getNode } = useAppState();
+  const t = useT();
   const selfNode = nodes.find((n) => n.ownerAccountId) ?? nodes[0];
 
   // From the Memories tab, a new memory defaults to the user, with a picker to
@@ -26,18 +27,18 @@ export default function MemoriesScreen() {
   return (
     <ScreenContainer
       maxWidth={620}
-      footer={visibleMemories.length > 0 ? <Button label="Add a memory" variant="gold" onPress={goAdd} /> : undefined}
+      footer={visibleMemories.length > 0 ? <Button label={t('memories.add')} variant="gold" onPress={goAdd} /> : undefined}
     >
       <View style={{ gap: spacing.xs, marginBottom: spacing.lg }}>
-        <Caption style={{ textTransform: 'uppercase', letterSpacing: 1.6 }}>Kept close</Caption>
-        <Display style={{ fontSize: 32 }}>Memories</Display>
+        <Caption style={{ textTransform: 'uppercase', letterSpacing: 1.6 }}>{t('memories.kicker')}</Caption>
+        <Display style={{ fontSize: 32 }}>{t('memories.title')}</Display>
       </View>
 
       {visibleMemories.length === 0 ? (
         <EmptyState
-          title={copy.emptyMemories.title}
-          body={copy.emptyMemories.body}
-          action={<Button label="Add your first memory" variant="gold" onPress={goAdd} />}
+          title={t('memories.emptyTitle')}
+          body={t('memories.emptyBody')}
+          action={<Button label={t('memories.firstCta')} variant="gold" onPress={goAdd} />}
         />
       ) : (
         <View style={{ gap: spacing.md }}>

@@ -1,14 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { TextField } from '@/components/ui/TextField';
 import { Button } from '@/components/ui/Button';
-import { Body, Caption, Display, Title } from '@/components/ui/Typography';
+import { Body, Caption, Display } from '@/components/ui/Typography';
 import { GoldStar } from '@/components/brand/GoldStar';
+import { QrClaimScanner } from '@/components/claim/QrClaimScanner';
 import { colors, fonts, radii, spacing } from '@/constants/theme';
 import { copy } from '@/constants/copy';
+import { parseClaimCode } from '@/lib/claim';
 import { useAppState } from '@/state/AppState';
 
 type Method = 'code' | 'password' | 'qr';
@@ -22,31 +24,54 @@ const METHODS: { id: Method; title: string; subtitle: string }[] = [
 export default function Claim() {
   const router = useRouter();
   const params = useLocalSearchParams<{ code?: string }>();
-  const { session, claimNode } = useAppState();
-  const [method, setMethod] = useState<Method>('code');
-  const [code, setCode] = useState(params.code ?? '');
+  const { session, claimNode, setDraft } = useAppState();
+  const [method, setMethod] = useState<Method>(params.code ? 'code' : 'qr');
+  const [code, setCode] = useState(params.code ? parseClaimCode(String(params.code)) ?? String(params.code) : '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    if (params.code) {
+      const parsed = parseClaimCode(String(params.code));
+      if (parsed) setCode(parsed);
+    }
+  }, [params.code]);
+
+  const normalizedCode = code.trim().toUpperCase();
   const canSubmit =
-    method === 'qr' ? false : method === 'code' ? code.trim().length > 0 : code.trim().length > 0 && password.length > 0;
+    method === 'qr'
+      ? normalizedCode.length > 0
+      : method === 'code'
+        ? normalizedCode.length > 0
+        : normalizedCode.length > 0 && password.length > 0;
 
   const onClaim = async () => {
     if (!session) {
-      setNote('Create your account or sign in first, then come back to claim — your code is saved here.');
+      setNote('Create your account or sign in first — your code stays saved here.');
       return;
     }
     setBusy(true);
     setNote(null);
     try {
-      await claimNode(code, method === 'password' ? password : undefined);
-      router.replace('/(tabs)');
+      const result = await claimNode(normalizedCode, method === 'password' ? password : undefined);
+      router.replace({ pathname: '/(tabs)/node/[nodeId]', params: { nodeId: result.nodeId } });
     } catch (e) {
-      setNote(e instanceof Error ? e.message : 'We couldn’t complete the claim. Please try again.');
+      setNote(e instanceof Error ? e.message : "We couldn't complete the claim. Please try again.");
       setBusy(false);
     }
+  };
+
+  const onCreateAccount = () => {
+    if (normalizedCode) setDraft({ pendingClaimCode: normalizedCode });
+    router.push('/(onboarding)/add-self');
+  };
+
+  const onPasteLink = (value: string) => {
+    const parsed = parseClaimCode(value);
+    setCode(parsed ?? value.toUpperCase());
+    setNote(null);
   };
 
   return (
@@ -55,7 +80,14 @@ export default function Claim() {
       footer={
         <View style={{ gap: spacing.md }}>
           <Button label={busy ? 'Claiming…' : copy.claim.cta} variant="gold" disabled={!canSubmit || busy} onPress={onClaim} />
-          <Button label={copy.welcome.login} variant="ghost" onPress={() => router.push('/login')} />
+          {!session ? (
+            <>
+              <Button label="Create account" variant="secondary" onPress={onCreateAccount} />
+              <Button label={copy.welcome.login} variant="ghost" onPress={() => router.push('/login')} />
+            </>
+          ) : (
+            <Button label={copy.welcome.login} variant="ghost" onPress={() => router.push('/login')} />
+          )}
         </View>
       }
     >
@@ -120,7 +152,7 @@ export default function Claim() {
           <TextField
             label={copy.claim.codeLabel}
             value={code}
-            onChangeText={setCode}
+            onChangeText={(v) => setCode(v.toUpperCase())}
             placeholder={copy.claim.codePlaceholder}
             autoCapitalize="characters"
           />
@@ -131,7 +163,7 @@ export default function Claim() {
             <TextField
               label={copy.claim.codeLabel}
               value={code}
-              onChangeText={setCode}
+              onChangeText={(v) => setCode(v.toUpperCase())}
               placeholder={copy.claim.codePlaceholder}
               autoCapitalize="characters"
             />
@@ -155,39 +187,24 @@ export default function Claim() {
         ) : null}
 
         {method === 'qr' ? (
-          <View
-            style={{
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: spacing.sm,
-              borderWidth: 1.5,
-              borderColor: colors.mistBeige,
-              borderStyle: 'dashed',
-              borderRadius: radii.lg,
-              paddingVertical: spacing.xl,
-              backgroundColor: colors.paper,
-            }}
-          >
-            <View
-              style={{
-                width: 120,
-                height: 120,
-                borderRadius: radii.md,
-                backgroundColor: colors.candlelight,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <GoldStar size={40} />
-            </View>
-            <Title style={{ fontSize: 20 }}>Scan QR — soon</Title>
-            <Caption align="center" style={{ maxWidth: 280 }}>
-              QR scanning arrives with the mobile app. For now, use your invite code or node password.
-            </Caption>
+          <View style={{ gap: spacing.md }}>
+            <QrClaimScanner onCode={(c) => setCode(c)} />
+            <TextField
+              label="Paste invite link or code"
+              value={code}
+              onChangeText={onPasteLink}
+              placeholder="https://tomora.app/claim?code=…"
+              autoCapitalize="none"
+            />
           </View>
         ) : null}
 
         {note ? <Caption style={{ color: colors.deepUmber, fontSize: 14 }}>{note}</Caption> : null}
+        {!session && normalizedCode ? (
+          <Caption style={{ color: colors.ashTaupe }}>
+            Your invite code is saved. After you create an account, Tomora will claim your node automatically.
+          </Caption>
+        ) : null}
       </View>
     </ScreenContainer>
   );

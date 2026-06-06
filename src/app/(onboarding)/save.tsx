@@ -27,6 +27,9 @@ export default function Save() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmEmail, setConfirmEmail] = useState(false);
+  const [alreadyRegistered, setAlreadyRegistered] = useState(false);
+  const [resendBusy, setResendBusy] = useState(false);
+  const [resendNote, setResendNote] = useState<string | null>(null);
   const [oauthBusy, setOauthBusy] = useState<'google' | 'apple' | null>(null);
 
   const normalizedUsername = normalizeUsername(username);
@@ -51,8 +54,13 @@ export default function Save() {
     setError(null);
     setBusy(true);
     try {
-      const { needsEmailConfirmation } = await signUpAndStart(email, password, normalizedUsername);
+      const { needsEmailConfirmation, alreadyRegistered: existing } = await signUpAndStart(
+        email,
+        password,
+        normalizedUsername,
+      );
       if (needsEmailConfirmation) {
+        setAlreadyRegistered(!!existing);
         setConfirmEmail(true);
       } else {
         router.push('/(onboarding)/privacy');
@@ -65,22 +73,51 @@ export default function Save() {
     }
   };
 
+  const onResend = async () => {
+    setResendNote(null);
+    setResendBusy(true);
+    try {
+      await authService.resendEmailConfirmation(email);
+      setResendNote('Verification email sent. Check your inbox and spam folder.');
+    } catch (e: unknown) {
+      setResendNote(e instanceof Error ? e.message : 'Could not resend. Please try again in a little while.');
+    } finally {
+      setResendBusy(false);
+    }
+  };
+
   if (confirmEmail) {
     return (
-      <ScreenContainer center>
+      <ScreenContainer
+        center
+        footer={
+          <View style={{ gap: spacing.sm, width: '100%', maxWidth: 360 }}>
+            <Button
+              label={resendBusy ? 'Sending…' : 'Resend verification email'}
+              variant="gold"
+              disabled={resendBusy}
+              onPress={onResend}
+            />
+            <Button label="Back to sign in" variant="secondary" onPress={() => router.push('/login')} />
+          </View>
+        }
+      >
         <View style={{ alignItems: 'center', gap: spacing.lg }}>
           <GoldStar size={22} />
           <Display align="center" style={{ fontSize: 32 }}>
             Check your email.
           </Display>
           <Body align="center" style={{ maxWidth: 360, fontSize: 18 }}>
-            We sent a confirmation link to {email}. Confirm it and your Family Tree will be saved and waiting —
-            always with you.
+            {alreadyRegistered
+              ? `If ${email} is already registered, Tomora may not send another link automatically. Use Resend below, or try signing in.`
+              : `We sent a confirmation link to ${email}. Confirm it and your Family Tree will be saved and waiting — always with you.`}
           </Body>
           <LightDivider width={70} />
           <Caption align="center" style={{ maxWidth: 320 }}>
-            You can close this and come back any time. Your tree is kept safe until you confirm.
+            Check spam and promotions. If nothing arrives after resending, your Supabase project may need custom SMTP
+            (Authentication → SMTP) for production email delivery.
           </Caption>
+          {resendNote ? <Caption style={{ color: colors.deepUmber, textAlign: 'center' }}>{resendNote}</Caption> : null}
         </View>
       </ScreenContainer>
     );

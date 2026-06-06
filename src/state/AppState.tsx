@@ -74,7 +74,11 @@ interface AppStateValue {
   setDraft: (patch: Partial<OnboardingDraft>) => void;
 
   // auth + persistence
-  signUpAndStart: (email: string, password: string, username: string) => Promise<{ needsEmailConfirmation: boolean }>;
+  signUpAndStart: (
+    email: string,
+    password: string,
+    username: string,
+  ) => Promise<{ needsEmailConfirmation: boolean; alreadyRegistered?: boolean }>;
   signInAndLoad: (identifier: string, password: string) => Promise<void>;
   resetAll: () => Promise<void>;
 
@@ -413,7 +417,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       );
       if (!result.session) {
         // Email confirmation required — username is kept in draft until hydrate.
-        return { needsEmailConfirmation: true };
+        return { needsEmailConfirmation: true, alreadyRegistered: result.alreadyRegistered };
       }
       setSession(result.session);
       await loadForUser(result.session);

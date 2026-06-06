@@ -15,6 +15,28 @@ if (Platform.OS !== 'web') {
 export interface SignUpResult {
   session: Session | null;
   needsEmailConfirmation: boolean;
+  /** True when the email is already registered — no new confirmation is sent automatically. */
+  alreadyRegistered?: boolean;
+}
+
+function normalizeAuthEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+/** Turn Supabase auth errors into calm, actionable copy. */
+export function friendlyAuthError(error: unknown): string {
+  if (!(error instanceof Error)) return 'Something went wrong. Please try again.';
+  const msg = error.message.toLowerCase();
+  if (msg.includes('rate limit') || msg.includes('over_email_send_rate_limit')) {
+    return 'Too many verification emails were sent recently. Wait about an hour, then use Resend below — or check spam.';
+  }
+  if (msg.includes('error sending confirmation mail') || msg.includes('error sending confirmation email')) {
+    return 'Tomora could not send the verification email. Your Supabase project needs custom SMTP configured (see Supabase → Auth → SMTP).';
+  }
+  if (msg.includes('email address not authorized')) {
+    return 'This email address cannot receive messages from the default Supabase mailer. Set up custom SMTP in your Supabase project, or sign up with an email on your Supabase org team.';
+  }
+  return error.message;
 }
 
 /**
@@ -46,18 +68,23 @@ export async function signUpWithEmail(
   username: string,
   intent?: AuthCallbackIntent,
 ): Promise<SignUpResult> {
+  const normalizedEmail = normalizeAuthEmail(email);
   const { data, error } = await supabase.auth.signUp({
-    email: email.trim(),
+    email: normalizedEmail,
     password,
     options: {
       data: { username: username.toLowerCase() },
       emailRedirectTo: getEmailRedirectUrl(intent),
     },
   });
-  if (error) throw error;
+  if (error) throw new Error(friendlyAuthError(error));
+
+  const alreadyRegistered = Boolean(data.user && data.user.identities?.length === 0);
+
   return {
     session: data.session,
     needsEmailConfirmation: !data.session,
+    alreadyRegistered,
   };
 }
 
@@ -94,10 +121,10 @@ export function isEmailVerified(session: Session | null): boolean {
 export async function resendEmailConfirmation(email: string, intent?: AuthCallbackIntent): Promise<void> {
   const { error } = await supabase.auth.resend({
     type: 'signup',
-    email: email.trim(),
+    email: normalizeAuthEmail(email),
     options: { emailRedirectTo: getEmailRedirectUrl(intent) },
   });
-  if (error) throw error;
+  if (error) throw new Error(friendlyAuthError(error));
 }
 
 /** Re-fetch the user from Supabase to pick up a freshly-confirmed email. */

@@ -155,9 +155,10 @@ export function personNameSearchHaystack(name: PersonName): string {
     .toLowerCase();
 }
 
+/** @deprecated Use `resolveTreeNodeLabel` from `@/lib/nodeLabel` for tree labels. */
 export function displayNameForNode(node: Pick<import('@/types/models').FamilyNode, 'displayName' | 'profile'>): string {
   const formatted = formatPersonName(resolvePersonName(node.profile ?? {}, node.displayName));
-  return formatted || node.displayName;
+  return node.displayName?.trim() || formatted || 'Unknown';
 }
 
 // ---------------------------------------------------------------------------

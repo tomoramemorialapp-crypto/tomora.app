@@ -660,26 +660,31 @@ export function KinshipTreeCanvas({
           {searchResults.length === 0 ? (
             <Caption style={{ paddingHorizontal: spacing.xs, paddingVertical: spacing.xs }}>No matches.</Caption>
           ) : (
-            searchResults.map((n) => (
-              <Pressable
-                key={n.id}
-                onPress={() => onPickSearchResult(n.id)}
-                accessibilityRole="button"
-                style={({ pressed }) => ({
-                  paddingHorizontal: spacing.sm,
-                  paddingVertical: spacing.sm,
-                  borderRadius: radii.md,
-                  backgroundColor: pressed ? colors.mistBeige : 'transparent',
-                })}
-              >
-                <Caption style={{ color: colors.ink, fontSize: 15 }}>{n.displayName}</Caption>
-                {n.relationshipLabelFromAnchor ? (
-                  <Caption style={{ color: colors.deepUmber, fontSize: 12 }}>
-                    {n.relationshipLabelFromAnchor}
-                  </Caption>
-                ) : null}
-              </Pressable>
-            ))
+            searchResults.map((n) => {
+              const fullName = (n.metadata as { fullName?: string } | undefined)?.fullName;
+              return (
+                <Pressable
+                  key={n.id}
+                  onPress={() => onPickSearchResult(n.id)}
+                  accessibilityRole="button"
+                  style={({ pressed }) => ({
+                    paddingHorizontal: spacing.sm,
+                    paddingVertical: spacing.sm,
+                    borderRadius: radii.md,
+                    backgroundColor: pressed ? colors.mistBeige : 'transparent',
+                  })}
+                >
+                  <Caption style={{ color: colors.ink, fontSize: 15 }}>{n.displayName}</Caption>
+                  {fullName ? (
+                    <Caption style={{ color: colors.deepUmber, fontSize: 12 }}>{fullName}</Caption>
+                  ) : n.relationshipLabelFromAnchor ? (
+                    <Caption style={{ color: colors.deepUmber, fontSize: 12 }}>
+                      {n.relationshipLabelFromAnchor}
+                    </Caption>
+                  ) : null}
+                </Pressable>
+              );
+            })
           )}
         </View>
       ) : null}

@@ -2,6 +2,8 @@ import { Pressable, Text, View } from 'react-native';
 import { colors, fonts, shadows } from '@/constants/theme';
 import type { FamilyNode } from '@/types/models';
 import { NodeStatusBadge } from '@/components/ui/Badge';
+import { GoldStar } from '@/components/brand/GoldStar';
+import { resolveTreeNodeLabel } from '@/lib/nodeLabel';
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -32,7 +34,7 @@ export function FamilyNodeCircle({
   const memorial = node.status === 'memory_light' || node.status === 'memorial_pending' || node.isLiving === false;
   const awaiting = node.status === 'placeholder' || node.status === 'invited';
 
-  const ringColor = memorial ? colors.softGold : node.status === 'claimed' ? colors.guardianGold : colors.ashTaupe;
+  const ringColor = memorial ? colors.guardianGold : node.status === 'claimed' ? colors.guardianGold : colors.ashTaupe;
   const bg = memorial ? colors.candlelight : node.status === 'claimed' ? colors.paper : colors.mistBeige;
 
   const circle = (
@@ -50,9 +52,14 @@ export function FamilyNodeCircle({
             borderColor: ringColor,
             borderStyle: awaiting ? 'dashed' : 'solid',
           },
-          node.status === 'claimed' || memorial ? shadows.goldGlow : shadows.card,
+          memorial || node.status === 'claimed' ? shadows.goldGlow : shadows.card,
         ]}
       >
+        {memorial ? (
+          <View style={{ position: 'absolute', top: -6, right: -2 }}>
+            <GoldStar size={16} />
+          </View>
+        ) : null}
         <Text
           style={{
             fontFamily: fonts.display,
@@ -61,7 +68,7 @@ export function FamilyNodeCircle({
             fontWeight: '600',
           }}
         >
-          {initials(node.displayName)}
+          {initials(resolveTreeNodeLabel(node))}
         </Text>
       </View>
 
@@ -70,7 +77,7 @@ export function FamilyNodeCircle({
           numberOfLines={1}
           style={{ fontFamily: fonts.display, fontSize: 18, color: colors.ink, fontWeight: '600' }}
         >
-          {node.displayName}
+          {resolveTreeNodeLabel(node)}
         </Text>
       ) : null}
       {showBadge ? <NodeStatusBadge status={node.status} /> : null}

@@ -1,4 +1,5 @@
 import { parentRoleForLineage, parentLineageFromRelationshipType } from '@/lib/parentLineage';
+import { resolveTreeNodeFullName, resolveTreeNodeLabel } from '@/lib/nodeLabel';
 import { personNameSearchHaystack, resolvePersonName } from '@/lib/profile';
 import type {
   FamilyNode,
@@ -284,7 +285,7 @@ export function buildKinshipGraphFromApp(params: {
       id: n.id,
       familyTreeId: n.familyTreeId,
       accountId: n.ownerAccountId,
-      displayName: n.displayName,
+      displayName: resolveTreeNodeLabel(n),
       nodeType: nodeTypeFor(n, petIds.has(n.id)),
       status: mapStatus(n.status),
       birthDate: n.birthDate,
@@ -299,6 +300,7 @@ export function buildKinshipGraphFromApp(params: {
         firstName: personName.firstName?.trim() || undefined,
         surname: surname || undefined,
         nameSearch: personNameSearchHaystack(personName),
+        fullName: resolveTreeNodeFullName(n),
       },
     };
   });

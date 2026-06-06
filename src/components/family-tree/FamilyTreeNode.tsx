@@ -5,6 +5,7 @@ import { GoldStar } from '@/components/brand/GoldStar';
 import { NODE_RADIUS } from '@/lib/kinship/constants';
 import { useMediaUri } from '@/lib/mediaUri';
 import type { RenderNode } from '@/lib/kinship/types';
+import { isMemorialRenderNode } from './nodeVisuals';
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -34,8 +35,7 @@ export function FamilyTreeNode({
   const isSyntheticPlaceholder = node.nodeType === 'placeholder';
   const isUnclaimed = node.status === 'placeholder' && !isSyntheticPlaceholder;
   const isPlaceholder = isSyntheticPlaceholder || isUnclaimed;
-  const isMemorial =
-    node.nodeType === 'deceased' || node.status === 'memory_light' || node.status === 'memorial_pending';
+  const isMemorial = isMemorialRenderNode(node);
   const isPet = node.nodeType === 'pet';
   const isClaimed = node.status === 'claimed' || isAnchor;
   const avatarUri = useMediaUri((node.metadata?.avatarUrl as string | undefined) ?? undefined);
@@ -43,7 +43,7 @@ export function FamilyTreeNode({
   const ringColor = isPlaceholder
     ? colors.ashTaupe
     : isMemorial
-      ? colors.softGold
+      ? colors.guardianGold
       : isClaimed
         ? colors.guardianGold
         : colors.ashTaupe;
@@ -76,11 +76,15 @@ export function FamilyTreeNode({
             opacity: isSyntheticPlaceholder ? 0.8 : 1,
             overflow: 'hidden',
           },
-          isClaimed || isMemorial || selected ? shadows.goldGlow : shadows.card,
+          isMemorial || isClaimed || selected ? shadows.goldGlow : shadows.card,
         ]}
       >
         {avatarUri && !isSyntheticPlaceholder ? (
-          <Image source={{ uri: avatarUri }} style={{ width: size, height: size }} contentFit="cover" />
+          <Image
+            source={{ uri: avatarUri }}
+            style={{ width: size, height: size, opacity: isMemorial ? 0.78 : 1 }}
+            contentFit="cover"
+          />
         ) : (
           <Text
             style={{

@@ -18,6 +18,8 @@ export interface CreateMemoryInput {
   mediaUrl?: string;
   /** One or more uploaded media items (photos, videos, audio, files). */
   media?: MemoryMediaItem[];
+  /** Family members tagged in this memory. */
+  taggedNodeIds?: string[];
   visibility: VisibilityLevel;
 }
 
@@ -38,6 +40,7 @@ export async function createMemory(input: CreateMemoryInput): Promise<Memory> {
       caption: input.caption?.trim() || null,
       media_url: input.mediaUrl?.trim() || null,
       media: media as unknown as Json,
+      tagged_node_ids: input.taggedNodeIds ?? [],
       // Keep legacy single columns populated from the first item for back-compat.
       storage_path: first?.storagePath ?? null,
       media_size_bytes: totalBytes || null,
@@ -68,15 +71,17 @@ export interface UpdateMemoryInput {
   title?: string;
   body?: string;
   caption?: string;
+  taggedNodeIds?: string[];
   visibility?: VisibilityLevel;
 }
 
-/** Edit an existing memory's title, story/caption, or visibility. */
+/** Edit an existing memory's title, story/caption, tags, or visibility. */
 export async function updateMemory(input: UpdateMemoryInput): Promise<Memory> {
   const patch: TablesUpdate<'memories'> = { updated_at: new Date().toISOString() };
   if (input.title !== undefined) patch.title = input.title.trim() || null;
   if (input.body !== undefined) patch.body = input.body.trim() || null;
   if (input.caption !== undefined) patch.caption = input.caption.trim() || null;
+  if (input.taggedNodeIds !== undefined) patch.tagged_node_ids = input.taggedNodeIds;
   if (input.visibility !== undefined) patch.visibility = input.visibility;
 
   const { data, error } = await supabase

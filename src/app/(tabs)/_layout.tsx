@@ -76,6 +76,22 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, focused }) => <Dot color={color} active={focused} />,
         }}
       />
+
+      {/* Detail routes — kept inside the tab navigator so the bottom tab bar
+          stays visible, but hidden from the tab bar itself via href: null. */}
+      <Tabs.Screen name="notifications" options={{ href: null }} />
+      <Tabs.Screen name="node/[nodeId]" options={{ href: null }} />
+      <Tabs.Screen name="node/edit" options={{ href: null }} />
+      <Tabs.Screen name="node/history" options={{ href: null }} />
+      <Tabs.Screen name="node/invite" options={{ href: null }} />
+      <Tabs.Screen name="memory/new" options={{ href: null }} />
+      <Tabs.Screen name="memory/[memoryId]" options={{ href: null }} />
+      <Tabs.Screen name="memorial/[nodeId]" options={{ href: null }} />
+      <Tabs.Screen name="memorial/edit" options={{ href: null }} />
+      <Tabs.Screen name="relative/new" options={{ href: null }} />
+      <Tabs.Screen name="settings/account" options={{ href: null }} />
+      <Tabs.Screen name="settings/billing" options={{ href: null }} />
+      <Tabs.Screen name="settings/delete" options={{ href: null }} />
     </Tabs>
   );
 }

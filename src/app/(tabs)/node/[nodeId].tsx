@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge, NodeStatusBadge, VisibilityBadge } from '@/components/ui/Badge';
 import { MemoryCard } from '@/components/memories/MemoryCard';
+import { PassingControl } from '@/components/profile/PassingControl';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Body, Caption, Display } from '@/components/ui/Typography';
@@ -167,6 +168,9 @@ export default function LifeProfile() {
         </Body>
       </Card>
 
+      {/* Passing / Memorial */}
+      <PassingControl node={node} canEdit={canEdit} />
+
       {/* Relationships */}
       <Card style={{ marginBottom: spacing.lg }}>
         <SectionHeader title="Relationships" />
@@ -191,8 +195,8 @@ export default function LifeProfile() {
               <MemoryCard
                 key={m.id}
                 memory={m}
-                editable={m.createdByAccountId === account?.id}
-                onEdit={() => router.push({ pathname: '/memory/new', params: { memoryId: m.id } })}
+                getNodeName={(id) => getNode(id)?.displayName}
+                onOpen={() => router.push({ pathname: '/memory/[memoryId]', params: { memoryId: m.id } })}
               />
             ))}
           </View>

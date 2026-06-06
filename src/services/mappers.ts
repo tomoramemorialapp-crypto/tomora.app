@@ -3,6 +3,11 @@ import type {
   FamilyTree,
   FamilyNode,
   Memory,
+  MemorialPrivacy,
+  MemorialRequest,
+  MemorialRequestStatus,
+  Notification,
+  NotificationType,
   Relationship,
   NodeStatus,
   RelationshipStatus,
@@ -73,6 +78,13 @@ export function mapNode(row: Tables<'nodes'>): FamilyNode {
     tags: row.tags ?? [],
     inviteCode: row.invite_code ?? undefined,
     claimPassword: row.claim_password ?? undefined,
+    alternateNames: row.alternate_names ?? [],
+    memorialBannerUrl: row.memorial_banner_url ?? undefined,
+    memorialBio: row.memorial_bio ?? undefined,
+    memorialTitle: row.memorial_title ?? undefined,
+    memorialLinkLabel: row.memorial_link_label ?? undefined,
+    memorialLinkUrl: row.memorial_link_url ?? undefined,
+    memorialPrivacy: (row.memorial_privacy as MemorialPrivacy) ?? 'family',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -139,11 +151,43 @@ export function mapMemory(row: Tables<'memories'>): Memory {
     caption: row.caption ?? undefined,
     mediaUrl: row.media_url ?? undefined,
     media: Array.isArray(row.media) ? (row.media as unknown as Memory['media']) : [],
+    taggedNodeIds: row.tagged_node_ids ?? [],
     storagePath: row.storage_path ?? undefined,
     mediaSizeBytes: row.media_size_bytes ?? undefined,
     mediaMime: row.media_mime ?? undefined,
     visibility: row.visibility as VisibilityLevel,
     approvalStatus: row.approval_status as ApprovalStatus,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function mapNotification(row: Tables<'notifications'>): Notification {
+  return {
+    id: row.id,
+    familyTreeId: row.family_tree_id,
+    recipientAccountId: row.recipient_account_id,
+    actorAccountId: row.actor_account_id ?? undefined,
+    type: row.type as NotificationType,
+    title: row.title,
+    body: row.body ?? undefined,
+    nodeId: row.node_id ?? undefined,
+    data: (row.data as Record<string, unknown>) ?? {},
+    isRead: row.is_read,
+    createdAt: row.created_at,
+  };
+}
+
+export function mapMemorialRequest(row: Tables<'memorial_requests'>): MemorialRequest {
+  return {
+    id: row.id,
+    nodeId: row.node_id,
+    familyTreeId: row.family_tree_id,
+    requestedByAccountId: row.requested_by_account_id,
+    status: row.status as MemorialRequestStatus,
+    deathDate: row.death_date ?? undefined,
+    reason: row.reason ?? undefined,
+    resolveAfter: row.resolve_after,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

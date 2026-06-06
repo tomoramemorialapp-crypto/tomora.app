@@ -126,9 +126,22 @@ export interface FamilyNode {
   inviteCode?: string;
   /** Optional claim password the inviter set on an unclaimed node. */
   claimPassword?: string;
+  /** Other names this person was known by (shown on the memorial page). */
+  alternateNames: string[];
+  /** Memorial / tribute page fields (used once the node is a Memory Light). */
+  memorialBannerUrl?: string;
+  memorialBio?: string;
+  memorialTitle?: string;
+  memorialLinkLabel?: string;
+  memorialLinkUrl?: string;
+  /** Who can view the shareable memorial page. */
+  memorialPrivacy: MemorialPrivacy;
   createdAt: string;
   updatedAt: string;
 }
+
+/** Visibility of the shareable memorial/tribute page. */
+export type MemorialPrivacy = 'family' | 'semi' | 'public';
 
 export interface Relationship {
   id: string;
@@ -168,6 +181,8 @@ export interface Memory {
   mediaUrl?: string;
   /** Multiple uploaded media items (photos, videos, audio, files). */
   media: MemoryMediaItem[];
+  /** Family members tagged in this memory (each links to a Life Profile). */
+  taggedNodeIds: string[];
   /** Legacy single-file path (kept for back-compat with older memories). */
   storagePath?: string;
   /** Total uploaded media bytes across this memory (used by the storage tracker). */
@@ -176,6 +191,47 @@ export interface Memory {
   mediaMime?: string;
   visibility: VisibilityLevel;
   approvalStatus: ApprovalStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type NotificationType =
+  | 'new_member'
+  | 'invite'
+  | 'request'
+  | 'suggested_edit'
+  | 'dispute'
+  | 'access'
+  | 'memorial_pending'
+  | 'memorial_created'
+  | 'memorial_disputed'
+  | 'system';
+
+export interface Notification {
+  id: string;
+  familyTreeId: string;
+  recipientAccountId: string;
+  actorAccountId?: string;
+  type: NotificationType;
+  title: string;
+  body?: string;
+  nodeId?: string;
+  data: Record<string, unknown>;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export type MemorialRequestStatus = 'pending' | 'finalized' | 'disputed' | 'cancelled';
+
+export interface MemorialRequest {
+  id: string;
+  nodeId: string;
+  familyTreeId: string;
+  requestedByAccountId: string;
+  status: MemorialRequestStatus;
+  deathDate?: string;
+  reason?: string;
+  resolveAfter: string;
   createdAt: string;
   updatedAt: string;
 }

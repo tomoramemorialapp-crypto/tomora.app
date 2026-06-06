@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { Card } from '@/components/ui/Card';
@@ -11,7 +11,6 @@ import { Body, Caption, Display, Title } from '@/components/ui/Typography';
 import { colors, radii, spacing } from '@/constants/theme';
 import { useAppState } from '@/state/AppState';
 import type { Memory } from '@/types/models';
-import type { ProfileChangeLog } from '@/types/profile';
 import { getUpcomingEvents, whenLabel, type UpcomingEvent } from '@/lib/occasions';
 
 function timeAgo(iso: string): string {
@@ -32,54 +31,39 @@ const EVENT_EMOJI: Record<UpcomingEvent['kind'], string> = {
   holiday: '✦',
 };
 
-type FeedItem =
-  | { id: string; at: string; type: 'memory'; memory: Memory }
-  | { id: string; at: string; type: 'change'; log: ProfileChangeLog }
-  | { id: string; at: string; type: 'member'; nodeId: string };
-
 export default function Home() {
   const router = useRouter();
-  const { account, nodes, memories, getNode, fetchTreeChangeLog } = useAppState();
-  const [changeLog, setChangeLog] = useState<ProfileChangeLog[]>([]);
-
-  useFocusEffect(
-    useCallback(() => {
-      let alive = true;
-      fetchTreeChangeLog().then((rows) => alive && setChangeLog(rows));
-      return () => {
-        alive = false;
-      };
-    }, [fetchTreeChangeLog]),
-  );
+  const { account, nodes, memories, getNode, unreadNotificationCount } = useAppState();
 
   const events = useMemo(() => getUpcomingEvents(nodes, { withinDays: 120 }).slice(0, 6), [nodes]);
 
-  const feed = useMemo<FeedItem[]>(() => {
-    const items: FeedItem[] = [];
-    for (const m of memories) items.push({ id: `m-${m.id}`, at: m.createdAt, type: 'memory', memory: m });
-    for (const l of changeLog) items.push({ id: `c-${l.id}`, at: l.createdAt, type: 'change', log: l });
-    // Recently added family members (last 45 days), excluding the self node.
-    const cutoff = Date.now() - 45 * 24 * 60 * 60 * 1000;
-    for (const n of nodes) {
-      if (n.ownerAccountId === account?.id) continue;
-      if (new Date(n.createdAt).getTime() >= cutoff) {
-        items.push({ id: `n-${n.id}`, at: n.createdAt, type: 'member', nodeId: n.id });
-      }
-    }
-    return items.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()).slice(0, 30);
-  }, [memories, changeLog, nodes, account?.id]);
+  // The feed is memories only; updates (changes, invites, requests, disputes,
+  // new members) live in the Notifications tab.
+  const feed = useMemo<Memory[]>(
+    () =>
+      [...memories]
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 40),
+    [memories],
+  );
 
   const firstName = (account?.displayName ?? 'there').split(' ')[0];
 
   return (
     <ScreenContainer maxWidth={640}>
-      <View style={{ gap: spacing.xs, marginBottom: spacing.lg }}>
-        <Caption style={{ textTransform: 'uppercase', letterSpacing: 1.6 }}>Welcome back</Caption>
-        <Display style={{ fontSize: 34 }}>Hello, {firstName}</Display>
-        <Body style={{ fontSize: 17, color: colors.deepUmber }}>Here's what's happening across your family.</Body>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg }}>
+        <View style={{ gap: spacing.xs, flex: 1 }}>
+          <Caption style={{ textTransform: 'uppercase', letterSpacing: 1.6 }}>Welcome back</Caption>
+          <Display style={{ fontSize: 34 }}>Hello, {firstName}</Display>
+          <Body style={{ fontSize: 17, color: colors.deepUmber }}>Here's what's happening across your family.</Body>
+        </View>
+        <NotificationBell
+          count={unreadNotificationCount}
+          onPress={() => router.push('/notifications')}
+        />
       </View>
 
-      {/* Upcoming */}
+      {/* Upcoming occasions */}
       {events.length > 0 ? (
         <View style={{ marginBottom: spacing.lg }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
@@ -115,7 +99,7 @@ export default function Home() {
         </View>
       ) : null}
 
-      {/* For You feed */}
+      {/* Memories feed */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
         <Title>For you</Title>
         <GoldStar size={14} />
@@ -125,9 +109,7 @@ export default function Home() {
         <Card>
           <View style={{ gap: spacing.sm }}>
             <Title>Your feed is just beginning</Title>
-            <Body>
-              As your family adds memories, updates profiles, and joins their nodes, you'll see it gather here.
-            </Body>
+            <Body>As your family shares memories, they'll gather here for you.</Body>
             <Pressable onPress={() => router.push('/(tabs)/family-tree')} hitSlop={8}>
               <Caption style={{ color: colors.guardianGold, fontWeight: '700' }}>Open your Family Tree ›</Caption>
             </Pressable>
@@ -135,14 +117,60 @@ export default function Home() {
         </Card>
       ) : (
         <View style={{ gap: spacing.md }}>
-          {feed.map((item) => {
-            if (item.type === 'memory') return <MemoryFeedCard key={item.id} memory={item.memory} getNode={getNode} onOpen={(id) => router.push({ pathname: '/node/[nodeId]', params: { nodeId: id } })} />;
-            if (item.type === 'change') return <ChangeFeedCard key={item.id} log={item.log} getNode={getNode} onOpen={(id) => router.push({ pathname: '/node/[nodeId]', params: { nodeId: id } })} />;
-            return <MemberFeedCard key={item.id} nodeId={item.nodeId} getNode={getNode} onOpen={(id) => router.push({ pathname: '/node/[nodeId]', params: { nodeId: id } })} />;
-          })}
+          {feed.map((memory) => (
+            <MemoryFeedCard
+              key={memory.id}
+              memory={memory}
+              getNode={getNode}
+              onOpen={() => router.push({ pathname: '/memory/[memoryId]', params: { memoryId: memory.id } })}
+            />
+          ))}
         </View>
       )}
     </ScreenContainer>
+  );
+}
+
+function NotificationBell({ count, onPress }: { count: number; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Notifications${count > 0 ? `, ${count} unread` : ''}`}
+      hitSlop={8}
+      style={{
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: colors.paper,
+        borderWidth: 1,
+        borderColor: colors.hairline,
+      }}
+    >
+      <Body style={{ fontSize: 20 }}>🔔</Body>
+      {count > 0 ? (
+        <View
+          style={{
+            position: 'absolute',
+            top: 2,
+            right: 2,
+            minWidth: 18,
+            height: 18,
+            paddingHorizontal: 4,
+            borderRadius: 9,
+            backgroundColor: colors.guardianGold,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Caption style={{ color: colors.white, fontSize: 10, fontWeight: '800' }}>
+            {count > 9 ? '9+' : count}
+          </Caption>
+        </View>
+      ) : null}
+    </Pressable>
   );
 }
 
@@ -186,7 +214,7 @@ function MemoryFeedCard({
 }: {
   memory: Memory;
   getNode: (id: string) => ReturnType<typeof useAppState>['nodes'][number] | undefined;
-  onOpen: (id: string) => void;
+  onOpen: () => void;
 }) {
   const node = memory.nodeId ? getNode(memory.nodeId) : undefined;
   return (
@@ -196,69 +224,12 @@ function MemoryFeedCard({
       uri={node?.profile?.profilePhoto?.value ?? node?.avatarUrl}
       heading={node ? `New memory for ${node.displayName}` : 'A new memory'}
       time={timeAgo(memory.createdAt)}
-      onPress={node ? () => onOpen(node.id) : undefined}
+      onPress={onOpen}
     >
       {memory.title ? <Body style={{ fontWeight: '600' }}>{memory.title}</Body> : null}
       {memory.body ? <Body numberOfLines={3} style={{ color: colors.deepUmber }}>{memory.body}</Body> : null}
+      {memory.caption ? <Body numberOfLines={2} style={{ color: colors.deepUmber }}>{memory.caption}</Body> : null}
       <Badge label={memory.type === 'text' ? 'Story' : memory.type[0].toUpperCase() + memory.type.slice(1)} tone="soft" />
-    </FeedShell>
-  );
-}
-
-const CHANGE_TEXT: Partial<Record<ProfileChangeLog['action'], string>> = {
-  field_updated: 'updated the profile',
-  field_visibility_changed: 'changed who can see a detail',
-  tags_updated: 'updated family tags',
-  suggested_edit_submitted: 'suggested a change',
-  suggested_edit_approved: 'approved a suggested change',
-};
-
-function ChangeFeedCard({
-  log,
-  getNode,
-  onOpen,
-}: {
-  log: ProfileChangeLog;
-  getNode: (id: string) => ReturnType<typeof useAppState>['nodes'][number] | undefined;
-  onOpen: (id: string) => void;
-}) {
-  const node = getNode(log.targetNodeId);
-  const what = CHANGE_TEXT[log.action] ?? 'made an update';
-  return (
-    <FeedShell
-      avatarName={node?.displayName ?? 'Family'}
-      memorial={node?.isLiving === false}
-      uri={node?.profile?.profilePhoto?.value ?? node?.avatarUrl}
-      heading={node ? `${node.displayName}'s profile was updated` : 'A profile was updated'}
-      time={timeAgo(log.createdAt)}
-      onPress={node ? () => onOpen(node.id) : undefined}
-    >
-      <Body style={{ color: colors.deepUmber }}>Someone {what} in your Family Tree.</Body>
-    </FeedShell>
-  );
-}
-
-function MemberFeedCard({
-  nodeId,
-  getNode,
-  onOpen,
-}: {
-  nodeId: string;
-  getNode: (id: string) => ReturnType<typeof useAppState>['nodes'][number] | undefined;
-  onOpen: (id: string) => void;
-}) {
-  const node = getNode(nodeId);
-  if (!node) return null;
-  return (
-    <FeedShell
-      avatarName={node.displayName}
-      memorial={node.isLiving === false}
-      uri={node.profile?.profilePhoto?.value ?? node.avatarUrl}
-      heading={`${node.displayName} joined your Family Tree`}
-      time={timeAgo(node.createdAt)}
-      onPress={() => onOpen(node.id)}
-    >
-      <Body style={{ color: colors.deepUmber }}>A new light was added to your tree.</Body>
     </FeedShell>
   );
 }

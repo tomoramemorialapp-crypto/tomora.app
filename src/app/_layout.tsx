@@ -26,24 +26,6 @@ export default function RootLayout() {
             <Stack.Screen name="login" />
             <Stack.Screen name="(onboarding)" />
             <Stack.Screen name="(tabs)" />
-            <Stack.Screen
-              name="memory/new"
-              options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
-            />
-            <Stack.Screen
-              name="relative/new"
-              options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
-            />
-            <Stack.Screen name="node/[nodeId]" />
-            <Stack.Screen name="node/edit" />
-            <Stack.Screen name="node/history" />
-            <Stack.Screen name="node/invite" />
-            <Stack.Screen name="settings/account" />
-            <Stack.Screen name="settings/billing" />
-            <Stack.Screen
-              name="settings/delete"
-              options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
-            />
           </Stack>
         </AppStateProvider>
       </SafeAreaProvider>

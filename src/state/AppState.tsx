@@ -14,9 +14,11 @@ import type {
   Account,
   FamilyTree,
   FamilyNode,
+  MemorialRequest,
   Memory,
   MemoryMediaItem,
   MemoryType,
+  Notification,
   Relationship,
   RelationshipType,
   VisibilityLevel,
@@ -29,9 +31,12 @@ import * as memoryService from '@/services/memoryService';
 import * as profileService from '@/services/profileService';
 import * as accountService from '@/services/accountService';
 import * as inviteService from '@/services/inviteService';
+import * as notificationService from '@/services/notificationService';
+import * as memorialService from '@/services/memorialService';
 import type { NodeInvite } from '@/services/inviteService';
 import type { AccountSettingsPatch } from '@/services/accountService';
 import type { ChangeLogEntryInput } from '@/services/profileService';
+import type { MemorialPagePatch, RequestPassingResult } from '@/services/memorialService';
 
 interface OnboardingDraft {
   selfName: string;
@@ -49,6 +54,8 @@ interface AppStateValue {
   relationships: Relationship[];
   memories: Memory[];
   suggestedEdits: SuggestedEdit[];
+  notifications: Notification[];
+  unreadNotificationCount: number;
   isOnboarded: boolean;
   draft: OnboardingDraft;
 
@@ -145,6 +152,7 @@ interface AppStateValue {
     caption?: string;
     mediaUrl?: string;
     media?: MemoryMediaItem[];
+    taggedNodeIds?: string[];
     visibility: VisibilityLevel;
   }) => Promise<Memory>;
 
@@ -153,10 +161,23 @@ interface AppStateValue {
     title?: string;
     body?: string;
     caption?: string;
+    taggedNodeIds?: string[];
     visibility?: VisibilityLevel;
   }) => Promise<Memory>;
 
   deleteMemory: (id: string) => Promise<void>;
+
+  // notifications
+  refreshNotifications: () => Promise<void>;
+  markNotificationRead: (id: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
+
+  // memorial / passing lifecycle
+  requestPassing: (input: { nodeId: string; deathDate?: string; reason?: string }) => Promise<RequestPassingResult>;
+  finalizeMemorial: (requestId: string) => Promise<void>;
+  disputeMemorial: (requestId: string, reason?: string) => Promise<void>;
+  fetchMemorialRequestForNode: (nodeId: string) => Promise<MemorialRequest | null>;
+  updateMemorialPage: (nodeId: string, patch: MemorialPagePatch) => Promise<FamilyNode>;
 
   /** Total bytes of media this account has uploaded (for the storage tracker). */
   mediaUsageBytes: number;
@@ -216,6 +237,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [relationships, setRelationships] = useState<Relationship[]>([]);
   const [memories, setMemories] = useState<Memory[]>([]);
   const [suggestedEdits, setSuggestedEdits] = useState<SuggestedEdit[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [draft, setDraftState] = useState<OnboardingDraft>(() => loadStoredDraft());
   const draftRef = useRef(draft);
   draftRef.current = draft;
@@ -227,6 +249,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setRelationships([]);
       setMemories([]);
       setSuggestedEdits([]);
+      setNotifications([]);
       return;
     }
     setTree(bundle.tree);
@@ -257,6 +280,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         clearStoredDraft();
       }
       applyBundle(bundle);
+      try {
+        setNotifications(await notificationService.fetchNotifications(userId));
+      } catch (e) {
+        console.warn('[tomora] notifications load failed', e);
+        setNotifications([]);
+      }
     },
     [applyBundle],
   );
@@ -332,6 +361,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setRelationships([]);
     setMemories([]);
     setSuggestedEdits([]);
+    setNotifications([]);
     setDraftState(emptyDraft);
   }, []);
 
@@ -561,6 +591,61 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     [memories],
   );
 
+  const refreshNotifications = useCallback<AppStateValue['refreshNotifications']>(async () => {
+    if (!account) return;
+    setNotifications(await notificationService.fetchNotifications(account.id));
+  }, [account]);
+
+  const markNotificationRead = useCallback<AppStateValue['markNotificationRead']>(async (id) => {
+    await notificationService.markNotificationRead(id);
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+  }, []);
+
+  const markAllNotificationsRead = useCallback<AppStateValue['markAllNotificationsRead']>(async () => {
+    if (!account) return;
+    await notificationService.markAllNotificationsRead(account.id);
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+  }, [account]);
+
+  const requestPassing = useCallback<AppStateValue['requestPassing']>(
+    async (input) => {
+      const result = await memorialService.requestPassing(input);
+      if (session) await loadForUser(session);
+      return result;
+    },
+    [session, loadForUser],
+  );
+
+  const finalizeMemorial = useCallback<AppStateValue['finalizeMemorial']>(
+    async (requestId) => {
+      await memorialService.finalizeMemorial(requestId);
+      if (session) await loadForUser(session);
+    },
+    [session, loadForUser],
+  );
+
+  const disputeMemorial = useCallback<AppStateValue['disputeMemorial']>(
+    async (requestId, reason) => {
+      await memorialService.disputeMemorial(requestId, reason);
+      if (session) await loadForUser(session);
+    },
+    [session, loadForUser],
+  );
+
+  const fetchMemorialRequestForNode = useCallback<AppStateValue['fetchMemorialRequestForNode']>(
+    (nodeId) => memorialService.fetchMemorialRequestForNode(nodeId),
+    [],
+  );
+
+  const updateMemorialPage = useCallback<AppStateValue['updateMemorialPage']>(
+    async (nodeId, patch) => {
+      const updated = await memorialService.updateMemorialPage(nodeId, patch);
+      setNodes((prev) => prev.map((n) => (n.id === nodeId ? updated : n)));
+      return updated;
+    },
+    [],
+  );
+
   const mediaUsageBytes = useMemo(
     () =>
       memories.reduce(
@@ -568,6 +653,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         0,
       ),
     [memories, account?.id],
+  );
+
+  const unreadNotificationCount = useMemo(
+    () => notifications.filter((n) => !n.isRead).length,
+    [notifications],
   );
 
   const getNode = useCallback((id: string) => nodes.find((n) => n.id === id), [nodes]);
@@ -595,6 +685,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       relationships,
       memories,
       suggestedEdits,
+      notifications,
+      unreadNotificationCount,
       isOnboarded: !!session && !!tree,
       draft,
       setDraft,
@@ -625,6 +717,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       createMemory,
       updateMemory,
       deleteMemory,
+      refreshNotifications,
+      markNotificationRead,
+      markAllNotificationsRead,
+      requestPassing,
+      finalizeMemorial,
+      disputeMemorial,
+      fetchMemorialRequestForNode,
+      updateMemorialPage,
       mediaUsageBytes,
       getNode,
       getMemory,
@@ -641,6 +741,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       relationships,
       memories,
       suggestedEdits,
+      notifications,
+      unreadNotificationCount,
       draft,
       setDraft,
       signUpAndStart,
@@ -670,6 +772,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       createMemory,
       updateMemory,
       deleteMemory,
+      refreshNotifications,
+      markNotificationRead,
+      markAllNotificationsRead,
+      requestPassing,
+      finalizeMemorial,
+      disputeMemorial,
+      fetchMemorialRequestForNode,
+      updateMemorialPage,
       mediaUsageBytes,
       getNode,
       getMemory,

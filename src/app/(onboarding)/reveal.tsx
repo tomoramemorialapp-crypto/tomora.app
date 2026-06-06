@@ -29,6 +29,8 @@ export default function Reveal() {
       defaultVisibility: 'family_tree',
       profile: {},
       tags: [],
+      alternateNames: [],
+      memorialPrivacy: 'family',
       createdAt: now,
       updatedAt: now,
     };
@@ -41,6 +43,8 @@ export default function Reveal() {
       defaultVisibility: 'family_tree',
       profile: {},
       tags: [],
+      alternateNames: [],
+      memorialPrivacy: 'family',
       createdAt: now,
       updatedAt: now,
     };

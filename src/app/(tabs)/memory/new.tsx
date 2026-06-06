@@ -64,7 +64,11 @@ export default function NewMemory() {
   const [files, setFiles] = useState<PickedFile[]>([]);
   const [pickError, setPickError] = useState<string | null>(null);
   const [visibility, setVisibility] = useState<VisibilityLevel>(editing?.visibility ?? 'private');
+  const [taggedIds, setTaggedIds] = useState<string[]>(editing?.taggedNodeIds ?? []);
   const [busy, setBusy] = useState(false);
+
+  const toggleTag = (id: string) =>
+    setTaggedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const mediaBytes = sumBytes(files);
 
@@ -107,15 +111,15 @@ export default function NewMemory() {
     setBusy(true);
     try {
       if (editing) {
-        await updateMemory({ id: editing.id, title, body, caption, visibility });
+        await updateMemory({ id: editing.id, title, body, caption, taggedNodeIds: taggedIds, visibility });
         router.back();
         return;
       }
 
       if (mode === 'text') {
-        await createMemory({ nodeId: targetNode.id, type: 'text', title, body, visibility });
+        await createMemory({ nodeId: targetNode.id, type: 'text', title, body, taggedNodeIds: taggedIds, visibility });
       } else if (mode === 'link') {
-        await createMemory({ nodeId: targetNode.id, type: 'link', title, caption, mediaUrl: link, visibility });
+        await createMemory({ nodeId: targetNode.id, type: 'link', title, caption, mediaUrl: link, taggedNodeIds: taggedIds, visibility });
       } else {
         const uploaded: MemoryMediaItem[] = [];
         for (const f of files) {
@@ -123,7 +127,7 @@ export default function NewMemory() {
           uploaded.push({ storagePath: u.storagePath, sizeBytes: u.sizeBytes, mime: u.mime, kind: f.kind, name: f.name });
         }
         const primaryType: MemoryType = memoryTypeForKind(files[0]?.kind ?? 'photo');
-        await createMemory({ nodeId: targetNode.id, type: primaryType, title, caption, media: uploaded, visibility });
+        await createMemory({ nodeId: targetNode.id, type: primaryType, title, caption, media: uploaded, taggedNodeIds: taggedIds, visibility });
       }
       router.back();
     } catch (e) {
@@ -375,6 +379,40 @@ export default function NewMemory() {
             ))}
           </Card>
         ) : null}
+
+        {/* Tag family members */}
+        <View style={{ gap: spacing.sm }}>
+          <Body style={{ fontWeight: '600' }}>Tag family members (optional)</Body>
+          <Caption style={{ color: colors.ashTaupe }}>
+            Tagged people are linked from this memory to their Life Profile.
+          </Caption>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+            {nodes
+              .filter((n) => n.id !== recipientId)
+              .map((n) => {
+                const active = taggedIds.includes(n.id);
+                return (
+                  <Pressable
+                    key={n.id}
+                    onPress={() => toggleTag(n.id)}
+                    style={{
+                      paddingVertical: 8,
+                      paddingHorizontal: 14,
+                      borderRadius: radii.pill,
+                      borderWidth: 1.5,
+                      borderColor: active ? colors.guardianGold : colors.mistBeige,
+                      backgroundColor: active ? 'rgba(184,135,47,0.12)' : colors.white,
+                    }}
+                  >
+                    <Body style={{ fontSize: 14, color: active ? colors.guardianGold : colors.ink }}>
+                      {active ? '✓ ' : ''}
+                      {n.displayName}
+                    </Body>
+                  </Pressable>
+                );
+              })}
+          </View>
+        </View>
 
         <MemoryVisibilitySelector value={visibility} onChange={setVisibility} />
         <Caption style={{ color: colors.ashTaupe }}>

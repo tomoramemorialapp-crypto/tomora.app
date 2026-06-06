@@ -86,7 +86,7 @@ const CLAIM_ERRORS: Record<string, string> = {
 export async function claimNode(code: string, password?: string): Promise<ClaimResult> {
   const { data, error } = await supabase.rpc('claim_node', {
     p_code: code.trim().toUpperCase(),
-    p_password: password?.trim() ? password.trim() : null,
+    p_password: password?.trim() ? password.trim() : undefined,
   });
   if (error) {
     const key = Object.keys(CLAIM_ERRORS).find((k) => error.message.includes(k));

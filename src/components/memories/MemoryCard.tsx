@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Linking, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Image } from 'expo-image';
 
 import { colors, radii, spacing } from '@/constants/theme';
@@ -18,7 +18,6 @@ function formatDate(iso: string): string {
   }
 }
 
-/** Resolve a private storage object to a temporary signed URL. */
 function useSignedUrl(storagePath?: string): string | null {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
@@ -37,8 +36,8 @@ function useSignedUrl(storagePath?: string): string | null {
   return url;
 }
 
-/** Render a single stored media item (photo inline, others as an openable row). */
-function MediaItemView({ item }: { item: MemoryMediaItem }) {
+/** A non-interactive preview of a stored media item (the whole card handles taps). */
+function MediaItemPreview({ item }: { item: MemoryMediaItem }) {
   const signed = useSignedUrl(item.storagePath);
 
   if (item.kind === 'photo' && signed) {
@@ -52,10 +51,10 @@ function MediaItemView({ item }: { item: MemoryMediaItem }) {
     );
   }
 
-  const label = item.kind === 'video' ? 'Video' : item.kind === 'audio' ? 'Audio' : item.kind === 'photo' ? 'Photo' : 'File';
+  const label =
+    item.kind === 'video' ? 'Video' : item.kind === 'audio' ? 'Audio' : item.kind === 'photo' ? 'Photo' : 'File';
   return (
-    <Pressable
-      onPress={() => signed && Linking.openURL(signed)}
+    <View
       style={{
         flexDirection: 'row',
         alignItems: 'center',
@@ -71,35 +70,35 @@ function MediaItemView({ item }: { item: MemoryMediaItem }) {
         {item.name ?? label}
         {item.sizeBytes ? ` · ${formatBytes(item.sizeBytes)}` : ''}
       </Body>
-      <Caption style={{ color: colors.guardianGold, fontWeight: '700' }}>{signed ? 'Open ›' : 'Loading…'}</Caption>
-    </Pressable>
+      <Caption style={{ color: colors.guardianGold, fontWeight: '700' }}>Tap to view ›</Caption>
+    </View>
   );
 }
 
 function MediaPreview({ memory }: { memory: Memory }) {
   if (memory.type === 'link' && memory.mediaUrl) {
     return (
-      <Pressable onPress={() => Linking.openURL(memory.mediaUrl!)}>
-        <Caption style={{ color: colors.guardianGold, fontWeight: '700' }} numberOfLines={1}>
-          {memory.mediaUrl} ›
-        </Caption>
-      </Pressable>
+      <Caption style={{ color: colors.guardianGold, fontWeight: '700' }} numberOfLines={1}>
+        {memory.mediaUrl} ›
+      </Caption>
     );
   }
 
   if (memory.media.length > 0) {
+    // Show the first item as a preview; the count hints there are more.
     return (
       <View style={{ gap: spacing.sm }}>
-        {memory.media.map((m, i) => (
-          <MediaItemView key={`${m.storagePath}-${i}`} item={m} />
-        ))}
+        <MediaItemPreview item={memory.media[0]} />
+        {memory.media.length > 1 ? (
+          <Caption style={{ color: colors.ashTaupe }}>+{memory.media.length - 1} more</Caption>
+        ) : null}
       </View>
     );
   }
 
   if (memory.storagePath) {
     return (
-      <MediaItemView
+      <MediaItemPreview
         item={{
           storagePath: memory.storagePath,
           sizeBytes: memory.mediaSizeBytes ?? 0,
@@ -115,32 +114,60 @@ function MediaPreview({ memory }: { memory: Memory }) {
 
 export function MemoryCard({
   memory,
-  editable = false,
-  onEdit,
+  onOpen,
+  getNodeName,
 }: {
   memory: Memory;
-  editable?: boolean;
-  onEdit?: () => void;
+  /** Opens the full memory page. When omitted the card is not interactive. */
+  onOpen?: () => void;
+  /** Resolve a node id to a display name (for tagged members). */
+  getNodeName?: (id: string) => string | undefined;
 }) {
-  return (
-    <Card>
-      <View style={{ gap: spacing.sm }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm }}>
-          <Title style={{ flex: 1 }}>{memory.title || 'A memory'}</Title>
-          <VisibilityBadge visibility={memory.visibility} />
-        </View>
-        <MediaPreview memory={memory} />
-        {memory.caption ? <Body>{memory.caption}</Body> : null}
-        {memory.body ? <RichTextView value={memory.body} /> : null}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Caption>{formatDate(memory.createdAt)}</Caption>
-          {editable && onEdit ? (
-            <Pressable onPress={onEdit} accessibilityRole="button" accessibilityLabel="Edit memory" hitSlop={8}>
-              <Caption style={{ color: colors.guardianGold, fontWeight: '700' }}>Edit ›</Caption>
-            </Pressable>
-          ) : null}
-        </View>
+  const taggedNames = (memory.taggedNodeIds ?? [])
+    .map((id) => getNodeName?.(id))
+    .filter((n): n is string => !!n);
+
+  const inner = (
+    <View style={{ gap: spacing.sm }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm }}>
+        <Title style={{ flex: 1 }}>{memory.title || 'A memory'}</Title>
+        <VisibilityBadge visibility={memory.visibility} />
       </View>
-    </Card>
+      <MediaPreview memory={memory} />
+      {memory.caption ? <Body>{memory.caption}</Body> : null}
+      {memory.body ? <RichTextView value={memory.body} /> : null}
+      {taggedNames.length > 0 ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+          {taggedNames.map((name) => (
+            <View
+              key={name}
+              style={{
+                paddingHorizontal: spacing.sm,
+                paddingVertical: 3,
+                borderRadius: 999,
+                backgroundColor: colors.candlelight,
+                borderWidth: 1,
+                borderColor: colors.softGold,
+              }}
+            >
+              <Caption style={{ color: colors.deepUmber }}>@{name}</Caption>
+            </View>
+          ))}
+        </View>
+      ) : null}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Caption>{formatDate(memory.createdAt)}</Caption>
+        {onOpen ? <Caption style={{ color: colors.guardianGold, fontWeight: '700' }}>Open ›</Caption> : null}
+      </View>
+    </View>
   );
+
+  if (onOpen) {
+    return (
+      <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel={`Open memory: ${memory.title ?? 'memory'}`}>
+        <Card>{inner}</Card>
+      </Pressable>
+    );
+  }
+  return <Card>{inner}</Card>;
 }

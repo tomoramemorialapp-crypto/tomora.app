@@ -12,7 +12,7 @@ import { useAppState } from '@/state/AppState';
 
 export default function MemoriesScreen() {
   const router = useRouter();
-  const { memories, nodes } = useAppState();
+  const { memories, nodes, getNode } = useAppState();
   const selfNode = nodes.find((n) => n.ownerAccountId) ?? nodes[0];
 
   // From the Memories tab, a new memory defaults to the user, with a picker to
@@ -42,7 +42,12 @@ export default function MemoriesScreen() {
       ) : (
         <View style={{ gap: spacing.md }}>
           {memories.map((m) => (
-            <MemoryCard key={m.id} memory={m} />
+            <MemoryCard
+              key={m.id}
+              memory={m}
+              getNodeName={(id) => getNode(id)?.displayName}
+              onOpen={() => router.push({ pathname: '/memory/[memoryId]', params: { memoryId: m.id } })}
+            />
           ))}
         </View>
       )}

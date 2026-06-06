@@ -103,6 +103,102 @@ export type Database = {
           },
         ]
       }
+      memorial_requests: {
+        Row: {
+          created_at: string
+          death_date: string | null
+          family_tree_id: string
+          id: string
+          node_id: string
+          reason: string | null
+          requested_by_account_id: string
+          resolve_after: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          death_date?: string | null
+          family_tree_id: string
+          id?: string
+          node_id: string
+          reason?: string | null
+          requested_by_account_id: string
+          resolve_after?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          death_date?: string | null
+          family_tree_id?: string
+          id?: string
+          node_id?: string
+          reason?: string | null
+          requested_by_account_id?: string
+          resolve_after?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memorial_requests_family_tree_id_fkey"
+            columns: ["family_tree_id"]
+            isOneToOne: false
+            referencedRelation: "family_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memorial_requests_node_id_fkey"
+            columns: ["node_id"]
+            isOneToOne: false
+            referencedRelation: "nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      memorial_votes: {
+        Row: {
+          account_id: string
+          created_at: string
+          family_tree_id: string
+          id: string
+          request_id: string
+          vote: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          family_tree_id: string
+          id?: string
+          request_id: string
+          vote: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          family_tree_id?: string
+          id?: string
+          request_id?: string
+          vote?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memorial_votes_family_tree_id_fkey"
+            columns: ["family_tree_id"]
+            isOneToOne: false
+            referencedRelation: "family_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memorial_votes_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "memorial_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       memories: {
         Row: {
           approval_status: string
@@ -119,6 +215,7 @@ export type Database = {
           node_id: string | null
           occasion_id: string | null
           storage_path: string | null
+          tagged_node_ids: string[]
           title: string | null
           type: string
           updated_at: string
@@ -139,6 +236,7 @@ export type Database = {
           node_id?: string | null
           occasion_id?: string | null
           storage_path?: string | null
+          tagged_node_ids?: string[]
           title?: string | null
           type?: string
           updated_at?: string
@@ -159,6 +257,7 @@ export type Database = {
           node_id?: string | null
           occasion_id?: string | null
           storage_path?: string | null
+          tagged_node_ids?: string[]
           title?: string | null
           type?: string
           updated_at?: string
@@ -251,6 +350,7 @@ export type Database = {
       }
       nodes: {
         Row: {
+          alternate_names: string[]
           avatar_url: string | null
           birth_date: string | null
           city: string | null
@@ -266,6 +366,13 @@ export type Database = {
           is_living: boolean | null
           legal_name: string | null
           managed_by_account_id: string | null
+          memorial_banner_url: string | null
+          memorial_bio: string | null
+          memorial_link_label: string | null
+          memorial_link_url: string | null
+          memorial_password: string | null
+          memorial_privacy: string
+          memorial_title: string | null
           owner_account_id: string | null
           profile: Json
           status: string
@@ -273,6 +380,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          alternate_names?: string[]
           avatar_url?: string | null
           birth_date?: string | null
           city?: string | null
@@ -288,6 +396,13 @@ export type Database = {
           is_living?: boolean | null
           legal_name?: string | null
           managed_by_account_id?: string | null
+          memorial_banner_url?: string | null
+          memorial_bio?: string | null
+          memorial_link_label?: string | null
+          memorial_link_url?: string | null
+          memorial_password?: string | null
+          memorial_privacy?: string
+          memorial_title?: string | null
           owner_account_id?: string | null
           profile?: Json
           status?: string
@@ -295,6 +410,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          alternate_names?: string[]
           avatar_url?: string | null
           birth_date?: string | null
           city?: string | null
@@ -310,6 +426,13 @@ export type Database = {
           is_living?: boolean | null
           legal_name?: string | null
           managed_by_account_id?: string | null
+          memorial_banner_url?: string | null
+          memorial_bio?: string | null
+          memorial_link_label?: string | null
+          memorial_link_url?: string | null
+          memorial_password?: string | null
+          memorial_privacy?: string
+          memorial_title?: string | null
           owner_account_id?: string | null
           profile?: Json
           status?: string
@@ -336,6 +459,63 @@ export type Database = {
             columns: ["owner_account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          actor_account_id: string | null
+          body: string | null
+          created_at: string
+          data: Json
+          family_tree_id: string
+          id: string
+          is_read: boolean
+          node_id: string | null
+          recipient_account_id: string
+          title: string
+          type: string
+        }
+        Insert: {
+          actor_account_id?: string | null
+          body?: string | null
+          created_at?: string
+          data?: Json
+          family_tree_id: string
+          id?: string
+          is_read?: boolean
+          node_id?: string | null
+          recipient_account_id: string
+          title: string
+          type: string
+        }
+        Update: {
+          actor_account_id?: string | null
+          body?: string | null
+          created_at?: string
+          data?: Json
+          family_tree_id?: string
+          id?: string
+          is_read?: boolean
+          node_id?: string | null
+          recipient_account_id?: string
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_family_tree_id_fkey"
+            columns: ["family_tree_id"]
+            isOneToOne: false
+            referencedRelation: "family_trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_node_id_fkey"
+            columns: ["node_id"]
+            isOneToOne: false
+            referencedRelation: "nodes"
             referencedColumns: ["id"]
           },
         ]
@@ -535,8 +715,25 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_node: {
+        Args: { p_code: string; p_password?: string }
+        Returns: Json
+      }
+      dispute_memorial: {
+        Args: { p_reason?: string; p_request_id: string }
+        Returns: Json
+      }
+      finalize_memorial: { Args: { p_request_id: string }; Returns: Json }
+      get_memorial_page: {
+        Args: { p_node_id: string; p_password?: string }
+        Returns: Json
+      }
       is_tree_member: { Args: { p_tree_id: string }; Returns: boolean }
-      claim_node: { Args: { p_code: string; p_password?: string | null }; Returns: Json }
+      process_due_account_deletions: { Args: never; Returns: number }
+      request_passing: {
+        Args: { p_death_date?: string; p_node_id: string; p_reason?: string }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

@@ -16,6 +16,8 @@ function node(id: string, name: string, extra: Partial<FamilyNode> = {}): Family
     defaultVisibility: 'family_tree',
     profile: {},
     tags: [],
+    alternateNames: [],
+    memorialPrivacy: 'family',
     createdAt: now,
     updatedAt: now,
     ...extra,

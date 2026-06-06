@@ -9,12 +9,11 @@ function isCacheKey(key: string): boolean {
   return key.startsWith(TOMORA_PREFIX) || key.startsWith('sb-');
 }
 
-/** Ask the user to confirm before clearing local cache. */
-export function confirmClearCache(warnSignOut: boolean): Promise<boolean> {
+/** Ask the user to confirm before clearing local cache (always signs out). */
+export function confirmClearCache(): Promise<boolean> {
   const title = 'Clear cache?';
-  const message = warnSignOut
-    ? 'This clears cached data on this device and reloads the latest version of Tomora. You will be signed out and need to log in again. Are you sure you want to continue?'
-    : 'This clears cached data on this device and reloads the latest version of Tomora. Are you sure you want to continue?';
+  const message =
+    'This clears cached data on this device and reloads the latest version of Tomora. You will be signed out and need to log in again. Are you sure you want to continue?';
 
   if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof window.confirm === 'function') {
     return Promise.resolve(window.confirm(`${title}\n\n${message}`));
@@ -29,11 +28,13 @@ export function confirmClearCache(warnSignOut: boolean): Promise<boolean> {
 }
 
 /**
- * Drop local Tomora + Supabase auth storage, optionally sign out, then reload
- * so the user picks up a freshly deployed build.
+ * Sign out, drop local Tomora + Supabase auth storage, then send the user to
+ * the welcome screen so they pick up a freshly deployed build.
  */
-export async function clearAppCache(options?: { signOut?: boolean }): Promise<void> {
-  if (options?.signOut) {
+export async function clearAppCache(): Promise<void> {
+  try {
+    await supabase.auth.signOut();
+  } catch {
     try {
       await supabase.auth.signOut({ scope: 'local' });
     } catch {
@@ -64,11 +65,9 @@ export async function clearAppCache(options?: { signOut?: boolean }): Promise<vo
   }
 
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    const url = new URL(window.location.href);
-    url.searchParams.set('_refresh', String(Date.now()));
-    window.location.replace(url.toString());
+    window.location.replace(new URL('/welcome', window.location.origin).href);
     return;
   }
 
-  // Native: storage is cleared; caller should navigate to a fresh entry screen.
+  // Native: storage is cleared; caller navigates to welcome.
 }

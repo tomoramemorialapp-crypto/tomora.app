@@ -1,11 +1,18 @@
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import { Platform } from 'react-native';
 import { colors, fonts } from '@/constants/theme';
 import { TabIcon } from '@/components/brand/TabIcons';
 import { useT } from '@/i18n';
+import { useAppState } from '@/state/AppState';
 
 export default function TabsLayout() {
   const t = useT();
+  const { loading, session } = useAppState();
+
+  if (!loading && !session) {
+    return <Redirect href="/welcome" />;
+  }
+
   return (
     <Tabs
       screenOptions={{

@@ -16,24 +16,21 @@ import { clearAppCache, confirmClearCache } from '@/lib/clearCache';
 export function AppFooter({
   showLogo = true,
   style,
-  /** When true, the confirmation warns that the user will be signed out. */
-  warnSignOut = false,
 }: {
   showLogo?: boolean;
   style?: ViewStyle;
-  warnSignOut?: boolean;
 }) {
   const router = useRouter();
   const [clearing, setClearing] = useState(false);
 
   const onClearCache = async () => {
     if (clearing) return;
-    const ok = await confirmClearCache(warnSignOut);
+    const ok = await confirmClearCache();
     if (!ok) return;
 
     setClearing(true);
     try {
-      await clearAppCache({ signOut: warnSignOut });
+      await clearAppCache();
       if (Platform.OS !== 'web') {
         router.replace('/welcome');
       }

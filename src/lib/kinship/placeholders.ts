@@ -1,3 +1,4 @@
+import { findKnownParents } from './bridgePolicy';
 import type {
   BranchType,
   KinshipNode,
@@ -245,8 +246,22 @@ export function buildRelationshipWithPlaceholders(params: {
       setBranch('self');
       break;
     case 'sibling': {
-      const parentId = ensureParent(ctx, anchor, branch);
-      addEdge(ctx, 'parent_child', parentId, targetId, { status: 'inferred', fromRole: 'parent', toRole: 'child' });
+      const allEdges = [...ctx.edges, ...ctx.newEdges];
+      const knownParents = findKnownParents(anchor, allEdges);
+
+      if (knownParents.length > 0) {
+        for (const parentId of knownParents) {
+          addEdge(ctx, 'parent_child', parentId, targetId, {
+            status: 'inferred',
+            fromRole: 'parent',
+            toRole: 'child',
+          });
+        }
+      } else {
+        const parentId = ensureParent(ctx, anchor, branch);
+        addEdge(ctx, 'parent_child', parentId, targetId, { status: 'inferred', fromRole: 'parent', toRole: 'child' });
+      }
+
       addEdge(ctx, 'sibling', anchor, targetId, {});
       setBranch('self');
       break;

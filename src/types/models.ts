@@ -20,7 +20,8 @@ export type NodeStatus =
   | 'memory_light'
   | 'disputed'
   | 'vacated'
-  | 'archived';
+  | 'archived'
+  | 'deleted';
 
 /** Lifecycle of an account itself (used by the deletion grace period). */
 export type AccountStatus = 'active' | 'vacated';
@@ -175,6 +176,9 @@ export interface FamilyNode {
   memorialLinkUrl?: string;
   /** Who can view the shareable memorial page. */
   memorialPrivacy: MemorialPrivacy;
+  /** When set, the node is soft-deleted and excluded from active UI. */
+  deletedAt?: string;
+  deletedBy?: string;
   createdAt: string;
   updatedAt: string;
 }

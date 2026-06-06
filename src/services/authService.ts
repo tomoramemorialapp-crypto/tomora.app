@@ -1,7 +1,7 @@
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 
-import { getOAuthRedirectUrl } from '@/lib/authRedirect';
+import { getEmailRedirectUrl, getOAuthRedirectUrl, type AuthCallbackIntent } from '@/lib/authRedirect';
 import { supabase } from '@/lib/supabase';
 import { isEmailIdentifier } from '@/lib/username';
 import type { Session } from '@supabase/supabase-js';
@@ -44,12 +44,14 @@ export async function signUpWithEmail(
   email: string,
   password: string,
   username: string,
+  intent?: AuthCallbackIntent,
 ): Promise<SignUpResult> {
   const { data, error } = await supabase.auth.signUp({
     email: email.trim(),
     password,
     options: {
       data: { username: username.toLowerCase() },
+      emailRedirectTo: getEmailRedirectUrl(intent),
     },
   });
   if (error) throw error;
@@ -89,8 +91,12 @@ export function isEmailVerified(session: Session | null): boolean {
 }
 
 /** Resend the confirmation email for an unverified address. */
-export async function resendEmailConfirmation(email: string): Promise<void> {
-  const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim() });
+export async function resendEmailConfirmation(email: string, intent?: AuthCallbackIntent): Promise<void> {
+  const { error } = await supabase.auth.resend({
+    type: 'signup',
+    email: email.trim(),
+    options: { emailRedirectTo: getEmailRedirectUrl(intent) },
+  });
   if (error) throw error;
 }
 

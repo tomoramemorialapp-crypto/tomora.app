@@ -7,6 +7,7 @@ import { Dropdown } from '@/components/ui/Dropdown';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Body, Caption } from '@/components/ui/Typography';
 import { colors, radii, spacing } from '@/constants/theme';
+import { activeNodes } from '@/lib/activeNodes';
 import {
   INVERSE_RELATIONSHIP_TYPE,
   connectionCaption,
@@ -67,8 +68,9 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
     updateRelationshipWeddingDate,
   } = useAppState();
 
+  const liveNodes = useMemo(() => activeNodes(nodes), [nodes]);
   const rels = getRelationshipsForNode(node.id);
-  const nodeById = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
+  const nodeById = useMemo(() => new Map(liveNodes.map((n) => [n.id, n])), [liveNodes]);
 
   const [adding, setAdding] = useState(false);
   const [newTargetId, setNewTargetId] = useState<string | undefined>(undefined);
@@ -80,7 +82,7 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
   const connectedIds = new Set(
     rels.map((r) => (r.fromNodeId === node.id ? r.toNodeId : r.fromNodeId)),
   );
-  const candidates = nodes.filter((n) => n.id !== node.id && !connectedIds.has(n.id));
+  const candidates = liveNodes.filter((n) => n.id !== node.id && !connectedIds.has(n.id));
 
   const newTarget = newTargetId ? nodeById.get(newTargetId) : undefined;
   const inLawHint =
@@ -167,7 +169,7 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
         fromNodeId: node.id,
         toNodeId: newTargetId,
         relationshipType: newType,
-        relationshipDetail: newDetail,
+        relationshipDetail: storedDetail(true, newDetail),
       });
       setAdding(false);
       setNewTargetId(undefined);

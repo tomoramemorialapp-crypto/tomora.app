@@ -95,14 +95,15 @@ describe('buildKinshipGraphFromApp', () => {
 
     const bioEdge = graph.edges.find((e) => e.fromNodeId === 'mom' && e.toNodeId === 'self');
     const stepEdge = graph.edges.find((e) => e.fromNodeId === 'step' && e.toNodeId === 'self');
-    const inLawEdge = graph.edges.find((e) => e.fromNodeId === 'mil' && e.toNodeId === 'self');
+    const inLawEdge = graph.edges.find((e) => e.fromNodeId === 'self' && e.toNodeId === 'mil');
 
     expect(bioEdge?.fromRole).toBe('parent');
     expect(stepEdge?.fromRole).toBe('step_parent');
-    expect(inLawEdge?.fromRole).toBe('parent_in_law');
+    expect(inLawEdge?.type).toBe('chosen_family');
+    expect(inLawEdge?.metadata?.affinity).toBe('parent_in_law');
   });
 
-  it('maps child-in-law edges to in-law parent_child lineage', () => {
+  it('maps child-in-law edges to affinity chosen_family edges (not biological parent_child)', () => {
     const mgf = node('mgf', 'Rufino');
     const father = node('father', 'Emmanuel');
 
@@ -113,8 +114,7 @@ describe('buildKinshipGraphFromApp', () => {
     });
 
     const edge = graph.edges.find((e) => e.fromNodeId === 'mgf' && e.toNodeId === 'father');
-    expect(edge?.type).toBe('parent_child');
-    expect(edge?.fromRole).toBe('parent_in_law');
-    expect(edge?.metadata?.lineage).toBe('in_law');
+    expect(edge?.type).toBe('chosen_family');
+    expect(edge?.metadata?.affinity).toBe('child_in_law');
   });
 });

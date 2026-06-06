@@ -13,6 +13,7 @@ import { Body, Caption, Display } from '@/components/ui/Typography';
 import { colors, radii, spacing } from '@/constants/theme';
 import { useAppState } from '@/state/AppState';
 import type { MemoryMediaItem, MemoryType, VisibilityLevel } from '@/types/models';
+import { activeNodes } from '@/lib/activeNodes';
 import { goBack } from '@/lib/navigation';
 import {
   capFor,
@@ -46,9 +47,10 @@ export default function NewMemory() {
   const router = useRouter();
   const params = useLocalSearchParams<{ nodeId?: string; memoryId?: string; pickRecipient?: string }>();
   const { account, nodes, getNode, getMemory, createMemory, updateMemory, deleteMemory } = useAppState();
+  const liveNodes = useMemo(() => activeNodes(nodes), [nodes]);
 
   const editing = getMemory(String(params.memoryId ?? ''));
-  const selfNode = nodes.find((n) => n.ownerAccountId) ?? nodes[0];
+  const selfNode = liveNodes.find((n) => n.ownerAccountId) ?? liveNodes[0];
   const pickRecipient = params.pickRecipient === '1' && !editing;
 
   // Recipient: locked to the launching profile, or chosen here (defaults to you).
@@ -229,7 +231,7 @@ export default function NewMemory() {
           {pickRecipient && recipientOpen ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: spacing.sm }}>
               <View style={{ flexDirection: 'row', gap: 6 }}>
-                {nodes.map((n) => {
+                {liveNodes.map((n) => {
                   const active = n.id === recipientId;
                   return (
                     <Pressable

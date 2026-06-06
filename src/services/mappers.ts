@@ -100,6 +100,8 @@ export function mapNode(row: Tables<'nodes'>): FamilyNode {
     memorialLinkLabel: row.memorial_link_label ?? undefined,
     memorialLinkUrl: row.memorial_link_url ?? undefined,
     memorialPrivacy: (row.memorial_privacy as MemorialPrivacy) ?? 'family',
+    deletedAt: row.deleted_at ?? undefined,
+    deletedBy: row.deleted_by ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

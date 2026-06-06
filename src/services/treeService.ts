@@ -9,6 +9,7 @@ import type {
   RelationshipType,
   VisibilityLevel,
 } from '@/types/models';
+import { isActiveNode } from '@/lib/activeNodes';
 import { isLivingFor, nodeStatusFor } from '@/lib/relationshipUtils';
 import { makeField, parsePersonNameFromString } from '@/lib/profile';
 import type { EditScope } from '@/lib/profile';
@@ -243,6 +244,19 @@ export async function createRelationship(input: {
   relationshipType: RelationshipType;
   relationshipDetail?: RelationshipDetail;
 }): Promise<Relationship> {
+  const { data: existing, error: dupErr } = await supabase
+    .from('relationships')
+    .select('id')
+    .eq('family_tree_id', input.treeId)
+    .or(
+      `and(from_node_id.eq.${input.fromNodeId},to_node_id.eq.${input.toNodeId}),and(from_node_id.eq.${input.toNodeId},to_node_id.eq.${input.fromNodeId})`,
+    )
+    .limit(1);
+  if (dupErr) throw dupErr;
+  if (existing && existing.length > 0) {
+    throw new Error('These two people are already connected. Edit the existing connection instead.');
+  }
+
   const { data, error } = await supabase
     .from('relationships')
     .insert({
@@ -267,13 +281,19 @@ export async function deleteRelationship(relationshipId: string): Promise<void> 
 }
 
 /**
- * Permanently remove a node the user created (not yet claimed). Dependent
- * relationships and memories are deleted first since they have no cascade.
+ * Soft-delete a node from the active Family Tree. Memories and relationships
+ * are kept for audit; the node is hidden from selectors and the live tree.
  */
-export async function deleteNode(nodeId: string): Promise<void> {
-  await supabase.from('memories').delete().eq('node_id', nodeId);
-  await supabase.from('relationships').delete().or(`from_node_id.eq.${nodeId},to_node_id.eq.${nodeId}`);
-  const { error } = await supabase.from('nodes').delete().eq('id', nodeId);
+export async function deleteNode(nodeId: string, accountId: string): Promise<void> {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from('nodes')
+    .update({
+      deleted_at: now,
+      deleted_by: accountId,
+      status: 'deleted',
+    })
+    .eq('id', nodeId);
   if (error) throw error;
 }
 
@@ -329,7 +349,7 @@ export async function loadMyTreeBundle(accountId: string): Promise<TreeBundle | 
   if (!treeRow) return null;
 
   const [nodesRes, relsRes, memsRes, suggestionsRes] = await Promise.all([
-    supabase.from('nodes').select().eq('family_tree_id', treeRow.id).order('created_at'),
+    supabase.from('nodes').select().eq('family_tree_id', treeRow.id).is('deleted_at', null).order('created_at'),
     supabase.from('relationships').select().eq('family_tree_id', treeRow.id),
     supabase.from('memories').select().eq('family_tree_id', treeRow.id).order('created_at', { ascending: false }),
     supabase.from('suggested_edits').select().eq('family_tree_id', treeRow.id).order('created_at', { ascending: false }),
@@ -339,10 +359,15 @@ export async function loadMyTreeBundle(accountId: string): Promise<TreeBundle | 
   if (memsRes.error) throw memsRes.error;
   if (suggestionsRes.error) throw suggestionsRes.error;
 
+  const nodes = (nodesRes.data ?? []).map(mapNode).filter(isActiveNode);
+  const nodeIds = new Set(nodes.map((n) => n.id));
+
   return {
     tree: mapTree(treeRow),
-    nodes: (nodesRes.data ?? []).map(mapNode),
-    relationships: (relsRes.data ?? []).map(mapRelationship),
+    nodes,
+    relationships: (relsRes.data ?? [])
+      .map(mapRelationship)
+      .filter((r) => nodeIds.has(r.fromNodeId) && nodeIds.has(r.toNodeId)),
     memories: (memsRes.data ?? []).map(mapMemory),
     suggestedEdits: (suggestionsRes.data ?? []).map(mapSuggestedEdit),
   };

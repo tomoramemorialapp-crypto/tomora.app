@@ -49,6 +49,51 @@ describe('placeholder bridge creation', () => {
     expect(parentBridges.length).toBe(1);
   });
 
+  it('adding father and mother does not create unknown parent placeholders', () => {
+    const { nodes } = buildGraph([
+      { id: 'dad', name: 'Jose', rel: 'father' },
+      { id: 'mom', name: 'Maria', rel: 'mother' },
+    ]);
+    const parentBridges = nodes.filter((n) => n.metadata?.roleLabel === 'Parent' && n.status === 'placeholder');
+    expect(parentBridges.length).toBe(0);
+  });
+
+  it('adding a sibling reuses known parents instead of creating unknown parent', () => {
+    const nodes: ReturnType<typeof buildGraph>['nodes'] = [];
+    const edges: ReturnType<typeof buildGraph>['edges'] = [];
+    const father = buildRelationshipWithPlaceholders({
+      intent: { anchorNodeId: ANCHOR_ID, targetDisplayName: 'Jose', relationshipToAnchor: 'father', targetNodeId: 'dad' },
+      existingNodes: [anchorNode()],
+      existingEdges: [],
+      familyTreeId: 't',
+    });
+    for (const n of father.nodesToCreate) nodes.push(n);
+    edges.push(...father.edgesToCreate);
+
+    const mother = buildRelationshipWithPlaceholders({
+      intent: { anchorNodeId: ANCHOR_ID, targetDisplayName: 'Maria', relationshipToAnchor: 'mother', targetNodeId: 'mom' },
+      existingNodes: [anchorNode(), ...nodes],
+      existingEdges: edges,
+      familyTreeId: 't',
+    });
+    for (const n of mother.nodesToCreate) if (!nodes.some((x) => x.id === n.id)) nodes.push(n);
+    edges.push(...mother.edgesToCreate);
+
+    const sibling = buildRelationshipWithPlaceholders({
+      intent: { anchorNodeId: ANCHOR_ID, targetDisplayName: 'Ana', relationshipToAnchor: 'sibling', targetNodeId: 'sis' },
+      existingNodes: [anchorNode(), ...nodes],
+      existingEdges: edges,
+      familyTreeId: 't',
+    });
+
+    const unknownParents = sibling.nodesToCreate.filter(
+      (n) => n.metadata?.roleLabel === 'Parent' && n.status === 'placeholder',
+    );
+    expect(unknownParents.length).toBe(0);
+    expect(sibling.edgesToCreate.some((e) => e.type === 'parent_child' && e.fromNodeId === 'dad')).toBe(true);
+    expect(sibling.edgesToCreate.some((e) => e.type === 'parent_child' && e.fromNodeId === 'mom')).toBe(true);
+  });
+
   it('keeps maternal and paternal grandparents on separate parent bridges', () => {
     const { nodes, edges } = buildGraph([
       { id: 'gm', name: 'Maternal GM', rel: 'grandparent', side: 'mother_side' },

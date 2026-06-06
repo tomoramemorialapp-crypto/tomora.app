@@ -404,7 +404,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         return next;
       });
 
-      const result = await authService.signUpWithEmail(email, password, normalized);
+      const pendingClaim = draftRef.current.pendingClaimCode?.trim();
+      const result = await authService.signUpWithEmail(
+        email,
+        password,
+        normalized,
+        pendingClaim ? { next: 'claim' } : undefined,
+      );
       if (!result.session) {
         // Email confirmation required — username is kept in draft until hydrate.
         return { needsEmailConfirmation: true };
@@ -578,6 +584,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const createRelationship = useCallback<AppStateValue['createRelationship']>(
     async ({ fromNodeId, toNodeId, relationshipType, relationshipDetail }) => {
       if (!tree || !account) throw new Error('No tree or account loaded.');
+      if (!nodes.some((n) => n.id === fromNodeId) || !nodes.some((n) => n.id === toNodeId)) {
+        throw new Error('One of these family members is no longer in your tree.');
+      }
       const created = await treeService.createRelationship({
         treeId: tree.id,
         accountId: account.id,
@@ -597,12 +606,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const deleteNode = useCallback<AppStateValue['deleteNode']>(async (nodeId) => {
-    await treeService.deleteNode(nodeId);
+    if (!account) throw new Error('Sign in to remove a family member.');
+    await treeService.deleteNode(nodeId, account.id);
     setNodes((prev) => prev.filter((n) => n.id !== nodeId));
     setRelationships((prev) => prev.filter((r) => r.fromNodeId !== nodeId && r.toNodeId !== nodeId));
     setMemories((prev) => prev.filter((m) => m.nodeId !== nodeId));
     setSuggestedEdits((prev) => prev.filter((e) => e.targetNodeId !== nodeId));
-  }, []);
+  }, [account]);
 
   const generateNodeInvite = useCallback<AppStateValue['generateNodeInvite']>(async (nodeId, opts) => {
     const node = nodes.find((n) => n.id === nodeId);

@@ -360,6 +360,8 @@ export type Database = {
           claim_password: string | null
           country: string | null
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
           death_date: string | null
           default_visibility: string
           display_name: string
@@ -390,6 +392,8 @@ export type Database = {
           claim_password?: string | null
           country?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           death_date?: string | null
           default_visibility?: string
           display_name: string
@@ -420,6 +424,8 @@ export type Database = {
           claim_password?: string | null
           country?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           death_date?: string | null
           default_visibility?: string
           display_name?: string

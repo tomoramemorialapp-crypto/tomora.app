@@ -52,6 +52,7 @@ const statusCopy: Record<NodeStatus, { label: string; tone: Tone }> = {
   disputed: { label: 'Under review', tone: 'neutral' },
   vacated: { label: 'Vacated', tone: 'neutral' },
   archived: { label: 'Archived', tone: 'neutral' },
+  deleted: { label: 'Removed', tone: 'neutral' },
 };
 
 /** Node status with gentle, non-technical wording. */

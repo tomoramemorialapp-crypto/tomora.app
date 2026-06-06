@@ -17,7 +17,7 @@ import type {
 } from './types';
 
 function mapStatus(s: AppNodeStatus): NodeStatus {
-  if (s === 'archived' || s === 'vacated') return 'managed';
+  if (s === 'archived' || s === 'vacated' || s === 'deleted') return 'managed';
   return s;
 }
 
@@ -139,17 +139,29 @@ function applyStoredRelationship(params: {
   const target = appNodes.find((n) => n.id === targetId);
   if (!source || !target) return;
 
-  if (
-    rel.relationshipType === 'parent' ||
-    rel.relationshipType === 'step_parent' ||
-    rel.relationshipType === 'parent_in_law' ||
-    rel.relationshipType === 'child_in_law'
-  ) {
-    const lineage =
-      rel.relationshipType === 'child_in_law' ? 'in_law' : parentLineageFromRelationshipType(rel.relationshipType);
+  if (rel.relationshipType === 'parent_in_law' || rel.relationshipType === 'child_in_law') {
+    const id = `edge:chosen_family:${sourceId}->${targetId}:${rel.relationshipType}`;
+    if (!hasEdge(existingEdges, id)) {
+      existingEdges.push({
+        id,
+        familyTreeId,
+        fromNodeId: sourceId,
+        toNodeId: targetId,
+        type: 'chosen_family',
+        status: 'confirmed',
+        visibility: mapVisibility(rel.visibility),
+        createdByAccountId: rel.createdByAccountId,
+        metadata: { affinity: rel.relationshipType, detail: rel.relationshipDetail },
+      });
+    }
+    return;
+  }
+
+  if (rel.relationshipType === 'parent' || rel.relationshipType === 'step_parent') {
+    const lineage = parentLineageFromRelationshipType(rel.relationshipType);
     const fromRole = parentRoleForLineage(lineage);
-    const parentId = rel.relationshipType === 'child_in_law' ? sourceId : targetId;
-    const childId = rel.relationshipType === 'child_in_law' ? targetId : sourceId;
+    const parentId = targetId;
+    const childId = sourceId;
     const id = `edge:parent_child:${parentId}->${childId}:${fromRole}`;
     if (!hasEdge(existingEdges, id)) {
       existingEdges.push({

@@ -70,12 +70,25 @@ function placeHasValue(p: PlaceReference): boolean {
   return !!(p.displayName || p.city || p.country || p.address);
 }
 
+/** Outer shell remounts the editor when `nodeId` changes so form state never leaks between profiles. */
 export default function EditProfile() {
-  const router = useRouter();
   const { nodeId } = useLocalSearchParams<{ nodeId: string }>();
+  const id = String(nodeId ?? '');
+  if (!id) {
+    return (
+      <ScreenContainer center>
+        <EmptyState title="This profile isn’t here." body="Choose someone from your Family Tree to edit." />
+      </ScreenContainer>
+    );
+  }
+  return <EditProfileEditor key={id} nodeId={id} />;
+}
+
+function EditProfileEditor({ nodeId }: { nodeId: string }) {
+  const router = useRouter();
   const { getNode, account, updateNodeProfile, deleteNode } = useAppState();
 
-  const node = getNode(String(nodeId));
+  const node = getNode(nodeId);
   const scope = node ? editScopeFor(node, account?.id) : 'suggest';
   const canEdit = scope === 'owner' || scope === 'guardian';
   const isSelf = !!node?.ownerAccountId;

@@ -9,6 +9,7 @@ import type {
 } from '@/types/profile';
 import type { Json, TablesUpdate } from '@/types/database.types';
 import { profileToFlatColumns } from '@/lib/profile';
+import { removeReplacedAccountStorage } from '@/lib/storageCleanup';
 import { mapChangeLog, mapNode, mapSuggestedEdit } from './mappers';
 
 export interface ChangeLogEntryInput {
@@ -35,6 +36,13 @@ export async function updateNodeProfile(input: {
 }): Promise<FamilyNode> {
   const { treeId, nodeId, accountId, profile, tags, defaultVisibility, changeLog } = input;
 
+  const { data: before, error: readErr } = await supabase
+    .from('nodes')
+    .select('profile, owner_account_id')
+    .eq('id', nodeId)
+    .single();
+  if (readErr) throw readErr;
+
   const patch: TablesUpdate<'nodes'> = {
     profile: profile as unknown as Json,
     updated_at: new Date().toISOString(),
@@ -50,6 +58,11 @@ export async function updateNodeProfile(input: {
     .select()
     .single();
   if (error) throw error;
+
+  const ownerId = before?.owner_account_id ?? accountId;
+  const oldPhoto = (before?.profile as NodeProfile | null)?.profilePhoto?.value;
+  const newPhoto = profile.profilePhoto?.value;
+  await removeReplacedAccountStorage(ownerId, oldPhoto, newPhoto);
 
   if (changeLog.length) {
     const rows = changeLog.map((c) => ({

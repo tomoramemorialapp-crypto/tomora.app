@@ -51,6 +51,7 @@ export function mapAccount(row: Tables<'accounts'>): Account {
       enabled: pp.enabled ?? false,
       bio: pp.bio ?? '',
       bannerUrl: pp.bannerUrl ?? '',
+      bannerStoragePath: pp.bannerStoragePath ?? undefined,
       showSocial: pp.showSocial ?? true,
       showMemories: pp.showMemories ?? true,
       showLifeProfile: pp.showLifeProfile ?? true,

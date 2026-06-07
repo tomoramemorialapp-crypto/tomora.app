@@ -40,29 +40,39 @@ export async function createMemory(input: CreateMemoryInput): Promise<Memory> {
     }
   }
   const first = media[0];
-  const { data, error } = await supabase
-    .from('memories')
-    .insert({
-      family_tree_id: input.familyTreeId,
-      node_id: input.nodeId,
-      created_by_account_id: input.accountId,
-      type: input.type,
-      title: input.title?.trim() || null,
-      body: input.body?.trim() || null,
-      caption: input.caption?.trim() || null,
-      media_url: input.mediaUrl?.trim() || null,
-      media: media as unknown as Json,
-      tagged_node_ids: input.taggedNodeIds ?? [],
-      // Keep legacy single columns populated from the first item for back-compat.
-      storage_path: first?.storagePath ?? null,
-      media_size_bytes: totalBytes || null,
-      media_mime: first?.mime ?? null,
-      visibility: input.visibility,
-      approval_status: 'approved',
-    })
-    .select()
-    .single();
-  if (error) throw error;
+  let data;
+  try {
+    const result = await supabase
+      .from('memories')
+      .insert({
+        family_tree_id: input.familyTreeId,
+        node_id: input.nodeId,
+        created_by_account_id: input.accountId,
+        type: input.type,
+        title: input.title?.trim() || null,
+        body: input.body?.trim() || null,
+        caption: input.caption?.trim() || null,
+        media_url: input.mediaUrl?.trim() || null,
+        media: media as unknown as Json,
+        tagged_node_ids: input.taggedNodeIds ?? [],
+        storage_path: first?.storagePath ?? null,
+        media_size_bytes: totalBytes || null,
+        media_mime: first?.mime ?? null,
+        visibility: input.visibility,
+        approval_status: 'approved',
+      })
+      .select()
+      .single();
+    if (result.error) throw result.error;
+    data = result.data;
+  } catch (e) {
+    if (media.length) {
+      await Promise.all(
+        media.map((item) => removeMedia(item.storagePath).catch(() => undefined)),
+      );
+    }
+    throw e;
+  }
   return mapMemory(data);
 }
 
@@ -112,7 +122,9 @@ export async function deleteMemory(memory: Pick<Memory, 'id' | 'storagePath' | '
     ...(memory.media ?? []).map((m) => m.storagePath),
     ...(memory.storagePath ? [memory.storagePath] : []),
   ].filter(Boolean) as string[];
+
   await Promise.all(paths.map((p) => removeMedia(p)));
+
   const { error } = await supabase.from('memories').delete().eq('id', memory.id);
   if (error) throw error;
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
@@ -6,6 +6,8 @@ import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
+import { Toggle } from '@/components/ui/Toggle';
+import { VisibilitySelector } from '@/components/ui/VisibilitySelector';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Body, Caption, Display } from '@/components/ui/Typography';
 import { colors, radii, spacing } from '@/constants/theme';
@@ -21,7 +23,7 @@ import { PUBLIC_PROFILE_EDITOR_PATH } from '@/lib/publicProfile';
 import { normalizeUsername } from '@/lib/username';
 import { Badge } from '@/components/ui/Badge';
 import { AppFooter } from '@/components/brand/AppFooter';
-import type { ThemePreference } from '@/types/models';
+import type { ThemePreference, VisibilityLevel } from '@/types/models';
 
 const THEMES: { id: AppearancePreference; label: string }[] = [
   { id: 'light', label: 'Light' },
@@ -70,7 +72,9 @@ export default function AccountSettings() {
   const {
     account,
     session,
+    tree,
     updateAccountSettings,
+    updateTreePrivacy,
     setUsername: applyUsername,
     updateEmail,
     updatePassword,
@@ -139,6 +143,33 @@ export default function AccountSettings() {
   const [profileMsg, setProfileMsg] = useState<string | null>(null);
   const [emailMsg, setEmailMsg] = useState<string | null>(null);
   const [pwMsg, setPwMsg] = useState<string | null>(null);
+
+  const [defaultVisibility, setDefaultVisibility] = useState<VisibilityLevel>(tree?.defaultVisibility ?? 'family_tree');
+  const [publicSharing, setPublicSharing] = useState<boolean>(tree?.publicSharingEnabled ?? false);
+  const [privacyMsg, setPrivacyMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (tree) {
+      setDefaultVisibility(tree.defaultVisibility);
+      setPublicSharing(tree.publicSharingEnabled);
+    }
+  }, [tree?.defaultVisibility, tree?.publicSharingEnabled]);
+
+  const savePrivacy = async (patch: { defaultVisibility?: VisibilityLevel; publicSharingEnabled?: boolean }) => {
+    const next = {
+      defaultVisibility: patch.defaultVisibility ?? defaultVisibility,
+      publicSharingEnabled: patch.publicSharingEnabled ?? publicSharing,
+    };
+    setDefaultVisibility(next.defaultVisibility);
+    setPublicSharing(next.publicSharingEnabled);
+    setPrivacyMsg(null);
+    try {
+      await updateTreePrivacy(next);
+      setPrivacyMsg('Saved.');
+    } catch {
+      setPrivacyMsg('Could not save. Please try again.');
+    }
+  };
 
   const onSaveProfile = async () => {
     setSavingProfile(true);
@@ -224,6 +255,48 @@ export default function AccountSettings() {
           <Caption style={{ color: colors.deepUmber, marginTop: spacing.sm }}>Appearance</Caption>
           <Chips options={THEMES} value={theme} onChange={onChangeAppearance} />
           <Caption>Choose how Tomora appears. Your memories stay warm in either light.</Caption>
+        </View>
+      </Card>
+
+      {/* Privacy */}
+      <Card style={{ marginBottom: spacing.lg }}>
+        <SectionHeader title="Privacy" />
+        <View style={{ gap: spacing.md, marginTop: spacing.sm }}>
+          <View style={{ gap: spacing.xs }}>
+            <Body style={{ fontWeight: '600' }}>Default for new content</Body>
+            <Caption style={{ color: colors.deepUmber }}>
+              Who can see memories and profile details you add, unless you change it per item.
+            </Caption>
+            <View style={{ marginTop: spacing.xs }}>
+              <VisibilitySelector
+                label=""
+                value={defaultVisibility}
+                onChange={(v) => savePrivacy({ defaultVisibility: v })}
+              />
+            </View>
+          </View>
+
+          <View style={{ height: 1, backgroundColor: colors.hairline }} />
+
+          <Toggle
+            value={publicSharing}
+            onValueChange={(v) => savePrivacy({ publicSharingEnabled: v })}
+            label="Allow public sharing"
+            description="Let people outside your Family Tree open links you explicitly make public (e.g. a memorial page). Off keeps your tree invite-only."
+          />
+
+          <View style={{ height: 1, backgroundColor: colors.hairline }} />
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Body>Your data</Body>
+            <Caption>Account-side</Caption>
+          </View>
+
+          {privacyMsg ? (
+            <Caption style={{ color: colors.deepUmber }}>{privacyMsg}</Caption>
+          ) : (
+            <Caption>Privacy is always free. Nothing is public unless you choose to share it.</Caption>
+          )}
         </View>
       </Card>
 

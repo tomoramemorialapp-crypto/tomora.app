@@ -174,10 +174,14 @@ export async function uploadMedia(accountId: string, file: PickedFile): Promise<
   return { storagePath: path, sizeBytes: file.size || size, mime: file.mimeType };
 }
 
-/** Remove a stored object (best-effort). */
+/** Remove a stored object. Throws when deletion fails (ignores already-deleted objects). */
 export async function removeMedia(storagePath: string): Promise<void> {
+  signedUrlCache.delete(storagePath);
   const { error } = await supabase.storage.from(STORAGE_BUCKET).remove([storagePath]);
-  if (error) console.warn('[tomora] media remove failed', error.message);
+  if (!error) return;
+  const msg = error.message.toLowerCase();
+  if (msg.includes('not found') || msg.includes('does not exist')) return;
+  throw new Error(error.message);
 }
 
 const signedUrlCache = new Map<string, { url: string; expires: number }>();

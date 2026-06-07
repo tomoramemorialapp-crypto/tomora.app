@@ -162,8 +162,10 @@ export type ApprovalStatus = 'draft' | 'pending' | 'approved' | 'rejected';
 export interface PublicProfileConfig {
   enabled: boolean;
   bio?: string;
-  /** Header image URL for the public page. */
+  /** Header image URL for the public page (signed URL or external link). */
   bannerUrl?: string;
+  /** Private bucket path for banner cleanup when bannerUrl is a signed URL. */
+  bannerStoragePath?: string;
   showSocial: boolean;
   showMemories: boolean;
   /** When true, Life Profile fields marked `public` appear on the shareable page. */

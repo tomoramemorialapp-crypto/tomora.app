@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { removeReplacedAccountStorage } from '@/lib/storageCleanup';
 import type { FamilyNode, MemorialPrivacy, MemorialRequest } from '@/types/models';
 import type { TablesUpdate } from '@/types/database.types';
 import { mapMemorialRequest, mapNode } from './mappers';
@@ -70,6 +71,13 @@ export interface MemorialPagePatch {
 
 /** Edit the shareable memorial/tribute page fields for a node. */
 export async function updateMemorialPage(nodeId: string, patch: MemorialPagePatch): Promise<FamilyNode> {
+  const { data: before, error: readErr } = await supabase
+    .from('nodes')
+    .select('memorial_banner_url, owner_account_id')
+    .eq('id', nodeId)
+    .single();
+  if (readErr) throw readErr;
+
   const update: TablesUpdate<'nodes'> = { updated_at: new Date().toISOString() };
   if (patch.memorialBannerUrl !== undefined) update.memorial_banner_url = patch.memorialBannerUrl;
   if (patch.memorialBio !== undefined) update.memorial_bio = patch.memorialBio;
@@ -82,6 +90,15 @@ export async function updateMemorialPage(nodeId: string, patch: MemorialPagePatc
 
   const { data, error } = await supabase.from('nodes').update(update).eq('id', nodeId).select().single();
   if (error) throw error;
+
+  if (patch.memorialBannerUrl !== undefined && before?.owner_account_id) {
+    await removeReplacedAccountStorage(
+      before.owner_account_id,
+      before.memorial_banner_url,
+      patch.memorialBannerUrl,
+    );
+  }
+
   return mapNode(data);
 }
 

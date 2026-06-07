@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 
@@ -7,8 +7,6 @@ import { Card } from '@/components/ui/Card';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Toggle } from '@/components/ui/Toggle';
-import { VisibilitySelector } from '@/components/ui/VisibilitySelector';
 import { ShareSheet } from '@/components/ui/ShareSheet';
 import { AppFooter } from '@/components/brand/AppFooter';
 import { Body, Caption, Display, Title } from '@/components/ui/Typography';
@@ -17,7 +15,6 @@ import { PublicProfileQrSheet } from '@/components/public/PublicProfileQrSheet';
 import { colors, radii, spacing } from '@/constants/theme';
 import { useAppState } from '@/state/AppState';
 import { isEmailVerified } from '@/services/authService';
-import type { VisibilityLevel } from '@/types/models';
 import { formatBytes, STORAGE_QUOTA_BYTES } from '@/lib/media';
 import { QrCodeIcon, ShareLinkIcon } from '@/components/brand/ActionIcons';
 import { IconButton } from '@/components/ui/IconButton';
@@ -75,39 +72,12 @@ function Row({
 
 export default function YouScreen() {
   const router = useRouter();
-  const { account, session, nodes, tree, mediaUsageBytes, refreshMediaUsage, updateTreePrivacy, undoAccountDeletion, resetAll } =
+  const { account, session, nodes, mediaUsageBytes, refreshMediaUsage, undoAccountDeletion, resetAll } =
     useAppState();
   const [shareOpen, setShareOpen] = useState(false);
   const [publicShareOpen, setPublicShareOpen] = useState(false);
   const [publicQrOpen, setPublicQrOpen] = useState(false);
   const [undoing, setUndoing] = useState(false);
-
-  // Editable Family Tree privacy, synced from the loaded tree.
-  const [defaultVisibility, setDefaultVisibility] = useState<VisibilityLevel>(tree?.defaultVisibility ?? 'family_tree');
-  const [publicSharing, setPublicSharing] = useState<boolean>(tree?.publicSharingEnabled ?? false);
-  const [privacyMsg, setPrivacyMsg] = useState<string | null>(null);
-  useEffect(() => {
-    if (tree) {
-      setDefaultVisibility(tree.defaultVisibility);
-      setPublicSharing(tree.publicSharingEnabled);
-    }
-  }, [tree?.defaultVisibility, tree?.publicSharingEnabled]);
-
-  const savePrivacy = async (patch: { defaultVisibility?: VisibilityLevel; publicSharingEnabled?: boolean }) => {
-    const next = {
-      defaultVisibility: patch.defaultVisibility ?? defaultVisibility,
-      publicSharingEnabled: patch.publicSharingEnabled ?? publicSharing,
-    };
-    setDefaultVisibility(next.defaultVisibility);
-    setPublicSharing(next.publicSharingEnabled);
-    setPrivacyMsg(null);
-    try {
-      await updateTreePrivacy(next);
-      setPrivacyMsg('Saved.');
-    } catch {
-      setPrivacyMsg('Could not save. Please try again.');
-    }
-  };
 
   useFocusEffect(
     useCallback(() => {
@@ -300,45 +270,6 @@ export default function YouScreen() {
           <Caption style={{ marginTop: spacing.sm }}>
             Photos, videos, profile images, banners, and other files you've uploaded to your account.
           </Caption>
-        </Card>
-
-        {/* Privacy — editable */}
-        <Card>
-          <SectionLabel>Privacy</SectionLabel>
-          <View style={{ gap: spacing.md }}>
-            <View style={{ gap: spacing.xs }}>
-              <Body style={{ fontWeight: '600' }}>Default for new content</Body>
-              <Caption style={{ color: colors.deepUmber }}>
-                Who can see memories and profile details you add, unless you change it per item.
-              </Caption>
-              <View style={{ marginTop: spacing.xs }}>
-                <VisibilitySelector
-                  label=""
-                  value={defaultVisibility}
-                  onChange={(v) => savePrivacy({ defaultVisibility: v })}
-                />
-              </View>
-            </View>
-
-            <View style={{ height: 1, backgroundColor: colors.hairline }} />
-
-            <Toggle
-              value={publicSharing}
-              onValueChange={(v) => savePrivacy({ publicSharingEnabled: v })}
-              label="Allow public sharing"
-              description="Let people outside your Family Tree open links you explicitly make public (e.g. a memorial page). Off keeps your tree invite-only."
-            />
-
-            <View style={{ height: 1, backgroundColor: colors.hairline }} />
-
-            <Row label="Your data" value="Account-side" last />
-
-            {privacyMsg ? (
-              <Caption style={{ color: colors.deepUmber }}>{privacyMsg}</Caption>
-            ) : (
-              <Caption>Privacy is always free. Nothing is public unless you choose to share it.</Caption>
-            )}
-          </View>
         </Card>
 
         {/* Danger / session */}

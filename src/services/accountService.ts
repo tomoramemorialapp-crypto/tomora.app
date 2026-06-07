@@ -1,6 +1,7 @@
 import { validatePasswordLength } from '@/lib/passwordPolicy';
 import { supabase } from '@/lib/supabase';
 import { validateUsername } from '@/lib/username';
+import { extractStoragePath, removeReplacedAccountStorage } from '@/lib/storageCleanup';
 import type { Account, FamilyNode, PublicProfileConfig, SocialLinks, ThemePreference } from '@/types/models';
 import type { Json, Tables, TablesUpdate } from '@/types/database.types';
 import { mapAccount, mapNode } from './mappers';
@@ -73,6 +74,9 @@ export async function updatePublicProfile(
   const merged = { ...existing, ...patch };
   const nextPrefs = { ...prefs, publicProfile: merged } as Json;
 
+  const previousBannerRef = existing.bannerStoragePath ?? extractStoragePath(existing.bannerUrl);
+  const nextBannerRef = merged.bannerStoragePath ?? extractStoragePath(merged.bannerUrl);
+
   const { data, error } = await supabase
     .from('accounts')
     .update({ preferences: nextPrefs, updated_at: new Date().toISOString() })
@@ -80,6 +84,9 @@ export async function updatePublicProfile(
     .select()
     .single();
   if (error) throw error;
+
+  await removeReplacedAccountStorage(accountId, previousBannerRef, nextBannerRef);
+
   return mapAccount(data);
 }
 

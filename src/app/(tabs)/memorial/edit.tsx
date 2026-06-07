@@ -16,6 +16,7 @@ import type { MemorialPrivacy } from '@/types/models';
 import { editScopeFor } from '@/lib/profile';
 import { goBack } from '@/lib/navigation';
 import { getSignedUrl, pickMedia, uploadMedia } from '@/lib/media';
+import { removeAccountStorage, removeReplacedAccountStorage } from '@/lib/storageCleanup';
 
 const PRIVACY: { id: MemorialPrivacy; label: string; hint: string }[] = [
   { id: 'family', label: 'Family only', hint: 'Only your Family Tree can view it.' },
@@ -26,7 +27,7 @@ const PRIVACY: { id: MemorialPrivacy; label: string; hint: string }[] = [
 export default function MemorialEdit() {
   const router = useRouter();
   const { nodeId } = useLocalSearchParams<{ nodeId: string }>();
-  const { getNode, account, updateMemorialPage } = useAppState();
+  const { getNode, account, updateMemorialPage, refreshMediaUsage } = useAppState();
 
   const node = getNode(String(nodeId));
 
@@ -69,13 +70,29 @@ export default function MemorialEdit() {
       const picked = await pickMedia('photo');
       if (!picked || !account) return;
       const u = await uploadMedia(account.id, picked);
-      // Long-lived signed URL so the banner renders on the shareable page.
+      await removeReplacedAccountStorage(account.id, banner, u.storagePath);
       const url = await getSignedUrl(u.storagePath, 60 * 60 * 24 * 365);
       if (url) setBanner(url);
+      void refreshMediaUsage();
     } catch {
       setError('Could not upload that image.');
     } finally {
       setUploading(false);
+    }
+  };
+
+  const onRemoveBanner = async () => {
+    if (!account || !banner) {
+      setBanner('');
+      return;
+    }
+    setError(null);
+    try {
+      await removeAccountStorage(account.id, banner);
+      setBanner('');
+      void refreshMediaUsage();
+    } catch {
+      setError('Could not remove that banner.');
     }
   };
 
@@ -127,6 +144,11 @@ export default function MemorialEdit() {
             <View style={{ flex: 1 }}>
               <Button label={uploading ? 'Uploading…' : 'Upload image'} variant="secondary" disabled={uploading} onPress={onUploadBanner} />
             </View>
+            {banner ? (
+              <View style={{ flex: 1 }}>
+                <Button label="Remove" variant="ghost" disabled={uploading} onPress={() => void onRemoveBanner()} />
+              </View>
+            ) : null}
           </View>
           <TextField label="…or image link" value={banner} onChangeText={setBanner} placeholder="https://…" autoCapitalize="none" />
         </Card>

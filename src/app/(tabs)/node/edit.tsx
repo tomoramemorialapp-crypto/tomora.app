@@ -35,6 +35,7 @@ import { goBack } from '@/lib/navigation';
 import { userMessageFromSupabaseError } from '@/lib/supabaseErrors';
 import { pickMedia, uploadMedia } from '@/lib/media';
 import { profilePhotoValidationMessage, validateProfilePhoto } from '@/lib/profilePhotoValidation';
+import { removeAccountStorage, removeReplacedAccountStorage } from '@/lib/storageCleanup';
 import type {
   DateValue,
   GenderSexField,
@@ -201,6 +202,7 @@ function EditProfileEditor({ nodeId }: { nodeId: string }) {
         kind: 'photo' as const,
       };
       const uploaded = await uploadMedia(account.id, file);
+      await removeReplacedAccountStorage(account.id, photo, uploaded.storagePath);
       setPhoto(uploaded.storagePath);
       void refreshMediaUsage();
     } catch (e) {
@@ -208,6 +210,21 @@ function EditProfileEditor({ nodeId }: { nodeId: string }) {
       setPhotoError('Could not upload that photo. Please try again.');
     } finally {
       setPhotoBusy(false);
+    }
+  };
+
+  const onRemovePhoto = async () => {
+    if (!account || !photo) {
+      setPhoto('');
+      return;
+    }
+    setPhotoError(null);
+    try {
+      await removeAccountStorage(account.id, photo);
+      setPhoto('');
+      void refreshMediaUsage();
+    } catch {
+      setPhotoError('Could not remove that photo. Please try again.');
     }
   };
 
@@ -430,7 +447,7 @@ function EditProfileEditor({ nodeId }: { nodeId: string }) {
                 onPress={onUploadPhoto}
               />
               {photo ? (
-                <Pressable onPress={() => setPhoto('')} hitSlop={8} style={{ marginTop: 6, alignSelf: 'center' }}>
+                <Pressable onPress={() => void onRemovePhoto()} hitSlop={8} style={{ marginTop: 6, alignSelf: 'center' }}>
                   <Caption style={{ color: colors.deepUmber }}>Remove photo</Caption>
                 </Pressable>
               ) : null}

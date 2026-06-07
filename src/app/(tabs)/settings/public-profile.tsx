@@ -20,6 +20,7 @@ import { publicProfileUrl } from '@/constants/urls';
 import { openPublicProfile } from '@/lib/publicProfileNav';
 import { useAppState } from '@/state/AppState';
 import { getSignedUrl, pickMedia, uploadMedia } from '@/lib/media';
+import { removeAccountStorage, removeReplacedAccountStorage } from '@/lib/storageCleanup';
 import { publicLifeProfileFields } from '@/lib/publicProfileFields';
 import { parseSocialLinkItems, serializeSocialLinks } from '@/lib/socialLinks';
 import { setMemorySharePassword } from '@/services/publicProfileService';
@@ -176,11 +177,32 @@ export default function PublicProfileSettings() {
       const picked = await pickMedia('photo');
       if (!picked) return;
       const uploaded = await uploadMedia(account.id, picked);
+      await removeReplacedAccountStorage(
+        account.id,
+        pub.bannerStoragePath ?? pub.bannerUrl,
+        uploaded.storagePath,
+      );
       const url = await getSignedUrl(uploaded.storagePath, 60 * 60 * 24 * 365);
-      if (url) await savePublic({ bannerUrl: url });
+      if (url) await savePublic({ bannerUrl: url, bannerStoragePath: uploaded.storagePath });
       void refreshMediaUsage();
     } catch {
       setMsg('Could not upload that image.');
+    } finally {
+      setUploadingBanner(false);
+    }
+  };
+
+  const onRemoveBanner = async () => {
+    if (!account) return;
+    setUploadingBanner(true);
+    setMsg(null);
+    try {
+      await removeAccountStorage(account.id, pub.bannerStoragePath, pub.bannerUrl);
+      await savePublic({ bannerUrl: '', bannerStoragePath: undefined });
+      setPub((p) => ({ ...p, bannerUrl: '', bannerStoragePath: undefined }));
+      void refreshMediaUsage();
+    } catch {
+      setMsg('Could not remove that banner.');
     } finally {
       setUploadingBanner(false);
     }
@@ -270,6 +292,15 @@ export default function PublicProfileSettings() {
                 disabled={uploadingBanner}
                 onPress={onUploadBanner}
               />
+              {pub.bannerUrl ? (
+                <Button
+                  label="Remove banner"
+                  variant="ghost"
+                  fullWidth={false}
+                  disabled={uploadingBanner}
+                  onPress={() => void onRemoveBanner()}
+                />
+              ) : null}
               <TextField
                 label="Short bio"
                 value={pub.bio ?? ''}

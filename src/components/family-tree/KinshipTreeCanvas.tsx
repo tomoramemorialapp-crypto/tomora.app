@@ -35,7 +35,7 @@ const PAD_BOTTOM = 110;
 const NODE_HALF_W = 66;
 const NODE_HALF_H = 36;
 
-const ZOOM = { min: 0.35, max: 2.5, default: 1, focus: 1.4 };
+const ZOOM = { min: 0.35, max: 2.5, default: 1 };
 
 type Transform = { x: number; y: number; k: number };
 type Pt = { x: number; y: number };
@@ -137,7 +137,7 @@ export function KinshipTreeCanvas({
 }: {
   nodes: FamilyNode[];
   relationships: Relationship[];
-  /** Perspective node — labels and layout are computed from here. */
+  /** Perspective node — relationship labels are computed from here; layout stays on home anchor. */
   anchorNodeId?: string;
   /** Signed-in user's node — used for "View from me" and contextual copy. */
   homeAnchorNodeId?: string;
@@ -178,19 +178,21 @@ export function KinshipTreeCanvas({
     }, []),
   );
 
-  const anchor = anchorNodeId ?? homeAnchorNodeId ?? nodes.find((n) => n.ownerAccountId)?.id ?? nodes[0]?.id;
-  const homeAnchor = homeAnchorNodeId ?? nodes.find((n) => n.ownerAccountId)?.id ?? anchor;
+  const homeAnchor = homeAnchorNodeId ?? nodes.find((n) => n.ownerAccountId)?.id ?? nodes[0]?.id;
+  const layoutAnchor = homeAnchor;
+  const viewAnchor =
+    anchorNodeId ?? homeAnchor ?? nodes.find((n) => n.ownerAccountId)?.id ?? nodes[0]?.id;
 
   const graph = useMemo(() => {
-    if (!anchor || nodes.length === 0) return null;
-    const data = buildKinshipGraphFromApp({ nodes, relationships, anchorNodeId: anchor });
+    if (!layoutAnchor || !viewAnchor || nodes.length === 0) return null;
+    const data = buildKinshipGraphFromApp({ nodes, relationships, anchorNodeId: layoutAnchor });
     return resolveKinshipGraph({
-      anchorNodeId: anchor,
+      anchorNodeId: viewAnchor,
       nodes: data.nodes,
       edges: data.edges,
-      options: { mode, homeAnchorNodeId: homeAnchor },
+      options: { mode, homeAnchorNodeId: homeAnchor, layoutAnchorNodeId: layoutAnchor },
     });
-  }, [anchor, homeAnchor, nodes, relationships, mode]);
+  }, [layoutAnchor, viewAnchor, homeAnchor, nodes, relationships, mode]);
 
   // Apply filters -> visible node ids, positions, bounds, and rerouted edges.
   const view = useMemo(() => {
@@ -325,9 +327,9 @@ export function KinshipTreeCanvas({
     if (!view || container.w === 0) return;
     if (lastKey.current === viewKey) return;
     lastKey.current = viewKey;
-    if (!inited.current && graph) {
+    if (!inited.current && graph && layoutAnchor) {
       inited.current = true;
-      centerOnNode(graph.anchorNodeId, ZOOM.default);
+      centerOnNode(layoutAnchor, ZOOM.default);
     } else {
       fitView();
     }
@@ -360,16 +362,15 @@ export function KinshipTreeCanvas({
 
   const onTapNode = useCallback(
     (id: string) => {
-      const action = resolveTreeNodeTap(id, anchor);
+      const action = resolveTreeNodeTap(id, viewAnchor);
       if (action.type === 'reanchor') {
         setDetailsOpen(false);
         onAnchorChange?.(action.nodeId);
-        centerOnNode(action.nodeId, ZOOM.focus);
         return;
       }
       setDetailsOpen((open) => !open);
     },
-    [anchor, centerOnNode, onAnchorChange],
+    [viewAnchor, onAnchorChange],
   );
   const onDragUpdateNode = useCallback((id: string, dx: number, dy: number) => {
     const k = tfRef.current.k || 1;
@@ -436,7 +437,7 @@ export function KinshipTreeCanvas({
   }, [view, searchQuery]);
 
   const homePerspectiveExplanation = useMemo(() => {
-    if (!homeAnchor || anchor === homeAnchor || nodes.length === 0) return undefined;
+    if (!homeAnchor || viewAnchor === homeAnchor || nodes.length === 0) return undefined;
     const data = buildKinshipGraphFromApp({ nodes, relationships, anchorNodeId: homeAnchor });
     const homeGraph = resolveKinshipGraph({
       anchorNodeId: homeAnchor,
@@ -444,16 +445,16 @@ export function KinshipTreeCanvas({
       edges: data.edges,
       options: { mode },
     });
-    const target = homeGraph.nodes.find((n) => n.id === anchor);
+    const target = homeGraph.nodes.find((n) => n.id === viewAnchor);
     if (!target) return undefined;
     return getRelationshipExplanation({
       anchorNodeId: homeAnchor,
-      targetNodeId: anchor,
+      targetNodeId: viewAnchor,
       path: target.kinshipPathFromAnchor,
       nodes: homeGraph.nodes,
       edges: homeGraph.edges,
     });
-  }, [homeAnchor, anchor, nodes, relationships, mode]);
+  }, [homeAnchor, viewAnchor, nodes, relationships, mode]);
 
   if (!graph || !view) {
     return (
@@ -463,10 +464,10 @@ export function KinshipTreeCanvas({
     );
   }
 
-  const anchorNode = view.visibleNodes.find((n) => n.id === anchor) ?? null;
-  const viewingFromOther = anchor !== homeAnchor;
+  const anchorNode = view.visibleNodes.find((n) => n.id === viewAnchor) ?? null;
+  const viewingFromOther = viewAnchor !== homeAnchor;
   const anchorDisplayName =
-    nodes.find((n) => n.id === anchor)?.displayName ?? anchorNode?.displayName ?? 'This person';
+    nodes.find((n) => n.id === viewAnchor)?.displayName ?? anchorNode?.displayName ?? 'This person';
 
   const anchorExplanation =
     detailsOpen && anchorNode
@@ -483,20 +484,18 @@ export function KinshipTreeCanvas({
   const onPickSearchResult = (id: string) => {
     setSearchOpen(false);
     setSearchQuery('');
-    if (id !== anchor) {
+    if (id !== viewAnchor) {
       onAnchorChange?.(id);
       setDetailsOpen(false);
     } else {
       setDetailsOpen(true);
     }
-    centerOnNode(id, ZOOM.focus);
   };
 
   const onReturnHome = () => {
     if (!homeAnchor) return;
     onAnchorChange?.(homeAnchor);
     setDetailsOpen(false);
-    centerOnNode(homeAnchor, ZOOM.default);
   };
 
   const onToggleMinimalView = () => {
@@ -544,7 +543,7 @@ export function KinshipTreeCanvas({
                   node={node}
                   left={p.x + off.x + view.offsetX - NODE_HALF_W}
                   top={p.y + off.y + view.offsetY - NODE_HALF_H}
-                  highlighted={node.id === anchor && detailsOpen}
+                  highlighted={node.id === viewAnchor && detailsOpen}
                   minimalView={minimalView}
                   canvasPanRef={canvasPanRef}
                   onTap={onTapNode}

@@ -11,6 +11,7 @@ import { activeNodes } from '@/lib/activeNodes';
 import {
   INVERSE_RELATIONSHIP_TYPE,
   connectionCaption,
+  connectionLabel,
   detailOptionsForType,
   isValidDetailForType,
   perspectiveDetail,
@@ -61,6 +62,7 @@ function isPartnership(type: RelationshipType): boolean {
 
 export function ConnectionsEditor({ node }: { node: FamilyNode }) {
   const {
+    account,
     nodes,
     relationships,
     getRelationshipsForNode,
@@ -69,6 +71,9 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
     updateRelationship,
     updateRelationshipWeddingDate,
   } = useAppState();
+
+  const isViewerSelf = node.ownerAccountId === account?.id;
+  const possessive = isViewerSelf ? 'your' : `${node.displayName}'s`;
 
   const liveNodes = useMemo(() => activeNodes(nodes), [nodes]);
   const rels = getRelationshipsForNode(node.id);
@@ -263,8 +268,9 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
     <Card style={{ marginBottom: spacing.lg }}>
       <SectionHeader title="Connections" />
       <Caption style={{ marginTop: spacing.xs }}>
-        Choose exactly who {node.displayName} connects to — for example, a sibling tied only to one parent, a
-        father-in-law, or two parents shown as spouses.
+        {isViewerSelf
+          ? 'Choose exactly who you connect to in your Family Tree — for example, a sibling tied only to one parent, a father-in-law, or two parents shown as spouses.'
+          : `Choose exactly who ${node.displayName} connects to — for example, a sibling tied only to one parent, a father-in-law, or two parents shown as spouses.`}
       </Caption>
 
       <View style={{ gap: spacing.md, marginTop: spacing.md }}>
@@ -291,7 +297,10 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
                   </Pressable>
                 </View>
                 <Caption style={{ marginTop: 2, marginBottom: 6 }}>
-                  {connectionCaption(node.displayName, pType, pDetail)}
+                  {other?.displayName}{' '}
+                  {isViewerSelf
+                    ? `is your ${connectionLabel(pType, pDetail)}`
+                    : connectionCaption(node.displayName, pType, pDetail)}
                 </Caption>
                 {inLawSuggestion && inLawSuggestion !== pType ? (
                   <Caption style={{ color: colors.guardianGold, marginBottom: 6 }}>
@@ -301,7 +310,7 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
                   </Caption>
                 ) : null}
                 <Dropdown
-                  label={`Relationship — they are ${node.displayName}'s…`}
+                  label={`Relationship — they are ${possessive}…`}
                   value={pType}
                   onChange={(v) => onChangeType(rel.id, isSource, v as RelationshipType, other, pDetail)}
                   options={OPTIONS.map((o) => ({ value: o.id, label: o.label }))}
@@ -340,7 +349,9 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
         {adding ? (
           <View style={{ gap: spacing.md }}>
             {candidates.length === 0 ? (
-              <Caption>Everyone is already connected to {node.displayName}.</Caption>
+              <Caption>
+                {isViewerSelf ? 'Everyone is already connected to you.' : `Everyone is already connected to ${node.displayName}.`}
+              </Caption>
             ) : (
               <Dropdown
                 label="Connect to"
@@ -362,7 +373,7 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
               </Caption>
             ) : null}
             <Dropdown
-              label={`Relationship — they are ${node.displayName}'s…`}
+              label={`Relationship — they are ${possessive}…`}
               value={newType}
               onChange={(v) => {
                 const t = v as RelationshipType;
@@ -389,7 +400,10 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
             ) : null}
             {newTarget ? (
               <Caption style={{ color: colors.deepUmber }}>
-                {newTarget.displayName} {connectionCaption(node.displayName, newType, newDetail)}
+                {newTarget.displayName}{' '}
+                {isViewerSelf
+                  ? `is your ${connectionLabel(newType, newDetail)}`
+                  : connectionCaption(node.displayName, newType, newDetail)}
               </Caption>
             ) : null}
             {error ? <Caption style={{ color: colors.error }}>{error}</Caption> : null}

@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { userMessageFromSupabaseError } from '@/lib/supabaseErrors';
 import type { RelationshipDetail } from '@/lib/relationshipDetail';
 import type {
   Account,
@@ -274,7 +275,9 @@ export async function createRelationship(input: {
     })
     .select()
     .single();
-  if (error) throw error;
+  if (error) {
+    throw new Error(userMessageFromSupabaseError(error, 'Could not add this connection. Please try again.'));
+  }
   return mapRelationship(data);
 }
 

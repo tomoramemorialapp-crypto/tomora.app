@@ -75,21 +75,36 @@ function buildFamilyUnits(params: {
 export function resolveKinshipGraph(input: ResolveKinshipInput): KinshipRenderGraph {
   const { anchorNodeId, nodes, edges, options } = input;
   const mode = options?.mode ?? 'focus';
+  const layoutAnchorId = options?.layoutAnchorNodeId ?? anchorNodeId;
   const warnings: KinshipWarning[] = [];
 
   // 1. validate
-  const anchor = nodes.find((n) => n.id === anchorNodeId);
-  if (!anchor) {
-    return { anchorNodeId, nodes: [], edges: [], familyUnits: [], warnings: [{ code: 'no_anchor', message: 'Anchor node not found.' }] };
+  const layoutAnchor = nodes.find((n) => n.id === layoutAnchorId);
+  if (!layoutAnchor) {
+    return {
+      anchorNodeId,
+      nodes: [],
+      edges: [],
+      familyUnits: [],
+      warnings: [{ code: 'no_anchor', message: 'Layout anchor node not found.' }],
+    };
   }
 
   // 2. privacy filter (MVP passthrough; real filtering is post-MVP)
   const filteredNodes = nodes;
   const filteredEdges = edges.filter((e) => e.status !== 'rejected');
 
-  // 3. paths + 4. generations
-  const paths = computeKinshipPaths({ anchorNodeId, nodes: filteredNodes, edges: filteredEdges });
-  const genResult = computeGenerationOffsetsWithWarnings({ anchorNodeId, nodes: filteredNodes, edges: filteredEdges });
+  // 3. paths + 4. generations (layout anchor — stable positions when view anchor changes)
+  const layoutPaths = computeKinshipPaths({ anchorNodeId: layoutAnchorId, nodes: filteredNodes, edges: filteredEdges });
+  const labelPaths =
+    layoutAnchorId === anchorNodeId
+      ? layoutPaths
+      : computeKinshipPaths({ anchorNodeId, nodes: filteredNodes, edges: filteredEdges });
+  const genResult = computeGenerationOffsetsWithWarnings({
+    anchorNodeId: layoutAnchorId,
+    nodes: filteredNodes,
+    edges: filteredEdges,
+  });
   warnings.push(...genResult.warnings);
   const offsets = genResult.offsets;
 
@@ -98,35 +113,48 @@ export function resolveKinshipGraph(input: ResolveKinshipInput): KinshipRenderGr
   const maxDown = options?.maxGenerationsDown ?? (mode === 'full' ? Infinity : 3);
 
   // 6. branches
-  const branchMap = classifyBranches({ anchorNodeId, nodes: filteredNodes, edges: filteredEdges, paths });
+  const branchMap = classifyBranches({
+    anchorNodeId: layoutAnchorId,
+    nodes: filteredNodes,
+    edges: filteredEdges,
+    paths: layoutPaths,
+  });
 
   // 7. enrich + scope nodes
   const labelAnchorAsYou =
     !options?.homeAnchorNodeId || anchorNodeId === options.homeAnchorNodeId;
+  const labelNodes = filteredNodes.map((x) => ({
+    ...x,
+    branchType: branchMap.get(x.id) ?? x.branchType,
+  }));
   const includedIds = new Set<string>();
   const enriched: KinshipNode[] = [];
   for (const n of filteredNodes) {
     const gen = offsets.get(n.id);
-    if (gen === undefined) continue; // unreachable from anchor
+    if (gen === undefined) continue; // unreachable from layout anchor
     if (gen > maxUp || gen < -maxDown) continue;
     const branchType = branchMap.get(n.id) ?? n.branchType ?? 'unsorted';
-    if (mode === 'branch' && options?.branchType && n.id !== anchorNodeId && branchType !== options.branchType) {
+    if (mode === 'branch' && options?.branchType && n.id !== layoutAnchorId && branchType !== options.branchType) {
       continue;
     }
-    const path = paths.get(n.id) ?? [n.id];
+    const layoutPath = layoutPaths.get(n.id) ?? [n.id];
+    const labelPath = labelPaths.get(n.id);
     const enrichedNode: KinshipNode = {
       ...n,
+      isAnchor: n.id === anchorNodeId && labelAnchorAsYou,
       branchType,
       generationOffset: gen,
-      kinshipPathFromAnchor: path,
-      relationshipLabelFromAnchor: getRelationshipLabel({
-        anchorNodeId,
-        targetNodeId: n.id,
-        path,
-        nodes: filteredNodes.map((x) => ({ ...x, branchType: branchMap.get(x.id) ?? x.branchType })),
-        edges: filteredEdges,
-        labelAnchorAsYou,
-      }),
+      kinshipPathFromAnchor: layoutPath,
+      relationshipLabelFromAnchor: labelPath
+        ? getRelationshipLabel({
+            anchorNodeId,
+            targetNodeId: n.id,
+            path: labelPath,
+            nodes: labelNodes,
+            edges: filteredEdges,
+            labelAnchorAsYou,
+          })
+        : '',
     };
     enriched.push(enrichedNode);
     includedIds.add(n.id);
@@ -134,11 +162,16 @@ export function resolveKinshipGraph(input: ResolveKinshipInput): KinshipRenderGr
 
   // 8. family units (over the visible set)
   const scopedEdges = filteredEdges.filter((e) => includedIds.has(e.fromNodeId) && includedIds.has(e.toNodeId));
-  const familyUnits = buildFamilyUnits({ familyTreeId: anchor.familyTreeId, nodes: enriched, edges: scopedEdges, generationOffsets: offsets });
+  const familyUnits = buildFamilyUnits({
+    familyTreeId: layoutAnchor.familyTreeId,
+    nodes: enriched,
+    edges: scopedEdges,
+    generationOffsets: offsets,
+  });
 
   // 9. layout
   const renderNodes = computeKinshipLayout({
-    anchorNodeId,
+    anchorNodeId: layoutAnchorId,
     nodes: enriched,
     edges: scopedEdges,
     familyUnits,

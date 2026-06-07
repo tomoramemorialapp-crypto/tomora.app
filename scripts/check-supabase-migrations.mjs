@@ -41,6 +41,11 @@ const MIGRATIONS = [
       return sb.rpc('request_node_transfer', { p_node_id: '00000000-0000-0000-0000-000000000000', p_to_email: 'a@b.co' });
     },
   },
+  {
+    version: '20260606170000',
+    name: 'relationship_types_in_law',
+    probe: () => sb.rpc('relationship_types_supports_in_law'),
+  },
 ];
 
 async function col(table, column) {
@@ -62,6 +67,8 @@ function classify(result) {
   // Function exists (e.g. NOT_SIGNED_IN, INVALID_CODE, Enter your email)
   if (err.code === 'P0001' || err.message?.includes('NOT_SIGNED_IN')) return 'applied';
   if (result?.data !== undefined && result?.data !== null) return 'applied';
+  if (result?.data === true) return 'applied';
+  if (result?.data === false) return 'missing';
   return 'unknown';
 }
 

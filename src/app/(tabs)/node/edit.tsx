@@ -593,8 +593,8 @@ function EditProfileEditor({ nodeId }: { nodeId: string }) {
         </View>
       </Card>
 
-      {/* Connections — relink to specific people across the tree (non-self) */}
-      {!isSelf ? <ConnectionsEditor node={node} /> : null}
+      {/* Connections — relationship type and specific terms (father, mother, …) */}
+      <ConnectionsEditor node={node} />
 
       {/* Danger zone — delete an unclaimed node you created */}
       {canDelete ? (

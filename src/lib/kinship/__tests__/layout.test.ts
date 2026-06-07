@@ -76,4 +76,25 @@ describe('layout', () => {
     expect(parentEdge?.lineStyle).toBe('solid');
     expect(partnerEdge?.lineStyle).toBe('dashed');
   });
+
+  it('keeps layout on layoutAnchorNodeId while labels follow anchorNodeId', () => {
+    const { nodes, edges } = buildGraph(FULL_FAMILY);
+    const home = resolveKinshipGraph({ anchorNodeId: ANCHOR_ID, nodes, edges, options: { mode: 'full' } });
+    const fromDad = resolveKinshipGraph({
+      anchorNodeId: 'dad',
+      nodes,
+      edges,
+      options: { mode: 'full', layoutAnchorNodeId: ANCHOR_ID, homeAnchorNodeId: ANCHOR_ID },
+    });
+    const layoutOf = (g: typeof home) =>
+      g.nodes
+        .map((n) => `${n.id}:${n.layout.x},${n.layout.y}`)
+        .sort()
+        .join('|');
+    expect(layoutOf(fromDad)).toBe(layoutOf(home));
+    const dadFromHome = home.nodes.find((n) => n.id === 'dad')!;
+    const selfFromDad = fromDad.nodes.find((n) => n.id === ANCHOR_ID)!;
+    expect(dadFromHome.relationshipLabelFromAnchor).toBe('Father');
+    expect(selfFromDad.relationshipLabelFromAnchor).toBe('Child');
+  });
 });

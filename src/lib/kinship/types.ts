@@ -163,6 +163,8 @@ export interface ResolveKinshipOptions {
   autoCreatePlaceholders?: boolean;
   /** When set, only this node is labelled "You" as the anchor; other anchors use display name only. */
   homeAnchorNodeId?: string;
+  /** When set, layout, generations, and branches are computed from this node; labels still use anchorNodeId. */
+  layoutAnchorNodeId?: string;
 }
 
 export interface ResolveKinshipInput {

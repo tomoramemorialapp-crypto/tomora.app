@@ -133,8 +133,18 @@ export default function Claim() {
 
   const onPasteLink = (value: string) => {
     const parsed = parseClaimCode(value);
-    setCode(parsed ?? value.toUpperCase());
-    setNote(null);
+    if (parsed) {
+      setCode(parsed);
+      setNote(null);
+      return;
+    }
+    const raw = value.trim();
+    if (/^[A-Za-z0-9]{4,32}$/.test(raw)) {
+      setCode(raw.toUpperCase());
+      setNote(null);
+      return;
+    }
+    setNote('Paste a Tomora invite link or invite code — public profile links cannot be used here.');
   };
 
   return (

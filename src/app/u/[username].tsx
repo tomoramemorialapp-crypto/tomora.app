@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Linking, Platform, Pressable, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -17,6 +17,10 @@ import { ShareSheet } from '@/components/ui/ShareSheet';
 import { colors, radii, spacing } from '@/constants/theme';
 import { publicProfileUrl } from '@/constants/urls';
 import { copyToClipboard } from '@/lib/clipboard';
+import {
+  normalizePublicUsernameParam,
+  PUBLIC_PROFILE_EDITOR_PATH,
+} from '@/lib/publicProfile';
 import { useAppState } from '@/state/AppState';
 import { getPublicProfile, type PublicProfileView } from '@/services/publicProfileService';
 
@@ -85,39 +89,69 @@ async function openExternal(url: string) {
  */
 export default function PublicProfilePage() {
   const router = useRouter();
-  const { username } = useLocalSearchParams<{ username: string }>();
+  const { username: usernameParam } = useLocalSearchParams<{ username: string }>();
   const { account, loading: authLoading } = useAppState();
 
+  const username = useMemo(
+    () => normalizePublicUsernameParam(String(usernameParam ?? '')),
+    [usernameParam],
+  );
+
   const [profile, setProfile] = useState<PublicProfileView | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
 
   const isOwner =
-    !!account?.username && account.username.toLowerCase() === String(username ?? '').toLowerCase();
+    !!account?.username &&
+    account.username.toLowerCase() === username &&
+    !authLoading;
 
-  useEffect(() => {
-    let alive = true;
-    setLoading(true);
+  const loadProfile = useCallback(() => {
+    if (!username) {
+      setNotFound(true);
+      setProfileLoading(false);
+      return;
+    }
+    setProfileLoading(true);
     setNotFound(false);
-    getPublicProfile(String(username ?? ''))
+    setFetchError(false);
+    getPublicProfile(username)
       .then((p) => {
-        if (!alive) return;
         if (!p) setNotFound(true);
         else setProfile(p);
       })
-      .catch(() => alive && setNotFound(true))
-      .finally(() => alive && setLoading(false));
-    return () => {
-      alive = false;
-    };
+      .catch(() => setFetchError(true))
+      .finally(() => setProfileLoading(false));
   }, [username]);
 
-  if (loading || authLoading) {
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
+
+  const waitingForOwnerCheck = notFound && authLoading;
+
+  if (profileLoading || waitingForOwnerCheck) {
     return (
       <ScreenContainer maxWidth={640}>
         <Caption>Loading…</Caption>
+      </ScreenContainer>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <ScreenContainer maxWidth={640}>
+        <EmptyState
+          title="Could not load this profile"
+          body="Check your connection and try again."
+        />
+        <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
+          <Button label="Retry" variant="gold" onPress={loadProfile} />
+        </View>
+        <PublicProfileCta />
       </ScreenContainer>
     );
   }
@@ -138,7 +172,7 @@ export default function PublicProfilePage() {
             <Button
               label="Edit public profile"
               variant="gold"
-              onPress={() => router.push('/settings/public-profile')}
+              onPress={() => router.push(PUBLIC_PROFILE_EDITOR_PATH)}
             />
           </View>
         ) : null}
@@ -201,13 +235,21 @@ export default function PublicProfilePage() {
             </View>
           ) : null}
 
-          {isOwner && profile ? (
-            <View style={{ marginTop: spacing.sm, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: spacing.sm }}>
+          {isOwner ? (
+            <View
+              style={{
+                marginTop: spacing.sm,
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                gap: spacing.sm,
+              }}
+            >
               <Button
                 label="Edit public profile"
                 variant="secondary"
                 fullWidth={false}
-                onPress={() => router.push('/settings/public-profile' as never)}
+                onPress={() => router.push(PUBLIC_PROFILE_EDITOR_PATH)}
               />
               <Button
                 label="Share link"
@@ -267,7 +309,7 @@ export default function PublicProfilePage() {
 
       <PublicProfileCta />
 
-      {isOwner && profile ? (
+      {isOwner ? (
         <ShareSheet
           visible={shareOpen}
           onClose={() => setShareOpen(false)}
@@ -275,6 +317,7 @@ export default function PublicProfilePage() {
           title="Share your public profile"
           message={`See ${profile.displayName}'s public profile on Tomora`}
           linkLabel="Public profile link"
+          emailSubject="A Tomora public profile"
         />
       ) : null}
     </ScreenContainer>

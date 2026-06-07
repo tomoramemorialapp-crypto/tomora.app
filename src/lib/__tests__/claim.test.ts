@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseClaimCode } from '@/lib/claim';
+import { parseClaimCode, shouldAcceptClaimScan } from '@/lib/claim';
 
 describe('parseClaimCode', () => {
   it('parses code from claim URLs', () => {
@@ -24,5 +24,15 @@ describe('parseClaimCode', () => {
   it('rejects codes that are too short or invalid', () => {
     expect(parseClaimCode('ab')).toBeNull();
     expect(parseClaimCode('not a code!')).toBeNull();
+  });
+});
+
+describe('shouldAcceptClaimScan', () => {
+  it('accepts the first scan and rejects rapid duplicates', () => {
+    const last = { code: 'ABC123', at: 1000 };
+    expect(shouldAcceptClaimScan('ABC123', undefined, 1000)).toBe(true);
+    expect(shouldAcceptClaimScan('ABC123', last, 1500)).toBe(false);
+    expect(shouldAcceptClaimScan('ABC123', last, 3500)).toBe(true);
+    expect(shouldAcceptClaimScan('OTHER9', last, 1500)).toBe(true);
   });
 });

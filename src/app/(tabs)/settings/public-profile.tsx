@@ -448,6 +448,7 @@ export default function PublicProfileSettings() {
           title="Share your public profile"
           message={`See ${account.displayName}'s public profile on Tomora`}
           linkLabel="Public profile link"
+          emailSubject="A Tomora public profile"
         />
       ) : null}
     </ScreenContainer>

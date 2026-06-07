@@ -18,13 +18,7 @@ const enc = encodeURIComponent;
 
 const TARGETS: Target[] = [
   { id: 'sms', label: 'Messages', icon: 'sms', tint: '#34C759', url: (l, m) => `sms:?&body=${enc(`${m} ${l}`)}` },
-  {
-    id: 'email',
-    label: 'Email',
-    icon: 'email',
-    tint: '#8E8E93',
-    url: (l, m) => `mailto:?subject=${enc('Join our Family Tree on Tomora')}&body=${enc(`${m}\n\n${l}`)}`,
-  },
+  { id: 'email', label: 'Email', icon: 'email', tint: '#8E8E93' },
   { id: 'whatsapp', label: 'WhatsApp', icon: 'whatsapp', tint: '#25D366', url: (l, m) => `https://wa.me/?text=${enc(`${m} ${l}`)}` },
   {
     id: 'messenger',
@@ -79,6 +73,7 @@ export function ShareSheet({
   title,
   message,
   linkLabel = 'Invite link',
+  emailSubject = 'Join our Family Tree on Tomora',
 }: {
   visible: boolean;
   onClose: () => void;
@@ -86,6 +81,7 @@ export function ShareSheet({
   title: string;
   message: string;
   linkLabel?: string;
+  emailSubject?: string;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -101,6 +97,10 @@ export function ShareSheet({
       setCopied(true);
       setTimeout(() => setCopied(false), 2200);
       await openUrl('https://www.instagram.com/');
+      return;
+    }
+    if (target.id === 'email') {
+      await openUrl(`mailto:?subject=${enc(emailSubject)}&body=${enc(`${message}\n\n${link}`)}`);
       return;
     }
     if (target.url) await openUrl(target.url(link, message));

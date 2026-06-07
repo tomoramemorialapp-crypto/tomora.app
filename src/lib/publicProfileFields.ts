@@ -4,7 +4,15 @@ import {
   formatPersonName,
   formatPlace,
 } from '@/lib/profile';
-import type { NodeProfile, PreviousName } from '@/types/profile';
+import type {
+  DateValue,
+  GenderSexField,
+  NodeProfile,
+  NodeProfileHistoryFields,
+  PersonName,
+  PlaceReference,
+  PreviousName,
+} from '@/types/profile';
 import { PROFILE_FIELD_KEYS, PROFILE_FIELD_LABELS, type ProfileFieldKey } from '@/types/profile';
 
 export interface PublicLifeField {
@@ -28,33 +36,33 @@ export function publicLifeProfileFields(profile: NodeProfile): PublicLifeField[]
       case 'profilePhoto':
         continue;
       case 'name':
-        value = formatPersonName(field.value);
+        value = formatPersonName(field.value as PersonName);
         break;
       case 'alternateNames':
-        value = (field.value ?? []).join(', ');
+        value = ((field.value as string[] | undefined) ?? []).join(', ');
         break;
       case 'previousNames':
-        value = (field.value ?? [])
-          .map((n: PreviousName) => n.name)
+        value = ((field.value as PreviousName[] | undefined) ?? [])
+          .map((n) => n.name)
           .filter(Boolean)
           .join(', ');
         break;
       case 'dateOfBirth':
       case 'dateOfDeath':
-        value = formatDateValue(field.value);
+        value = formatDateValue(field.value as DateValue);
         break;
       case 'placeOfBirth':
       case 'placeOfDeath':
-        value = formatPlace(field.value, false);
+        value = formatPlace(field.value as PlaceReference, false);
         break;
       case 'genderSex':
-        value = formatGenderSex(field.value);
+        value = formatGenderSex(field.value as GenderSexField);
         break;
       case 'languages':
-        value = (field.value ?? []).join(', ');
+        value = ((field.value as string[] | undefined) ?? []).join(', ');
         break;
       case 'notesHistory': {
-        const h = field.value;
+        const h = field.value as NodeProfileHistoryFields;
         const bits = [h?.occupationOrRole?.join(', '), h?.lifeHistory, h?.notes].filter(Boolean);
         value = bits.join('\n\n');
         break;

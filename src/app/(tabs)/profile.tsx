@@ -20,6 +20,7 @@ import { isEmailVerified } from '@/services/authService';
 import type { VisibilityLevel } from '@/types/models';
 import { formatBytes, STORAGE_QUOTA_BYTES } from '@/lib/media';
 import { copyToClipboard } from '@/lib/clipboard';
+import { PUBLIC_PROFILE_EDITOR_PATH } from '@/lib/publicProfile';
 import { copy } from '@/constants/copy';
 
 function daysUntil(iso?: string): number {
@@ -196,7 +197,7 @@ export default function YouScreen() {
                   label="Edit Public Profile"
                   variant="secondary"
                   fullWidth={false}
-                  onPress={() => router.push('/settings/public-profile')}
+                  onPress={() => router.push(PUBLIC_PROFILE_EDITOR_PATH)}
                 />
                 <Button
                   label="Share link"
@@ -228,7 +229,7 @@ export default function YouScreen() {
                   label="Set up Public Profile"
                   variant="secondary"
                   fullWidth={false}
-                  onPress={() => router.push('/settings/public-profile')}
+                  onPress={() => router.push(PUBLIC_PROFILE_EDITOR_PATH)}
                 />
               </View>
             )}
@@ -375,6 +376,7 @@ export default function YouScreen() {
           title="Share your public profile"
           message={`See ${account?.displayName ?? 'my'} public profile on Tomora`}
           linkLabel="Public profile link"
+          emailSubject="A Tomora public profile"
         />
       ) : null}
 

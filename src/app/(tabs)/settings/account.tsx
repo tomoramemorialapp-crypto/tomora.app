@@ -17,6 +17,7 @@ import { isEmailVerified, resendEmailConfirmation } from '@/services/authService
 import { publicProfileUrl } from '@/constants/urls';
 import { usernameChangesRemaining } from '@/services/accountService';
 import { passwordMinLengthHint, validatePasswordLength } from '@/lib/passwordPolicy';
+import { PUBLIC_PROFILE_EDITOR_PATH } from '@/lib/publicProfile';
 import { normalizeUsername } from '@/lib/username';
 import { Badge } from '@/components/ui/Badge';
 import { AppFooter } from '@/components/brand/AppFooter';
@@ -285,7 +286,7 @@ export default function AccountSettings() {
           <Button
             label="Manage public profile"
             variant="secondary"
-            onPress={() => router.push('/settings/public-profile')}
+            onPress={() => router.push(PUBLIC_PROFILE_EDITOR_PATH)}
           />
           {account?.username && account.publicProfile.enabled ? (
             <Button

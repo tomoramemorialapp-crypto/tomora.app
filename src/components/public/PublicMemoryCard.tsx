@@ -30,9 +30,7 @@ export function PublicMemoryCard({ memory }: { memory: PublicMemory }) {
       const full = await unlockPublicMemory(memory.id, password);
       setUnlocked(full);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Could not open this memory.';
-      if (msg.includes('PASSWORD_REQUIRED')) setError('Enter the password to view this memory.');
-      else setError(msg);
+      setError(e instanceof Error ? e.message : 'Could not open this memory.');
     } finally {
       setBusy(false);
     }

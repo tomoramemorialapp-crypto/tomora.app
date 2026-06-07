@@ -4,7 +4,7 @@ import { Platform, Pressable, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Caption } from '@/components/ui/Typography';
 import { colors, radii, spacing } from '@/constants/theme';
-import { parseClaimCode } from '@/lib/claim';
+import { parseClaimCode, shouldAcceptClaimScan } from '@/lib/claim';
 
 type BarcodeDetectorLike = {
   detect: (source: ImageBitmapSource) => Promise<{ rawValue?: string }[]>;
@@ -20,6 +20,7 @@ declare global {
 export function QrClaimScanner({ onCode }: { onCode: (code: string) => void }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const lastScanRef = useRef<{ code: string; at: number } | undefined>(undefined);
   const [supported, setSupported] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +58,8 @@ export function QrClaimScanner({ onCode }: { onCode: (code: string) => void }) {
           const codes = await detector.detect(videoRef.current);
           const raw = codes[0]?.rawValue;
           const parsed = raw ? parseClaimCode(raw) : null;
-          if (parsed) {
+          if (parsed && shouldAcceptClaimScan(parsed, lastScanRef.current)) {
+            lastScanRef.current = { code: parsed, at: Date.now() };
             alive = false;
             stop();
             onCode(parsed);

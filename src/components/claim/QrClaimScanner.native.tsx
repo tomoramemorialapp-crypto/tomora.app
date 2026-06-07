@@ -1,11 +1,11 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 
 import { Button } from '@/components/ui/Button';
 import { Caption } from '@/components/ui/Typography';
 import { colors, radii, spacing } from '@/constants/theme';
-import { parseClaimCode } from '@/lib/claim';
+import { parseClaimCode, shouldAcceptClaimScan } from '@/lib/claim';
 
 const FRAME_STYLE = {
   width: '100%' as const,
@@ -23,11 +23,13 @@ export function QrClaimScanner({ onCode }: { onCode: (code: string) => void }) {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanning, setScanning] = useState(true);
   const [captured, setCaptured] = useState(false);
+  const lastScanRef = useRef<{ code: string; at: number } | undefined>(undefined);
 
   const handleBarcodeScanned = useCallback(
     (result: BarcodeScanningResult) => {
       const parsed = parseClaimCode(result.data);
-      if (!parsed) return;
+      if (!parsed || !shouldAcceptClaimScan(parsed, lastScanRef.current)) return;
+      lastScanRef.current = { code: parsed, at: Date.now() };
       setCaptured(true);
       setScanning(false);
       onCode(parsed);
@@ -36,6 +38,7 @@ export function QrClaimScanner({ onCode }: { onCode: (code: string) => void }) {
   );
 
   const onScanAgain = () => {
+    lastScanRef.current = undefined;
     setCaptured(false);
     setScanning(true);
   };

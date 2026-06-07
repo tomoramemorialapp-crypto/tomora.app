@@ -1,26 +1,12 @@
 import { supabase } from '@/lib/supabase';
+import {
+  friendlyPublicMemoryUnlockError,
+  mapPublicMemoryMedia,
+  normalizePublicUsernameParam,
+} from '@/lib/publicProfile';
 import { publicLifeProfileFields } from '@/lib/publicProfileFields';
 import type { NodeProfile } from '@/types/profile';
 import type { MemoryMediaItem, SocialLinks } from '@/types/models';
-
-function mapPublicMemoryMedia(raw: unknown): MemoryMediaItem[] {
-  if (!Array.isArray(raw)) return [];
-  const out: MemoryMediaItem[] = [];
-  for (const item of raw) {
-    const r = item as Record<string, unknown>;
-    const storagePath = String(r.storagePath ?? r.storage_path ?? '').trim();
-    if (!storagePath) continue;
-    const kind = r.kind as MemoryMediaItem['kind'] | undefined;
-    out.push({
-      storagePath,
-      sizeBytes: Number(r.sizeBytes ?? r.size_bytes ?? 0),
-      mime: (r.mime as string | undefined) ?? (r.media_mime as string | undefined),
-      kind: kind === 'video' || kind === 'audio' || kind === 'document' ? kind : 'photo',
-      name: (r.name as string | undefined) ?? undefined,
-    });
-  }
-  return out;
-}
 
 /** A public memory teaser shown on a social profile. */
 export interface PublicMemory {
@@ -91,7 +77,10 @@ interface RawPublicProfile {
  * username doesn't exist or the owner hasn't made their profile public.
  */
 export async function getPublicProfile(username: string): Promise<PublicProfileView | null> {
-  const { data, error } = await supabase.rpc('get_public_profile', { p_username: username });
+  const normalized = normalizePublicUsernameParam(username);
+  if (!normalized) return null;
+
+  const { data, error } = await supabase.rpc('get_public_profile', { p_username: normalized });
   if (error) throw new Error(error.message);
   if (!data) return null;
   const raw = data as unknown as RawPublicProfile;
@@ -131,7 +120,7 @@ export async function unlockPublicMemory(memoryId: string, password: string): Pr
     p_memory_id: memoryId,
     p_password: password,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(friendlyPublicMemoryUnlockError(error.message));
   const raw = (data ?? {}) as {
     id: string;
     type: string;

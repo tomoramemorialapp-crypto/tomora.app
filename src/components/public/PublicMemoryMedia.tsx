@@ -7,22 +7,43 @@ import { colors, radii, spacing } from '@/constants/theme';
 import { formatBytes, getSignedUrl } from '@/lib/media';
 import type { MemoryMediaItem, MemoryType } from '@/types/models';
 
-function useSignedUrl(storagePath?: string): string | null {
+type SignedUrlState = 'idle' | 'loading' | 'ready' | 'failed';
+
+function useSignedUrl(storagePath?: string): { url: string | null; state: SignedUrlState } {
   const [url, setUrl] = useState<string | null>(null);
+  const [state, setState] = useState<SignedUrlState>('idle');
+
   useEffect(() => {
     let alive = true;
     if (!storagePath) {
       setUrl(null);
+      setState('idle');
       return;
     }
-    getSignedUrl(storagePath, 60 * 60).then((u) => {
-      if (alive) setUrl(u);
-    });
+    setState('loading');
+    getSignedUrl(storagePath, 60 * 60)
+      .then((u) => {
+        if (!alive) return;
+        if (u) {
+          setUrl(u);
+          setState('ready');
+        } else {
+          setUrl(null);
+          setState('failed');
+        }
+      })
+      .catch(() => {
+        if (alive) {
+          setUrl(null);
+          setState('failed');
+        }
+      });
     return () => {
       alive = false;
     };
   }, [storagePath]);
-  return url;
+
+  return { url, state };
 }
 
 async function openUrl(url: string) {
@@ -41,15 +62,17 @@ function MediaRow({
   label,
   hint,
   onPress,
+  disabled,
 }: {
   label: string;
   hint: string;
   onPress?: () => void;
+  disabled?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
-      disabled={!onPress}
+      disabled={disabled || !onPress}
       style={{
         flexDirection: 'row',
         alignItems: 'center',
@@ -59,6 +82,7 @@ function MediaRow({
         borderWidth: 1,
         borderColor: colors.mistBeige,
         backgroundColor: colors.white,
+        opacity: disabled ? 0.7 : 1,
       }}
     >
       <Body numberOfLines={1} style={{ fontWeight: '600', flex: 1, marginRight: spacing.sm }}>
@@ -70,30 +94,66 @@ function MediaRow({
 }
 
 function MediaItemPreview({ item }: { item: MemoryMediaItem }) {
-  const signed = useSignedUrl(item.storagePath);
+  const { url: signed, state } = useSignedUrl(item.storagePath);
 
-  if (item.kind === 'photo' && signed) {
-    return (
-      <Pressable onPress={() => openUrl(signed)}>
-        <Image
-          source={{ uri: signed }}
-          style={{ width: '100%', height: 220, borderRadius: radii.md }}
-          contentFit="cover"
-          transition={150}
-        />
-      </Pressable>
-    );
+  if (item.kind === 'photo') {
+    if (state === 'loading') {
+      return (
+        <View
+          style={{
+            width: '100%',
+            height: 220,
+            borderRadius: radii.md,
+            backgroundColor: colors.mistBeige,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Caption style={{ color: colors.deepUmber }}>Loading photo…</Caption>
+        </View>
+      );
+    }
+    if (state === 'failed') {
+      return (
+        <Caption style={{ color: colors.deepUmber }}>
+          Photo unavailable right now. The owner may need to finish storage setup.
+        </Caption>
+      );
+    }
+    if (signed) {
+      return (
+        <Pressable onPress={() => openUrl(signed)}>
+          <Image
+            source={{ uri: signed }}
+            style={{ width: '100%', height: 220, borderRadius: radii.md }}
+            contentFit="cover"
+            transition={150}
+          />
+        </Pressable>
+      );
+    }
   }
 
-  const label = item.name ?? (item.kind === 'video' ? 'Video' : item.kind === 'audio' ? 'Audio' : item.kind === 'photo' ? 'Photo' : 'File');
+  const label =
+    item.name ??
+    (item.kind === 'video' ? 'Video' : item.kind === 'audio' ? 'Audio' : item.kind === 'photo' ? 'Photo' : 'File');
   const hint =
-    item.kind === 'video' || item.kind === 'audio' ? 'Play ›' : item.kind === 'photo' ? 'View ›' : 'Open ›';
+    state === 'loading'
+      ? 'Loading…'
+      : state === 'failed'
+        ? 'Unavailable'
+        : item.kind === 'video' || item.kind === 'audio'
+          ? 'Play ›'
+          : item.kind === 'photo'
+            ? 'View ›'
+            : 'Open ›';
 
   return (
     <MediaRow
       label={`${label}${item.sizeBytes ? ` · ${formatBytes(item.sizeBytes)}` : ''}`}
       hint={hint}
       onPress={signed ? () => openUrl(signed) : undefined}
+      disabled={state === 'loading' || state === 'failed'}
     />
   );
 }

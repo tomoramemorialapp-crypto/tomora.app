@@ -111,6 +111,7 @@ export default function NewRelative() {
         fromParentId: pairingOpportunity.parentAId,
         toParentId: pairingOpportunity.parentBId,
         choice: params.choice,
+        lifecycle: params.lifecycle,
         husbandParentId: params.husbandParentId,
         nodes,
       });

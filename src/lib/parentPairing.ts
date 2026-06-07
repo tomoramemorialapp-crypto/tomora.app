@@ -12,9 +12,18 @@ export interface ParentPairingOpportunity {
   parentBName: string;
 }
 
-export type ParentPartnershipChoice = 'spouse' | 'partner' | 'co_parent_only';
+export type ParentPartnershipChoice = 'spouse' | 'partner' | 'former_partner' | 'co_parent_only';
 
-export type PartnershipLifecycle = 'current' | 'separated';
+export type PartnershipLifecycle = 'current' | 'separated' | 'divorced' | 'widowed' | 'unknown';
+
+/** Statuses that store a former spouse/partner detail on the edge. */
+export function partnershipUsesFormerDetail(
+  choice: Exclude<ParentPartnershipChoice, 'co_parent_only'>,
+  lifecycle: PartnershipLifecycle,
+): boolean {
+  if (choice === 'former_partner') return true;
+  return lifecycle === 'separated' || lifecycle === 'divorced';
+}
 
 /** Parents linked to `childId` via stored parent / step-parent edges (child → parent). */
 export function findParentsOfChild(childId: string, relationships: Relationship[]): string[] {
@@ -92,6 +101,7 @@ export function buildParentPartnershipEdge(params: {
   fromParentId: string;
   toParentId: string;
   choice: Exclude<ParentPartnershipChoice, 'co_parent_only'>;
+  lifecycle?: PartnershipLifecycle;
   husbandParentId?: string;
   nodes: FamilyNode[];
 }): {
@@ -101,25 +111,34 @@ export function buildParentPartnershipEdge(params: {
   relationshipDetail?: RelationshipDetail;
 } {
   const { fromParentId, toParentId, choice, husbandParentId, nodes } = params;
+  const lifecycle = params.lifecycle ?? 'current';
   const nodeById = new Map(nodes.map((n) => [n.id, n]));
+  const useFormer = partnershipUsesFormerDetail(choice, lifecycle);
 
-  if (choice === 'partner') {
+  if (choice === 'partner' || choice === 'former_partner') {
     return {
       fromNodeId: fromParentId,
       toNodeId: toParentId,
       relationshipType: 'partner',
+      relationshipDetail: useFormer ? 'former_partner' : undefined,
     };
   }
 
   const husbandId = husbandParentId ?? fromParentId;
   const wifeId = husbandId === fromParentId ? toParentId : fromParentId;
   const wife = nodeById.get(wifeId);
+  const spouseDetail = suggestDetailForType('spouse', wife ?? ({ displayName: 'Partner' } as FamilyNode)) ?? 'wife';
+
+  const relationshipDetail: RelationshipDetail | undefined = useFormer
+    ? spouseDetail === 'husband'
+      ? 'former_husband'
+      : 'former_wife'
+    : spouseDetail;
 
   return {
     fromNodeId: husbandId,
     toNodeId: wifeId,
     relationshipType: 'spouse',
-    relationshipDetail:
-      suggestDetailForType('spouse', wife ?? ({ displayName: 'Partner' } as FamilyNode)) ?? 'wife',
+    relationshipDetail,
   };
 }

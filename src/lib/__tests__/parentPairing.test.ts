@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildParentPartnershipEdge,
   childIdForParentEdge,
   detectParentPairingOpportunity,
   findParentsOfChild,
   hasPartnershipBetween,
+  partnershipUsesFormerDetail,
 } from '@/lib/parentPairing';
 import type { FamilyNode, Relationship } from '@/types/models';
 
@@ -100,5 +102,31 @@ describe('parentPairing', () => {
   it('resolves child id from a parent edge', () => {
     expect(childIdForParentEdge('parent', 'child')).toBe('child');
     expect(childIdForParentEdge('sibling', 'child')).toBeNull();
+  });
+
+  it('stores former_partner detail for separated partners', () => {
+    expect(partnershipUsesFormerDetail('partner', 'separated')).toBe(true);
+    expect(partnershipUsesFormerDetail('partner', 'current')).toBe(false);
+    const edge = buildParentPartnershipEdge({
+      fromParentId: 'dad',
+      toParentId: 'mom',
+      choice: 'partner',
+      lifecycle: 'divorced',
+      nodes,
+    });
+    expect(edge.relationshipDetail).toBe('former_partner');
+  });
+
+  it('stores former_wife detail for separated spouses', () => {
+    const edge = buildParentPartnershipEdge({
+      fromParentId: 'dad',
+      toParentId: 'mom',
+      choice: 'spouse',
+      lifecycle: 'separated',
+      husbandParentId: 'dad',
+      nodes,
+    });
+    expect(edge.relationshipType).toBe('spouse');
+    expect(edge.relationshipDetail).toBe('former_wife');
   });
 });

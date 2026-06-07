@@ -232,6 +232,7 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
         fromParentId: pairingOpportunity.parentAId,
         toParentId: pairingOpportunity.parentBId,
         choice: params.choice,
+        lifecycle: params.lifecycle,
         husbandParentId: params.husbandParentId,
         nodes,
       });

@@ -7,6 +7,7 @@ import { colors, radii, spacing } from '@/constants/theme';
 import { parentPairingCopy } from '@/constants/copy';
 import {
   buildParentPartnershipEdge,
+  partnershipUsesFormerDetail,
   type ParentPairingOpportunity,
   type ParentPartnershipChoice,
   type PartnershipLifecycle,
@@ -27,9 +28,42 @@ type Props = {
 };
 
 const LIFECYCLE_OPTIONS: { id: PartnershipLifecycle; label: string }[] = [
-  { id: 'current', label: 'Current' },
-  { id: 'separated', label: 'Separated' },
+  { id: 'current', label: parentPairingCopy.statusCurrent },
+  { id: 'separated', label: parentPairingCopy.statusSeparated },
+  { id: 'divorced', label: parentPairingCopy.statusDivorced },
+  { id: 'widowed', label: parentPairingCopy.statusWidowed },
+  { id: 'unknown', label: parentPairingCopy.statusUnknown },
 ];
+
+function OptionChip({
+  label,
+  active,
+  onPress,
+  disabled,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={{
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: radii.pill,
+        borderWidth: 1.5,
+        borderColor: active ? colors.guardianGold : colors.mistBeige,
+        backgroundColor: active ? colors.goldGlow : colors.paper,
+        opacity: disabled ? 0.5 : 1,
+      }}
+    >
+      <Body style={{ fontWeight: '600', color: active ? colors.guardianGold : colors.ink }}>{label}</Body>
+    </Pressable>
+  );
+}
 
 export function ParentPairingPrompt({
   visible,
@@ -63,6 +97,9 @@ export function ParentPairingPrompt({
       return;
     }
     setChoice(next);
+    if (next === 'former_partner') {
+      setLifecycle('separated');
+    }
     if (next === 'spouse' && !husbandParentId) {
       setHusbandParentId(opportunity.parentAId);
     }
@@ -75,7 +112,7 @@ export function ParentPairingPrompt({
     }
     await onConfirm({
       choice,
-      lifecycle,
+      lifecycle: choice === 'former_partner' ? 'separated' : lifecycle,
       husbandParentId: choice === 'spouse' ? husbandParentId : undefined,
     });
     reset();
@@ -87,17 +124,20 @@ export function ParentPairingPrompt({
           fromParentId: opportunity.parentAId,
           toParentId: opportunity.parentBId,
           choice,
+          lifecycle: choice === 'former_partner' ? 'separated' : lifecycle,
           husbandParentId,
           nodes,
         })
       : null;
+
+  const showStatusStep = choice === 'spouse' || choice === 'partner';
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={close}>
       <Pressable
         style={{
           flex: 1,
-          backgroundColor: 'rgba(44,36,32,0.45)',
+          backgroundColor: colors.overlay,
           justifyContent: 'center',
           padding: spacing.lg,
         }}
@@ -136,6 +176,12 @@ export function ParentPairingPrompt({
                 onPress={() => onPickChoice('partner')}
               />
               <Button
+                label={parentPairingCopy.formerPartner}
+                variant="secondary"
+                disabled={busy}
+                onPress={() => onPickChoice('former_partner')}
+              />
+              <Button
                 label={parentPairingCopy.coParentsOnly}
                 variant="secondary"
                 disabled={busy}
@@ -151,66 +197,48 @@ export function ParentPairingPrompt({
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
                     {[opportunity.parentAId, opportunity.parentBId].map((id) => {
                       const name = id === opportunity.parentAId ? opportunity.parentAName : opportunity.parentBName;
-                      const active = husbandParentId === id;
                       return (
-                        <Pressable
+                        <OptionChip
                           key={id}
+                          label={name}
+                          active={husbandParentId === id}
                           onPress={() => setHusbandParentId(id)}
-                          style={{
-                            paddingHorizontal: 16,
-                            paddingVertical: 10,
-                            borderRadius: radii.pill,
-                            borderWidth: 1.5,
-                            borderColor: active ? colors.guardianGold : colors.mistBeige,
-                            backgroundColor: active ? 'rgba(184,135,47,0.12)' : colors.white,
-                          }}
-                        >
-                          <Body style={{ fontWeight: '600', color: active ? colors.guardianGold : colors.ink }}>
-                            {name}
-                          </Body>
-                        </Pressable>
+                          disabled={busy}
+                        />
                       );
                     })}
                   </View>
                 </View>
               ) : null}
 
-              <View style={{ gap: spacing.sm }}>
-                <Caption style={{ color: colors.deepUmber }}>{parentPairingCopy.statusPrompt}</Caption>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-                  {LIFECYCLE_OPTIONS.map((opt) => {
-                    const active = lifecycle === opt.id;
-                    return (
-                      <Pressable
+              {showStatusStep ? (
+                <View style={{ gap: spacing.sm }}>
+                  <Caption style={{ color: colors.deepUmber }}>{parentPairingCopy.statusPrompt}</Caption>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+                    {LIFECYCLE_OPTIONS.map((opt) => (
+                      <OptionChip
                         key={opt.id}
+                        label={opt.label}
+                        active={lifecycle === opt.id}
                         onPress={() => setLifecycle(opt.id)}
-                        style={{
-                          paddingHorizontal: 16,
-                          paddingVertical: 10,
-                          borderRadius: radii.pill,
-                          borderWidth: 1.5,
-                          borderColor: active ? colors.guardianGold : colors.mistBeige,
-                          backgroundColor: active ? 'rgba(184,135,47,0.12)' : colors.white,
-                        }}
-                      >
-                        <Body style={{ fontWeight: '600', color: active ? colors.guardianGold : colors.ink }}>
-                          {opt.label}
-                        </Body>
-                      </Pressable>
-                    );
-                  })}
+                        disabled={busy}
+                      />
+                    ))}
+                  </View>
+                  {partnershipUsesFormerDetail(choice, lifecycle) ? (
+                    <Caption style={{ color: colors.ashTaupe }}>{parentPairingCopy.separatedNote}</Caption>
+                  ) : null}
                 </View>
-                {lifecycle === 'separated' ? (
-                  <Caption style={{ color: colors.ashTaupe }}>{parentPairingCopy.separatedNote}</Caption>
-                ) : null}
-              </View>
+              ) : null}
 
               {previewEdge ? (
                 <Caption style={{ color: colors.deepUmber }}>
                   {parentPairingCopy.preview(
                     nodes.find((n) => n.id === previewEdge.fromNodeId)?.displayName ?? 'Parent',
                     nodes.find((n) => n.id === previewEdge.toNodeId)?.displayName ?? 'Parent',
-                    previewEdge.relationshipType,
+                    previewEdge.relationshipDetail?.startsWith('former_')
+                      ? 'former partner'
+                      : previewEdge.relationshipType,
                   )}
                 </Caption>
               ) : null}

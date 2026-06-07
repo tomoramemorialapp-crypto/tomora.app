@@ -31,9 +31,9 @@ export function Toggle({
           width: 24,
           height: 24,
           borderRadius: 12,
-          backgroundColor: colors.ink,
+          backgroundColor: colors.paper,
           borderWidth: 1,
-          borderColor: value ? 'transparent' : colors.ashTaupe,
+          borderColor: value ? colors.guardianGold : colors.ashTaupe,
           alignSelf: value ? 'flex-end' : 'flex-start',
         }}
       />

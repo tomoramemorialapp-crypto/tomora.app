@@ -6,6 +6,7 @@ import { runOnJS } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 
 import { Button } from '@/components/ui/Button';
+import { Slider } from '@/components/ui/Slider';
 import { Body, Caption, Title } from '@/components/ui/Typography';
 import { colors, radii, spacing } from '@/constants/theme';
 import {
@@ -19,62 +20,6 @@ import {
 
 const VIEWPORT = 280;
 const OUTPUT = 512;
-
-function ZoomSlider({
-  value,
-  onChange,
-}: {
-  value: number;
-  onChange: (next: number) => void;
-}) {
-  const [trackW, setTrackW] = useState(0);
-  const ratio = (value - CROP_ZOOM_MIN) / (CROP_ZOOM_MAX - CROP_ZOOM_MIN);
-
-  const setFromX = (x: number) => {
-    if (trackW <= 0) return;
-    const r = Math.max(0, Math.min(1, x / trackW));
-    onChange(CROP_ZOOM_MIN + r * (CROP_ZOOM_MAX - CROP_ZOOM_MIN));
-  };
-
-  return (
-    <View style={{ gap: 6 }}>
-      <Caption style={{ textAlign: 'center', color: colors.ashTaupe }}>Zoom</Caption>
-      <View
-        onLayout={(e) => setTrackW(e.nativeEvent.layout.width)}
-        style={{
-          height: 36,
-          justifyContent: 'center',
-          paddingHorizontal: spacing.xs,
-        }}
-      >
-        <Pressable
-          onPress={(e) => setFromX(e.nativeEvent.locationX)}
-          style={{
-            height: 6,
-            borderRadius: 3,
-            backgroundColor: colors.mistBeige,
-            justifyContent: 'center',
-          }}
-        >
-          <View
-            pointerEvents="none"
-            style={{
-              position: 'absolute',
-              left: `${ratio * 100}%`,
-              marginLeft: -10,
-              width: 20,
-              height: 20,
-              borderRadius: 10,
-              backgroundColor: colors.guardianGold,
-              borderWidth: 2,
-              borderColor: colors.paper,
-            }}
-          />
-        </Pressable>
-      </View>
-    </View>
-  );
-}
 
 /**
  * Profile photo crop step with a circular guide overlay. Supports drag, pinch,
@@ -280,7 +225,14 @@ export function ProfilePhotoCropModal({
             </View>
           </GestureDetector>
 
-          <ZoomSlider value={zoom} onChange={setZoom} />
+          <Slider
+            label="Zoom"
+            value={zoom}
+            minimumValue={CROP_ZOOM_MIN}
+            maximumValue={CROP_ZOOM_MAX}
+            onValueChange={setZoom}
+            accessibilityLabel="Profile photo zoom"
+          />
 
           <View style={{ flexDirection: 'row', justifyContent: 'center', gap: spacing.sm, alignItems: 'center' }}>
             <Pressable

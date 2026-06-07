@@ -13,7 +13,10 @@ import { Body, Caption, Display, Title } from '@/components/ui/Typography';
 import { SocialIcon, SOCIAL_LABELS, type SocialNetwork } from '@/components/brand/SocialIcon';
 import { PublicProfileCta } from '@/components/public/PublicProfileCta';
 import { PublicMemoryCard } from '@/components/public/PublicMemoryCard';
+import { ShareSheet } from '@/components/ui/ShareSheet';
 import { colors, radii, spacing } from '@/constants/theme';
+import { publicProfileUrl } from '@/constants/urls';
+import { copyToClipboard } from '@/lib/clipboard';
 import { useAppState } from '@/state/AppState';
 import { getPublicProfile, type PublicProfileView } from '@/services/publicProfileService';
 
@@ -88,6 +91,8 @@ export default function PublicProfilePage() {
   const [profile, setProfile] = useState<PublicProfileView | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const isOwner =
     !!account?.username && account.username.toLowerCase() === String(username ?? '').toLowerCase();
@@ -196,13 +201,31 @@ export default function PublicProfilePage() {
             </View>
           ) : null}
 
-          {isOwner ? (
-            <View style={{ marginTop: spacing.sm }}>
+          {isOwner && profile ? (
+            <View style={{ marginTop: spacing.sm, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: spacing.sm }}>
               <Button
                 label="Edit public profile"
                 variant="secondary"
                 fullWidth={false}
-                onPress={() => router.push('/settings/public-profile')}
+                onPress={() => router.push('/settings/public-profile' as never)}
+              />
+              <Button
+                label="Share link"
+                variant="secondary"
+                fullWidth={false}
+                onPress={() => setShareOpen(true)}
+              />
+              <Button
+                label={linkCopied ? 'Copied!' : 'Copy link'}
+                variant="ghost"
+                fullWidth={false}
+                onPress={async () => {
+                  const ok = await copyToClipboard(publicProfileUrl(profile.username));
+                  if (ok) {
+                    setLinkCopied(true);
+                    setTimeout(() => setLinkCopied(false), 2200);
+                  }
+                }}
               />
             </View>
           ) : null}
@@ -243,6 +266,17 @@ export default function PublicProfilePage() {
       )}
 
       <PublicProfileCta />
+
+      {isOwner && profile ? (
+        <ShareSheet
+          visible={shareOpen}
+          onClose={() => setShareOpen(false)}
+          link={publicProfileUrl(profile.username)}
+          title="Share your public profile"
+          message={`See ${profile.displayName}'s public profile on Tomora`}
+          linkLabel="Public profile link"
+        />
+      ) : null}
     </ScreenContainer>
   );
 }

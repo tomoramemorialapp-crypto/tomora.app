@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Modal, Platform, Pressable, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
@@ -5,29 +6,30 @@ import { Button } from '@/components/ui/Button';
 import { Caption, Title } from '@/components/ui/Typography';
 import { colors, radii, shadows, spacing } from '@/constants/theme';
 import { publicProfileUrl } from '@/constants/urls';
-
-async function copyLink(link: string): Promise<boolean> {
-  try {
-    if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
-      await navigator.clipboard.writeText(link);
-      return true;
-    }
-  } catch {
-    // ignore
-  }
-  return false;
-}
+import { copyToClipboard } from '@/lib/clipboard';
+import { sharePublicProfileLink } from '@/lib/share';
 
 export function PublicProfileQrSheet({
   visible,
   onClose,
   username,
+  displayName,
 }: {
   visible: boolean;
   onClose: () => void;
   username: string;
+  displayName: string;
 }) {
   const link = publicProfileUrl(username);
+  const [copied, setCopied] = useState(false);
+
+  const onCopy = async () => {
+    const ok = await copyToClipboard(link);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2200);
+    }
+  };
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -63,13 +65,16 @@ export function PublicProfileQrSheet({
           <Caption align="center" numberOfLines={2} style={{ color: colors.guardianGold, fontWeight: '700' }}>
             {link}
           </Caption>
-          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: spacing.sm }}>
-            <Button
-              label="Copy link"
-              variant="secondary"
-              fullWidth={false}
-              onPress={() => void copyLink(link)}
-            />
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: spacing.sm }}>
+            <Button label={copied ? 'Copied' : 'Copy link'} variant="secondary" fullWidth={false} onPress={onCopy} />
+            {Platform.OS !== 'web' ? (
+              <Button
+                label="Share"
+                variant="secondary"
+                fullWidth={false}
+                onPress={() => void sharePublicProfileLink(displayName, link)}
+              />
+            ) : null}
             <Button label="Done" variant="gold" fullWidth={false} onPress={onClose} />
           </View>
         </Pressable>

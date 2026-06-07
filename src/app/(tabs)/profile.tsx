@@ -19,6 +19,7 @@ import { useAppState } from '@/state/AppState';
 import { isEmailVerified } from '@/services/authService';
 import type { VisibilityLevel } from '@/types/models';
 import { formatBytes, STORAGE_QUOTA_BYTES } from '@/lib/media';
+import { copyToClipboard } from '@/lib/clipboard';
 import { copy } from '@/constants/copy';
 
 function daysUntil(iso?: string): number {
@@ -74,7 +75,9 @@ export default function YouScreen() {
   const { account, session, nodes, tree, mediaUsageBytes, updateTreePrivacy, undoAccountDeletion, resetAll } =
     useAppState();
   const [shareOpen, setShareOpen] = useState(false);
+  const [publicShareOpen, setPublicShareOpen] = useState(false);
   const [publicQrOpen, setPublicQrOpen] = useState(false);
+  const [publicLinkCopied, setPublicLinkCopied] = useState(false);
   const [undoing, setUndoing] = useState(false);
 
   // Editable Family Tree privacy, synced from the loaded tree.
@@ -110,6 +113,17 @@ export default function YouScreen() {
   const graceDays = daysUntil(account?.deletionScheduledFor);
   const usedPct = Math.min(1, mediaUsageBytes / STORAGE_QUOTA_BYTES);
   const inviteLink = account?.inviteCode ? inviteUrl(account.inviteCode) : '';
+  const publicLink =
+    account?.username && account.publicProfile.enabled ? publicProfileUrl(account.username) : '';
+
+  const onCopyPublicLink = async () => {
+    if (!publicLink) return;
+    const ok = await copyToClipboard(publicLink);
+    if (ok) {
+      setPublicLinkCopied(true);
+      setTimeout(() => setPublicLinkCopied(false), 2200);
+    }
+  };
 
   const onSignOut = async () => {
     await resetAll();
@@ -183,6 +197,18 @@ export default function YouScreen() {
                   variant="secondary"
                   fullWidth={false}
                   onPress={() => router.push('/settings/public-profile')}
+                />
+                <Button
+                  label="Share link"
+                  variant="secondary"
+                  fullWidth={false}
+                  onPress={() => setPublicShareOpen(true)}
+                />
+                <Button
+                  label={publicLinkCopied ? 'Copied!' : 'Copy link'}
+                  variant="secondary"
+                  fullWidth={false}
+                  onPress={onCopyPublicLink}
                 />
                 <Button
                   label="Share QR"
@@ -341,11 +367,23 @@ export default function YouScreen() {
         message="Join our Family Tree on Tomora and claim your place."
       />
 
+      {publicLink ? (
+        <ShareSheet
+          visible={publicShareOpen}
+          onClose={() => setPublicShareOpen(false)}
+          link={publicLink}
+          title="Share your public profile"
+          message={`See ${account?.displayName ?? 'my'} public profile on Tomora`}
+          linkLabel="Public profile link"
+        />
+      ) : null}
+
       {account?.username ? (
         <PublicProfileQrSheet
           visible={publicQrOpen}
           onClose={() => setPublicQrOpen(false)}
           username={account.username}
+          displayName={account.displayName ?? 'You'}
         />
       ) : null}
     </ScreenContainer>

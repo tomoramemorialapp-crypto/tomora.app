@@ -1,29 +1,18 @@
 import { useState } from 'react';
-import { Linking, Platform, Pressable, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 import { Badge } from '@/components/ui/Badge';
 import { Body, Caption, Title } from '@/components/ui/Typography';
+import { PublicMemoryMedia } from '@/components/public/PublicMemoryMedia';
 import { colors, spacing } from '@/constants/theme';
 import {
   unlockPublicMemory,
   type PublicMemory,
   type UnlockedPublicMemory,
 } from '@/services/publicProfileService';
-
-async function openExternal(url: string) {
-  try {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      window.open(url, '_blank', 'noopener,noreferrer');
-      return;
-    }
-    await Linking.openURL(url);
-  } catch {
-    // ignore
-  }
-}
 
 export function PublicMemoryCard({ memory }: { memory: PublicMemory }) {
   const [unlocked, setUnlocked] = useState<UnlockedPublicMemory | null>(null);
@@ -89,20 +78,19 @@ export function PublicMemoryCard({ memory }: { memory: PublicMemory }) {
             />
           </View>
         ) : (
-          <>
+          <View style={{ gap: spacing.sm }}>
             {display.body ? (
               <Body style={{ color: colors.deepUmber }}>{display.body}</Body>
             ) : display.caption ? (
               <Body style={{ color: colors.deepUmber }}>{display.caption}</Body>
             ) : null}
-            {display.type === 'link' && display.mediaUrl ? (
-              <Pressable onPress={() => openExternal(display.mediaUrl as string)}>
-                <Caption numberOfLines={1} style={{ color: colors.guardianGold, fontWeight: '700' }}>
-                  {display.mediaUrl} ›
-                </Caption>
-              </Pressable>
-            ) : null}
-          </>
+            <PublicMemoryMedia
+              type={display.type}
+              mediaUrl={display.mediaUrl}
+              media={display.media}
+              storagePath={display.storagePath}
+            />
+          </View>
         )}
       </View>
     </Card>

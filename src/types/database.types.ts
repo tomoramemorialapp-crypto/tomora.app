@@ -783,6 +783,7 @@ export type Database = {
         Returns: undefined
       }
       public_profile_supports_v2: { Args: Record<PropertyKey, never>; Returns: boolean }
+      public_profile_media_access_enabled: { Args: Record<PropertyKey, never>; Returns: boolean }
       is_tree_member: { Args: { p_tree_id: string }; Returns: boolean }
       process_due_account_deletions: { Args: never; Returns: number }
       request_passing: {

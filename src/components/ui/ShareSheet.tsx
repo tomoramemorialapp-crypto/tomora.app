@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Linking, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SocialIcon, type SocialNetwork } from '@/components/brand/SocialIcon';
 import { colors, fonts, radii, shadows, spacing } from '@/constants/theme';
+import { copyToClipboard } from '@/lib/clipboard';
 import { Title, Caption } from '@/components/ui/Typography';
 
 type Target = {
@@ -70,18 +71,6 @@ async function openUrl(url: string) {
   }
 }
 
-async function copyToClipboard(text: string): Promise<boolean> {
-  try {
-    if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch {
-    // ignore
-  }
-  return false;
-}
-
 /** A pop-up share sheet: messaging platforms + a copy-link row. */
 export function ShareSheet({
   visible,
@@ -89,12 +78,14 @@ export function ShareSheet({
   link,
   title,
   message,
+  linkLabel = 'Invite link',
 }: {
   visible: boolean;
   onClose: () => void;
   link: string;
   title: string;
   message: string;
+  linkLabel?: string;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -183,7 +174,7 @@ export function ShareSheet({
 
           <View style={{ gap: spacing.xs }}>
             <Caption style={{ textTransform: 'uppercase', letterSpacing: 1.2, color: colors.deepUmber }}>
-              Invite link
+              {linkLabel}
             </Caption>
             <Pressable
               onPress={handleCopy}

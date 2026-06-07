@@ -1,7 +1,26 @@
 import { supabase } from '@/lib/supabase';
 import { publicLifeProfileFields } from '@/lib/publicProfileFields';
 import type { NodeProfile } from '@/types/profile';
-import type { SocialLinks } from '@/types/models';
+import type { MemoryMediaItem, SocialLinks } from '@/types/models';
+
+function mapPublicMemoryMedia(raw: unknown): MemoryMediaItem[] {
+  if (!Array.isArray(raw)) return [];
+  const out: MemoryMediaItem[] = [];
+  for (const item of raw) {
+    const r = item as Record<string, unknown>;
+    const storagePath = String(r.storagePath ?? r.storage_path ?? '').trim();
+    if (!storagePath) continue;
+    const kind = r.kind as MemoryMediaItem['kind'] | undefined;
+    out.push({
+      storagePath,
+      sizeBytes: Number(r.sizeBytes ?? r.size_bytes ?? 0),
+      mime: (r.mime as string | undefined) ?? (r.media_mime as string | undefined),
+      kind: kind === 'video' || kind === 'audio' || kind === 'document' ? kind : 'photo',
+      name: (r.name as string | undefined) ?? undefined,
+    });
+  }
+  return out;
+}
 
 /** A public memory teaser shown on a social profile. */
 export interface PublicMemory {
@@ -11,6 +30,8 @@ export interface PublicMemory {
   body?: string;
   caption?: string;
   mediaUrl?: string;
+  media: MemoryMediaItem[];
+  storagePath?: string;
   createdAt: string;
   visibility: string;
   requiresPassword: boolean;
@@ -23,6 +44,8 @@ export interface UnlockedPublicMemory {
   body?: string;
   caption?: string;
   mediaUrl?: string;
+  media: MemoryMediaItem[];
+  storagePath?: string;
   createdAt: string;
 }
 
@@ -55,6 +78,8 @@ interface RawPublicProfile {
     body: string | null;
     caption: string | null;
     media_url: string | null;
+    media: unknown;
+    storage_path: string | null;
     created_at: string;
     visibility: string;
     requires_password: boolean;
@@ -91,6 +116,8 @@ export async function getPublicProfile(username: string): Promise<PublicProfileV
       body: m.body ?? undefined,
       caption: m.caption ?? undefined,
       mediaUrl: m.media_url ?? undefined,
+      media: mapPublicMemoryMedia(m.media),
+      storagePath: m.storage_path ?? undefined,
       createdAt: m.created_at,
       visibility: m.visibility,
       requiresPassword: !!m.requires_password,
@@ -112,6 +139,8 @@ export async function unlockPublicMemory(memoryId: string, password: string): Pr
     body: string | null;
     caption: string | null;
     media_url: string | null;
+    media: unknown;
+    storage_path: string | null;
     created_at: string;
   };
   return {
@@ -121,6 +150,8 @@ export async function unlockPublicMemory(memoryId: string, password: string): Pr
     body: raw.body ?? undefined,
     caption: raw.caption ?? undefined,
     mediaUrl: raw.media_url ?? undefined,
+    media: mapPublicMemoryMedia(raw.media),
+    storagePath: raw.storage_path ?? undefined,
     createdAt: raw.created_at,
   };
 }

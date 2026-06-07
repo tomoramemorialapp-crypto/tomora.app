@@ -13,7 +13,9 @@ import { Badge } from '@/components/ui/Badge';
 import { Body, Caption, Display } from '@/components/ui/Typography';
 import { SocialIcon, SOCIAL_LABELS, type SocialNetwork } from '@/components/brand/SocialIcon';
 import { colors, radii, spacing } from '@/constants/theme';
+import { ShareSheet } from '@/components/ui/ShareSheet';
 import { publicProfileUrl } from '@/constants/urls';
+import { copyToClipboard } from '@/lib/clipboard';
 import { useAppState } from '@/state/AppState';
 import { getSignedUrl, pickMedia, uploadMedia } from '@/lib/media';
 import { publicLifeProfileFields } from '@/lib/publicProfileFields';
@@ -136,6 +138,8 @@ export default function PublicProfileSettings() {
   const [savingSocial, setSavingSocial] = useState(false);
   const [memoryPasswords, setMemoryPasswords] = useState<Record<string, string>>({});
   const [savingPasswordFor, setSavingPasswordFor] = useState<string | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   useEffect(() => {
     if (account?.publicProfile) setPub(account.publicProfile);
@@ -403,16 +407,49 @@ export default function PublicProfileSettings() {
           </Card>
 
           {account?.username ? (
-            <Button
-              label="View public profile"
-              variant="gold"
-              onPress={() => router.push(`/u/${account.username}`)}
-            />
+            <View style={{ gap: spacing.sm }}>
+              <Button
+                label="View public profile"
+                variant="gold"
+                onPress={() => router.push(`/u/${account.username}`)}
+              />
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+                <Button
+                  label="Share link"
+                  variant="secondary"
+                  fullWidth={false}
+                  onPress={() => setShareOpen(true)}
+                />
+                <Button
+                  label={linkCopied ? 'Copied!' : 'Copy link'}
+                  variant="secondary"
+                  fullWidth={false}
+                  onPress={async () => {
+                    const ok = await copyToClipboard(publicProfileUrl(account.username!));
+                    if (ok) {
+                      setLinkCopied(true);
+                      setTimeout(() => setLinkCopied(false), 2200);
+                    }
+                  }}
+                />
+              </View>
+            </View>
           ) : null}
         </>
       ) : null}
 
       {msg ? <Caption style={{ color: colors.deepUmber, marginTop: spacing.sm }}>{msg}</Caption> : null}
+
+      {account?.username && pub.enabled ? (
+        <ShareSheet
+          visible={shareOpen}
+          onClose={() => setShareOpen(false)}
+          link={publicProfileUrl(account.username)}
+          title="Share your public profile"
+          message={`See ${account.displayName}'s public profile on Tomora`}
+          linkLabel="Public profile link"
+        />
+      ) : null}
     </ScreenContainer>
   );
 }

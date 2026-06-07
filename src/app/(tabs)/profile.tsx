@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { Card } from '@/components/ui/Card';
@@ -75,7 +75,7 @@ function Row({
 
 export default function YouScreen() {
   const router = useRouter();
-  const { account, session, nodes, tree, mediaUsageBytes, updateTreePrivacy, undoAccountDeletion, resetAll } =
+  const { account, session, nodes, tree, mediaUsageBytes, refreshMediaUsage, updateTreePrivacy, undoAccountDeletion, resetAll } =
     useAppState();
   const [shareOpen, setShareOpen] = useState(false);
   const [publicShareOpen, setPublicShareOpen] = useState(false);
@@ -108,6 +108,12 @@ export default function YouScreen() {
       setPrivacyMsg('Could not save. Please try again.');
     }
   };
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshMediaUsage();
+    }, [refreshMediaUsage]),
+  );
 
   const selfNode = nodes.find((n) => n.ownerAccountId === account?.id);
   const photo = selfNode?.profile?.profilePhoto?.value ?? selfNode?.avatarUrl;
@@ -292,7 +298,7 @@ export default function YouScreen() {
             />
           </View>
           <Caption style={{ marginTop: spacing.sm }}>
-            Photos, videos, and files you've uploaded. They stay in your account unless you share a memory.
+            Photos, videos, profile images, banners, and other files you've uploaded to your account.
           </Caption>
         </Card>
 

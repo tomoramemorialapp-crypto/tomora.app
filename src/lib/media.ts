@@ -152,6 +152,19 @@ async function readFileBody(file: PickedFile): Promise<{ body: Blob | ArrayBuffe
 /** Upload a picked file to the private media bucket under the account's prefix. */
 export async function uploadMedia(accountId: string, file: PickedFile): Promise<UploadedMedia> {
   const { body, size } = await readFileBody(file);
+  const bytes = file.size || size;
+  if (bytes > 0) {
+    const { error: quotaErr } = await supabase.rpc('assert_storage_quota', {
+      p_account_id: accountId,
+      p_add_bytes: bytes,
+    });
+    if (quotaErr) {
+      if (quotaErr.message.includes('STORAGE_QUOTA_EXCEEDED')) {
+        throw new Error('You have reached your media storage limit. Remove some uploads to free space.');
+      }
+      throw quotaErr;
+    }
+  }
   const path = `${accountId}/${Date.now()}-${sanitizeName(file.name)}`;
   const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(path, body, {
     contentType: file.mimeType,

@@ -61,6 +61,11 @@ const MIGRATIONS = [
     name: 'public_memory_media_access',
     probe: () => sb.rpc('public_profile_media_access_enabled'),
   },
+  {
+    version: '20260607140000',
+    name: 'account_storage_usage',
+    probe: () => sb.rpc('get_account_storage_bytes', { p_account_id: '00000000-0000-0000-0000-000000000000' }),
+  },
 ];
 
 async function col(table, column) {

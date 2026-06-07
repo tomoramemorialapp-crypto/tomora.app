@@ -791,6 +791,7 @@ export type Database = {
         Returns: Json
       }
       assert_storage_quota: { Args: { p_account_id: string; p_add_bytes: number }; Returns: undefined }
+      get_account_storage_bytes: { Args: { p_account_id: string }; Returns: number }
       resolve_login_email: { Args: { p_identifier: string }; Returns: string }
       set_username: {
         Args: { p_username: string }

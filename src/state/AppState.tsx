@@ -37,6 +37,7 @@ import * as accountService from '@/services/accountService';
 import * as inviteService from '@/services/inviteService';
 import * as notificationService from '@/services/notificationService';
 import * as memorialService from '@/services/memorialService';
+import * as storageService from '@/services/storageService';
 import {
   clearPasswordRecoveryPending,
   isPasswordRecoveryPending,
@@ -255,6 +256,7 @@ interface AppStateValue {
 
   /** Total bytes of media this account has uploaded (for the storage tracker). */
   mediaUsageBytes: number;
+  refreshMediaUsage: () => Promise<void>;
 
   getNode: (id: string) => FamilyNode | undefined;
   getMemory: (id: string) => Memory | undefined;
@@ -312,6 +314,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [memories, setMemories] = useState<Memory[]>([]);
   const [suggestedEdits, setSuggestedEdits] = useState<SuggestedEdit[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [mediaUsageBytes, setMediaUsageBytes] = useState(0);
   const [draft, setDraftState] = useState<OnboardingDraft>(() => loadStoredDraft());
   const [passwordRecoveryPending, setPasswordRecoveryPending] = useState(
     () => isPasswordRecoveryPendingSync(),
@@ -893,6 +896,29 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     [suggestedEdits],
   );
 
+  const refreshMediaUsage = useCallback(async () => {
+    if (!account?.id) {
+      setMediaUsageBytes(0);
+      return;
+    }
+    try {
+      const bytes = await storageService.getAccountStorageUsage(account.id);
+      setMediaUsageBytes(bytes);
+    } catch (e) {
+      console.warn('[tomora] storage usage refresh failed', e);
+      setMediaUsageBytes(
+        memories.reduce(
+          (sum, m) => (m.createdByAccountId === account.id ? sum + (m.mediaSizeBytes ?? 0) : sum),
+          0,
+        ),
+      );
+    }
+  }, [account?.id, memories]);
+
+  useEffect(() => {
+    void refreshMediaUsage();
+  }, [refreshMediaUsage]);
+
   const createMemory = useCallback<AppStateValue['createMemory']>(
     async (input) => {
       if (!tree || !account) throw new Error('No tree or account loaded.');
@@ -902,9 +928,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         ...input,
       });
       setMemories((prev) => [memory, ...prev]);
+      void refreshMediaUsage();
       return memory;
     },
-    [account, tree],
+    [account, tree, refreshMediaUsage],
   );
 
   const addTextMemory = useCallback<AppStateValue['addTextMemory']>(
@@ -927,8 +954,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       const target = memories.find((m) => m.id === id);
       await memoryService.deleteMemory({ id, storagePath: target?.storagePath, media: target?.media ?? [] });
       setMemories((prev) => prev.filter((m) => m.id !== id));
+      void refreshMediaUsage();
     },
-    [memories],
+    [memories, refreshMediaUsage],
   );
 
   const refreshNotifications = useCallback<AppStateValue['refreshNotifications']>(async () => {
@@ -996,15 +1024,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       return updated;
     },
     [],
-  );
-
-  const mediaUsageBytes = useMemo(
-    () =>
-      memories.reduce(
-        (sum, m) => (m.createdByAccountId === account?.id ? sum + (m.mediaSizeBytes ?? 0) : sum),
-        0,
-      ),
-    [memories, account?.id],
   );
 
   const unreadNotificationCount = useMemo(
@@ -1122,6 +1141,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       updateMemory,
       deleteMemory,
       refreshNotifications,
+      refreshMediaUsage,
       markNotificationRead,
       markAllNotificationsRead,
       requestPassing,
@@ -1191,6 +1211,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       updateMemory,
       deleteMemory,
       refreshNotifications,
+      refreshMediaUsage,
       markNotificationRead,
       markAllNotificationsRead,
       requestPassing,

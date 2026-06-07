@@ -94,7 +94,7 @@ export default function EditProfile() {
 
 function EditProfileEditor({ nodeId }: { nodeId: string }) {
   const router = useRouter();
-  const { getNode, account, updateNodeProfile, deleteNode } = useAppState();
+  const { getNode, account, updateNodeProfile, deleteNode, refreshMediaUsage } = useAppState();
 
   const node = getNode(nodeId);
   const scope = node ? editScopeFor(node, account?.id) : 'suggest';
@@ -202,6 +202,7 @@ function EditProfileEditor({ nodeId }: { nodeId: string }) {
       };
       const uploaded = await uploadMedia(account.id, file);
       setPhoto(uploaded.storagePath);
+      void refreshMediaUsage();
     } catch (e) {
       console.warn('[tomora] photo upload failed', e);
       setPhotoError('Could not upload that photo. Please try again.');

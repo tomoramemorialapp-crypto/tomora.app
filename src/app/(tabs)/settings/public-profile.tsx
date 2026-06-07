@@ -101,7 +101,7 @@ function MemoryRow({
 
 export default function PublicProfileSettings() {
   const router = useRouter();
-  const { account, nodes, memories, updatePublicProfile, updateAccountSettings } = useAppState();
+  const { account, nodes, memories, updatePublicProfile, updateAccountSettings, refreshMediaUsage } = useAppState();
 
   const selfNode = nodes.find((n) => n.ownerAccountId === account?.id);
   const publicLifeFields = useMemo(
@@ -178,6 +178,7 @@ export default function PublicProfileSettings() {
       const uploaded = await uploadMedia(account.id, picked);
       const url = await getSignedUrl(uploaded.storagePath, 60 * 60 * 24 * 365);
       if (url) await savePublic({ bannerUrl: url });
+      void refreshMediaUsage();
     } catch {
       setMsg('Could not upload that image.');
     } finally {

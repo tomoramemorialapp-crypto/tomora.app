@@ -32,6 +32,7 @@ import { useAppState } from '@/state/AppState';
 import type { VisibilityLevel } from '@/types/models';
 import { ProfilePhotoCropModal } from '@/components/media/ProfilePhotoCropModal';
 import { goBack } from '@/lib/navigation';
+import { userMessageFromSupabaseError } from '@/lib/supabaseErrors';
 import { pickMedia, uploadMedia } from '@/lib/media';
 import { profilePhotoValidationMessage, validateProfilePhoto } from '@/lib/profilePhotoValidation';
 import type {
@@ -218,7 +219,8 @@ function EditProfileEditor({ nodeId }: { nodeId: string }) {
       router.replace('/(tabs)/family-tree');
     } catch (e) {
       console.warn('[tomora] delete node failed', e);
-      setDeleteError('Could not remove this profile. Please try again.');
+      const err = e && typeof e === 'object' && 'code' in e ? (e as import('@supabase/supabase-js').PostgrestError) : null;
+      setDeleteError(userMessageFromSupabaseError(err, 'Could not remove this profile. Please try again.'));
       setDeleting(false);
     }
   };

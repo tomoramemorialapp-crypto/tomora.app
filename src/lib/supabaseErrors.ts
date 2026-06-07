@@ -11,6 +11,13 @@ export function userMessageFromSupabaseError(
   const details = error.details ?? '';
   const combined = `${msg} ${details}`.toLowerCase();
 
+  if (combined.includes('nodes_status_check') || (combined.includes('nodes') && combined.includes('status') && combined.includes('check'))) {
+    return (
+      'Could not remove this profile because the database schema is out of date. ' +
+      'Apply migration 20260606180000_nodes_status_deleted (npm run db:apply-pending) and try again.'
+    );
+  }
+
   if (combined.includes('relationship_type') && combined.includes('check')) {
     return (
       'This relationship type is not enabled in the database yet. ' +

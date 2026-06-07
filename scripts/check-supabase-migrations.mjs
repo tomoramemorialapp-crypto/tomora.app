@@ -46,6 +46,11 @@ const MIGRATIONS = [
     name: 'relationship_types_in_law',
     probe: () => sb.rpc('relationship_types_supports_in_law'),
   },
+  {
+    version: '20260606180000',
+    name: 'nodes_status_deleted',
+    probe: () => sb.rpc('nodes_status_supports_deleted'),
+  },
 ];
 
 async function col(table, column) {

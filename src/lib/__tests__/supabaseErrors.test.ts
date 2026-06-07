@@ -17,4 +17,18 @@ describe('supabaseErrors', () => {
     expect(msg).toContain('relationship_types_in_law');
     expect(msg).toContain('20260606170000');
   });
+
+  it('explains nodes_status_check violations', () => {
+    const msg = userMessageFromSupabaseError(
+      {
+        message: 'new row for relation "nodes" violates check constraint "nodes_status_check"',
+        details: '',
+        hint: '',
+        code: '23514',
+      } as PostgrestError,
+      'fallback',
+    );
+    expect(msg).toContain('nodes_status_deleted');
+    expect(msg).toContain('20260606180000');
+  });
 });

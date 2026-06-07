@@ -293,14 +293,24 @@ export async function deleteRelationship(relationshipId: string): Promise<void> 
  */
 export async function deleteNode(nodeId: string, accountId: string): Promise<void> {
   const now = new Date().toISOString();
-  const { error } = await supabase
-    .from('nodes')
-    .update({
-      deleted_at: now,
-      deleted_by: accountId,
-      status: 'deleted',
-    })
-    .eq('id', nodeId);
+  const softDelete = {
+    deleted_at: now,
+    deleted_by: accountId,
+  };
+
+  // Prefer marking status deleted when the DB allows it (migration 20260606180000).
+  const withStatus = { ...softDelete, status: 'deleted' as const };
+  let { error } = await supabase.from('nodes').update(withStatus).eq('id', nodeId);
+
+  if (
+    error &&
+    (error.code === '23514' ||
+      error.message?.includes('nodes_status_check') ||
+      error.message?.toLowerCase().includes('check constraint'))
+  ) {
+    ({ error } = await supabase.from('nodes').update(softDelete).eq('id', nodeId));
+  }
+
   if (error) throw error;
 }
 

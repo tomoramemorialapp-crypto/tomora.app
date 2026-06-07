@@ -24,7 +24,10 @@ export const supabase = createClient<Database>(supabaseUrl ?? '', supabaseAnonKe
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: Platform.OS === 'web',
-    flowType: 'pkce',
+    // PKCE requires the code verifier in the same browser that started sign-up. Email
+    // verification links often open elsewhere (mail apps, another device), so web uses
+    // implicit flow — tokens arrive in the URL hash and need no stored verifier.
+    flowType: Platform.OS === 'web' ? 'implicit' : 'pkce',
   },
 });
 

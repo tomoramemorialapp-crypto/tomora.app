@@ -9,6 +9,7 @@ export function urlHasSupabaseAuthReturn(): boolean {
   const hash = new URLSearchParams(hashRaw);
 
   if (search.get('code')) return true;
+  if (search.get('token_hash') || hash.get('token_hash')) return true;
   if (search.get('error') || search.get('error_description')) return true;
   if (hash.get('access_token') || hash.get('refresh_token')) return true;
   if (hash.get('error') || hash.get('error_description')) return true;

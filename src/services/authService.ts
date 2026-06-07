@@ -45,6 +45,9 @@ export function friendlyAuthError(error: unknown): string {
   if (msg.includes('recovery email') || msg.includes('reset password')) {
     return 'Could not send the reset email. Check your SMTP settings in Supabase, or try again in a few minutes.';
   }
+  if (msg.includes('pkce') && msg.includes('code verifier')) {
+    return 'This verification link must be opened in the same browser where you signed up. Use “Resend verification email” below for a fresh link that works in any browser.';
+  }
   if (msg.includes('oauth') || msg.includes('provider')) {
     return 'Sign-in with this provider is not available yet. Try email and password, or check Supabase Auth provider settings.';
   }

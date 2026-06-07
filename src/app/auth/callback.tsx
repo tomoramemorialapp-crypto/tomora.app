@@ -8,6 +8,11 @@ import { TextField } from '@/components/ui/TextField';
 import { Body, Caption, Display } from '@/components/ui/Typography';
 import { colors, spacing } from '@/constants/theme';
 import * as authService from '@/services/authService';
+import {
+  AuthCallbackSessionError,
+  completeSessionFromAuthReturn,
+  parseAuthReturnParams,
+} from '@/lib/authCallbackSession';
 import { supabase } from '@/lib/supabase';
 import {
   capturePasswordRecoveryFromCurrentUrl,
@@ -19,20 +24,9 @@ import { useAppState } from '@/state/AppState';
 
 type CallbackStatus = 'working' | 'error';
 
-function readUrlAuthParams(): URLSearchParams | null {
+function readInitialAuthError(): string | null {
   if (Platform.OS !== 'web' || typeof window === 'undefined') return null;
-  const hash = window.location.hash?.replace(/^#/, '') ?? '';
-  const search = window.location.search?.replace(/^\?/, '') ?? '';
-  if (!hash && !search) return null;
-  return new URLSearchParams(hash || search);
-}
-
-function readAuthErrorFromUrl(): string | null {
-  const params = readUrlAuthParams();
-  if (!params) return null;
-  const description = params.get('error_description') ?? params.get('error');
-  if (!description) return null;
-  return description.replace(/\+/g, ' ');
+  return parseAuthReturnParams(window.location.search, window.location.hash).error;
 }
 
 function isPasswordRecoveryReturn(next?: string): boolean {
@@ -45,7 +39,7 @@ export default function AuthCallback() {
   const { next } = useLocalSearchParams<{ next?: string }>();
   const { loading, isOnboarded, passwordRecoveryPending, pendingClaimReveal } = useAppState();
 
-  const initialError = useMemo(() => readAuthErrorFromUrl(), []);
+  const initialError = useMemo(() => readInitialAuthError(), []);
   const [status, setStatus] = useState<CallbackStatus>(initialError ? 'error' : 'working');
   const [errorMessage, setErrorMessage] = useState<string | null>(initialError);
   const [email, setEmail] = useState('');
@@ -67,27 +61,32 @@ export default function AuthCallback() {
     (async () => {
       try {
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
-          const search = new URLSearchParams(window.location.search.replace(/^\?/, ''));
-          const code = search.get('code');
-          if (code) {
-            const { error } = await supabase.auth.exchangeCodeForSession(code);
-            if (error) throw error;
-          }
+          await completeSessionFromAuthReturn(
+            supabase,
+            parseAuthReturnParams(window.location.search, window.location.hash),
+          );
         }
 
         let session = await authService.getSession();
         if (!session && Platform.OS === 'web') {
-          // PKCE / hash tokens — detectSessionInUrl may finish shortly after mount.
+          // detectSessionInUrl may finish shortly after mount.
           for (let i = 0; i < 6 && !session; i++) {
             await new Promise((r) => setTimeout(r, 250));
             session = await authService.getSession();
           }
         }
+
+        if (!session && Platform.OS === 'web') {
+          throw new AuthCallbackSessionError(
+            'We couldn’t complete your sign-in. Your link may have expired or already been used.',
+            'expired',
+          );
+        }
       } catch (e) {
         if (!cancelled) {
           setStatus('error');
           setErrorMessage(
-            e instanceof Error
+            e instanceof AuthCallbackSessionError || e instanceof Error
               ? e.message
               : 'We couldn’t complete your sign-in. Your link may have expired or already been used.',
           );

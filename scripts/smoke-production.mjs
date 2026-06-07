@@ -73,7 +73,7 @@ async function checkHttp() {
     'Public profile route /u/{username}',
     profile.status === 200,
     profile.status === 404
-      ? 'HTTP 404 — set Vercel Build Command to npm run vercel-build and redeploy'
+      ? 'HTTP 404 — redeploy latest vercel.json (SPA rewrites) with cache cleared'
       : `HTTP ${profile.status}`,
   );
 

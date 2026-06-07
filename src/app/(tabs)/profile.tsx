@@ -19,7 +19,9 @@ import { useAppState } from '@/state/AppState';
 import { isEmailVerified } from '@/services/authService';
 import type { VisibilityLevel } from '@/types/models';
 import { formatBytes, STORAGE_QUOTA_BYTES } from '@/lib/media';
-import { copyToClipboard } from '@/lib/clipboard';
+import { QrCodeIcon, ShareLinkIcon } from '@/components/brand/ActionIcons';
+import { IconButton } from '@/components/ui/IconButton';
+import { openPublicProfile } from '@/lib/publicProfileNav';
 import { PUBLIC_PROFILE_EDITOR_PATH } from '@/lib/publicProfile';
 import { copy } from '@/constants/copy';
 
@@ -78,7 +80,6 @@ export default function YouScreen() {
   const [shareOpen, setShareOpen] = useState(false);
   const [publicShareOpen, setPublicShareOpen] = useState(false);
   const [publicQrOpen, setPublicQrOpen] = useState(false);
-  const [publicLinkCopied, setPublicLinkCopied] = useState(false);
   const [undoing, setUndoing] = useState(false);
 
   // Editable Family Tree privacy, synced from the loaded tree.
@@ -116,15 +117,6 @@ export default function YouScreen() {
   const inviteLink = account?.inviteCode ? inviteUrl(account.inviteCode) : '';
   const publicLink =
     account?.username && account.publicProfile.enabled ? publicProfileUrl(account.username) : '';
-
-  const onCopyPublicLink = async () => {
-    if (!publicLink) return;
-    const ok = await copyToClipboard(publicLink);
-    if (ok) {
-      setPublicLinkCopied(true);
-      setTimeout(() => setPublicLinkCopied(false), 2200);
-    }
-  };
 
   const onSignOut = async () => {
     await resetAll();
@@ -169,7 +161,10 @@ export default function YouScreen() {
             <View style={{ alignItems: 'center', gap: 2 }}>
               <Display style={{ fontSize: 30 }}>{account?.displayName ?? 'You'}</Display>
               {account?.username ? (
-                <Pressable onPress={() => router.push(`/u/${account.username}`)} hitSlop={8}>
+                <Pressable
+                  onPress={() => openPublicProfile(router, account.username!)}
+                  hitSlop={8}
+                >
                   <Caption style={{ color: colors.guardianGold, fontWeight: '700' }}>@{account.username}</Caption>
                 </Pressable>
               ) : null}
@@ -186,37 +181,24 @@ export default function YouScreen() {
               />
             ) : null}
             {account?.username && account.publicProfile.enabled ? (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: spacing.sm }}>
-                <Button
-                  label="View Public Profile"
-                  variant="gold"
-                  fullWidth={false}
-                  onPress={() => router.push(`/u/${account.username}`)}
-                />
-                <Button
-                  label="Edit Public Profile"
-                  variant="secondary"
-                  fullWidth={false}
-                  onPress={() => router.push(PUBLIC_PROFILE_EDITOR_PATH)}
-                />
-                <Button
-                  label="Share link"
-                  variant="secondary"
-                  fullWidth={false}
-                  onPress={() => setPublicShareOpen(true)}
-                />
-                <Button
-                  label={publicLinkCopied ? 'Copied!' : 'Copy link'}
-                  variant="secondary"
-                  fullWidth={false}
-                  onPress={onCopyPublicLink}
-                />
-                <Button
-                  label="Share QR"
-                  variant="secondary"
-                  fullWidth={false}
-                  onPress={() => setPublicQrOpen(true)}
-                />
+              <View style={{ alignItems: 'center', gap: spacing.sm, width: '100%' }}>
+                <Pressable
+                  onPress={() => openPublicProfile(router, account.username!)}
+                  hitSlop={8}
+                  style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+                >
+                  <Caption style={{ color: colors.guardianGold, fontWeight: '700', fontSize: 15 }}>
+                    View public profile ›
+                  </Caption>
+                </Pressable>
+                <View style={{ flexDirection: 'row', justifyContent: 'center', gap: spacing.md }}>
+                  <IconButton accessibilityLabel="Share public profile link" onPress={() => setPublicShareOpen(true)}>
+                    <ShareLinkIcon color={colors.guardianGold} />
+                  </IconButton>
+                  <IconButton accessibilityLabel="Show public profile QR code" onPress={() => setPublicQrOpen(true)}>
+                    <QrCodeIcon color={colors.guardianGold} />
+                  </IconButton>
+                </View>
               </View>
             ) : (
               <View style={{ gap: spacing.sm, alignItems: 'center' }}>
@@ -244,7 +226,15 @@ export default function YouScreen() {
           <View style={{ gap: spacing.sm }}>
             <Title style={{ fontSize: 20 }}>{copy.youClaim.title}</Title>
             <Body style={{ color: colors.deepUmber }}>{copy.youClaim.body}</Body>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                gap: spacing.sm,
+                marginTop: spacing.xs,
+              }}
+            >
               <Button
                 label={copy.youClaim.enterCode}
                 variant="gold"

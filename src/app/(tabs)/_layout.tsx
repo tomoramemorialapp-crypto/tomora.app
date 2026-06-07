@@ -85,7 +85,6 @@ export default function TabsLayout() {
       <Tabs.Screen name="memory/[memoryId]" options={{ href: null }} />
       <Tabs.Screen name="memorial/[nodeId]" options={{ href: null }} />
       <Tabs.Screen name="memorial/edit" options={{ href: null }} />
-      <Tabs.Screen name="u/[username]" options={{ href: null }} />
       <Tabs.Screen name="relative/new" options={{ href: null }} />
       <Tabs.Screen name="settings/account" options={{ href: null }} />
       <Tabs.Screen name="settings/public-profile" options={{ href: null }} />

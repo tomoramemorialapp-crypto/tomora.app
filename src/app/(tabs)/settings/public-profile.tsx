@@ -14,8 +14,10 @@ import { Body, Caption, Display } from '@/components/ui/Typography';
 import { SocialIcon, SOCIAL_LABELS, type SocialNetwork } from '@/components/brand/SocialIcon';
 import { colors, radii, spacing } from '@/constants/theme';
 import { ShareSheet } from '@/components/ui/ShareSheet';
+import { ShareLinkIcon } from '@/components/brand/ActionIcons';
+import { IconButton } from '@/components/ui/IconButton';
 import { publicProfileUrl } from '@/constants/urls';
-import { copyToClipboard } from '@/lib/clipboard';
+import { openPublicProfile } from '@/lib/publicProfileNav';
 import { useAppState } from '@/state/AppState';
 import { getSignedUrl, pickMedia, uploadMedia } from '@/lib/media';
 import { publicLifeProfileFields } from '@/lib/publicProfileFields';
@@ -139,7 +141,6 @@ export default function PublicProfileSettings() {
   const [memoryPasswords, setMemoryPasswords] = useState<Record<string, string>>({});
   const [savingPasswordFor, setSavingPasswordFor] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
-  const [linkCopied, setLinkCopied] = useState(false);
 
   useEffect(() => {
     if (account?.publicProfile) setPub(account.publicProfile);
@@ -407,32 +408,19 @@ export default function PublicProfileSettings() {
           </Card>
 
           {account?.username ? (
-            <View style={{ gap: spacing.sm }}>
-              <Button
-                label="View public profile"
-                variant="gold"
-                onPress={() => router.push(`/u/${account.username}`)}
-              />
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-                <Button
-                  label="Share link"
-                  variant="secondary"
-                  fullWidth={false}
-                  onPress={() => setShareOpen(true)}
-                />
-                <Button
-                  label={linkCopied ? 'Copied!' : 'Copy link'}
-                  variant="secondary"
-                  fullWidth={false}
-                  onPress={async () => {
-                    const ok = await copyToClipboard(publicProfileUrl(account.username!));
-                    if (ok) {
-                      setLinkCopied(true);
-                      setTimeout(() => setLinkCopied(false), 2200);
-                    }
-                  }}
-                />
-              </View>
+            <View style={{ alignItems: 'center', gap: spacing.sm }}>
+              <Pressable
+                onPress={() => openPublicProfile(router, account.username!)}
+                hitSlop={8}
+                style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+              >
+                <Caption style={{ color: colors.guardianGold, fontWeight: '700', fontSize: 15 }}>
+                  Preview public profile ›
+                </Caption>
+              </Pressable>
+              <IconButton accessibilityLabel="Share public profile link" onPress={() => setShareOpen(true)}>
+                <ShareLinkIcon color={colors.guardianGold} />
+              </IconButton>
             </View>
           ) : null}
         </>

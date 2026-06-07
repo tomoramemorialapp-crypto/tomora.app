@@ -17,6 +17,7 @@ import { isEmailVerified, resendEmailConfirmation } from '@/services/authService
 import { publicProfileUrl } from '@/constants/urls';
 import { usernameChangesRemaining } from '@/services/accountService';
 import { passwordMinLengthHint, validatePasswordLength } from '@/lib/passwordPolicy';
+import { openPublicProfile } from '@/lib/publicProfileNav';
 import { PUBLIC_PROFILE_EDITOR_PATH } from '@/lib/publicProfile';
 import { normalizeUsername } from '@/lib/username';
 import { Badge } from '@/components/ui/Badge';
@@ -293,7 +294,7 @@ export default function AccountSettings() {
               label="View public profile"
               variant="ghost"
               fullWidth={false}
-              onPress={() => router.push(`/u/${account.username}`)}
+              onPress={() => openPublicProfile(router, account.username!)}
             />
           ) : null}
         </View>

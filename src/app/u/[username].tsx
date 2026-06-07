@@ -16,7 +16,9 @@ import { PublicMemoryCard } from '@/components/public/PublicMemoryCard';
 import { ShareSheet } from '@/components/ui/ShareSheet';
 import { colors, radii, spacing } from '@/constants/theme';
 import { publicProfileUrl } from '@/constants/urls';
-import { copyToClipboard } from '@/lib/clipboard';
+import { QrCodeIcon, ShareLinkIcon } from '@/components/brand/ActionIcons';
+import { IconButton } from '@/components/ui/IconButton';
+import { PublicProfileQrSheet } from '@/components/public/PublicProfileQrSheet';
 import {
   normalizePublicUsernameParam,
   PUBLIC_PROFILE_EDITOR_PATH,
@@ -102,7 +104,7 @@ export default function PublicProfilePage() {
   const [notFound, setNotFound] = useState(false);
   const [fetchError, setFetchError] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  const [linkCopied, setLinkCopied] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
 
   const isOwner =
     !!account?.username &&
@@ -184,7 +186,7 @@ export default function PublicProfilePage() {
   const socials = SOCIAL_ORDER.filter((n) => (profile.socialLinks[n] ?? '').trim().length > 0);
 
   return (
-    <ScreenContainer maxWidth={640}>
+    <ScreenContainer maxWidth={640} showBack={isOwner}>
       <View style={{ marginBottom: spacing.lg }}>
         <View
           style={{
@@ -242,7 +244,8 @@ export default function PublicProfilePage() {
                 flexDirection: 'row',
                 flexWrap: 'wrap',
                 justifyContent: 'center',
-                gap: spacing.sm,
+                alignItems: 'center',
+                gap: spacing.md,
               }}
             >
               <Button
@@ -251,24 +254,12 @@ export default function PublicProfilePage() {
                 fullWidth={false}
                 onPress={() => router.push(PUBLIC_PROFILE_EDITOR_PATH)}
               />
-              <Button
-                label="Share link"
-                variant="secondary"
-                fullWidth={false}
-                onPress={() => setShareOpen(true)}
-              />
-              <Button
-                label={linkCopied ? 'Copied!' : 'Copy link'}
-                variant="ghost"
-                fullWidth={false}
-                onPress={async () => {
-                  const ok = await copyToClipboard(publicProfileUrl(profile.username));
-                  if (ok) {
-                    setLinkCopied(true);
-                    setTimeout(() => setLinkCopied(false), 2200);
-                  }
-                }}
-              />
+              <IconButton accessibilityLabel="Share public profile link" onPress={() => setShareOpen(true)}>
+                <ShareLinkIcon color={colors.guardianGold} />
+              </IconButton>
+              <IconButton accessibilityLabel="Show public profile QR code" onPress={() => setQrOpen(true)}>
+                <QrCodeIcon color={colors.guardianGold} />
+              </IconButton>
             </View>
           ) : null}
         </View>
@@ -310,15 +301,23 @@ export default function PublicProfilePage() {
       <PublicProfileCta />
 
       {isOwner ? (
-        <ShareSheet
-          visible={shareOpen}
-          onClose={() => setShareOpen(false)}
-          link={publicProfileUrl(profile.username)}
-          title="Share your public profile"
-          message={`See ${profile.displayName}'s public profile on Tomora`}
-          linkLabel="Public profile link"
-          emailSubject="A Tomora public profile"
-        />
+        <>
+          <ShareSheet
+            visible={shareOpen}
+            onClose={() => setShareOpen(false)}
+            link={publicProfileUrl(profile.username)}
+            title="Share your public profile"
+            message={`See ${profile.displayName}'s public profile on Tomora`}
+            linkLabel="Public profile link"
+            emailSubject="A Tomora public profile"
+          />
+          <PublicProfileQrSheet
+            visible={qrOpen}
+            onClose={() => setQrOpen(false)}
+            username={profile.username}
+            displayName={profile.displayName}
+          />
+        </>
       ) : null}
     </ScreenContainer>
   );

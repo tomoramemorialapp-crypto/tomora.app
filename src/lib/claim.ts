@@ -1,3 +1,5 @@
+const RAW_INVITE_CODE = /^[A-Za-z0-9]{4,32}$/;
+
 /** Extract an invite code from a pasted claim link or raw code string. */
 export function parseClaimCode(input: string): string | null {
   const trimmed = input.trim();
@@ -7,9 +9,11 @@ export function parseClaimCode(input: string): string | null {
     const url = new URL(trimmed);
     const code = url.searchParams.get('code');
     if (code?.trim()) return code.trim().toUpperCase();
+    return null;
   } catch {
-    // Not a URL — treat as a raw code.
+    // Not a URL — treat as a raw invite code.
   }
 
+  if (!RAW_INVITE_CODE.test(trimmed)) return null;
   return trimmed.toUpperCase();
 }

@@ -16,4 +16,13 @@ describe('parseClaimCode', () => {
     expect(parseClaimCode('')).toBeNull();
     expect(parseClaimCode('   ')).toBeNull();
   });
+
+  it('ignores non-claim URLs (e.g. public profiles)', () => {
+    expect(parseClaimCode('https://tomora.app/u/jane_doe')).toBeNull();
+  });
+
+  it('rejects codes that are too short or invalid', () => {
+    expect(parseClaimCode('ab')).toBeNull();
+    expect(parseClaimCode('not a code!')).toBeNull();
+  });
 });

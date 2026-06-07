@@ -7,7 +7,6 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Platform } from 'react-native';
 import type { Session } from '@supabase/supabase-js';
 
 import { inferContextualRelationships } from '@/lib/contextualAdd';
@@ -45,6 +44,18 @@ import {
 } from '@/lib/passwordRecovery';
 import '@/lib/passwordRecovery';
 import type { ExistingSignupStatus } from '@/lib/authVerification';
+import { isAuthHydrationSuppressed } from '@/lib/authHydration';
+import {
+  clearOnboardingDraftStorage,
+  emptyOnboardingDraft,
+  hasOnboardingTreeDraft,
+  isLikelyAutoDisplayName,
+  loadOnboardingDraftFromStorage,
+  resolveOnboardingDraft,
+  storeOnboardingDraftToStorage,
+  type OnboardingDraft,
+} from '@/lib/onboardingDraft';
+import { isOnboardingTreeComplete } from '@/lib/onboardingTree';
 import { validateUsername } from '@/lib/username';
 import { childIdForParentEdge, detectParentPairingOpportunity } from '@/lib/parentPairing';
 import {
@@ -66,21 +77,6 @@ import type { NodeInvite } from '@/services/inviteService';
 import type { AccountSettingsPatch } from '@/services/accountService';
 import type { ChangeLogEntryInput } from '@/services/profileService';
 import type { MemorialPagePatch, RequestPassingResult } from '@/services/memorialService';
-
-interface OnboardingDraft {
-  selfName: string;
-  lovedOneName: string;
-  lovedOneRelationship: RelationshipType;
-  lovedOneRelationshipDetail?: import('@/lib/relationshipDetail').RelationshipDetail;
-  lovedOneTaxonId?: string;
-  lovedOneIsRemembered: boolean;
-  /** Chosen at signup; applied via set_username once a session exists. */
-  pendingUsername?: string;
-  /** Invite code to auto-claim after the user creates an account. */
-  pendingClaimCode?: string;
-  /** Claim password stored locally until auth completes (never in URL). */
-  pendingClaimPassword?: string;
-}
 
 interface AppStateValue {
   loading: boolean;
@@ -270,43 +266,6 @@ interface AppStateValue {
   getRelationshipsForNode: (id: string) => Relationship[];
 }
 
-const emptyDraft: OnboardingDraft = {
-  selfName: '',
-  lovedOneName: '',
-  lovedOneRelationship: 'parent',
-  lovedOneIsRemembered: false,
-};
-
-const DRAFT_KEY = 'tomora.onboarding.draft';
-
-function loadStoredDraft(): OnboardingDraft {
-  if (Platform.OS !== 'web' || typeof localStorage === 'undefined') return emptyDraft;
-  try {
-    const raw = localStorage.getItem(DRAFT_KEY);
-    return raw ? { ...emptyDraft, ...JSON.parse(raw) } : emptyDraft;
-  } catch {
-    return emptyDraft;
-  }
-}
-
-function storeDraft(draft: OnboardingDraft) {
-  if (Platform.OS !== 'web' || typeof localStorage === 'undefined') return;
-  try {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-  } catch {
-    // ignore storage failures
-  }
-}
-
-function clearStoredDraft() {
-  if (Platform.OS !== 'web' || typeof localStorage === 'undefined') return;
-  try {
-    localStorage.removeItem(DRAFT_KEY);
-  } catch {
-    // ignore
-  }
-}
-
 const AppStateContext = createContext<AppStateValue | null>(null);
 
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
@@ -320,7 +279,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [suggestedEdits, setSuggestedEdits] = useState<SuggestedEdit[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [mediaUsageBytes, setMediaUsageBytes] = useState(0);
-  const [draft, setDraftState] = useState<OnboardingDraft>(() => loadStoredDraft());
+  const [draft, setDraftState] = useState<OnboardingDraft>(() => loadOnboardingDraftFromStorage());
   const [passwordRecoveryPending, setPasswordRecoveryPending] = useState(
     () => isPasswordRecoveryPendingSync(),
   );
@@ -358,16 +317,22 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const setDraft = useCallback((patch: Partial<OnboardingDraft>) => {
     setDraftState((prev) => {
       const next = { ...prev, ...patch };
-      storeDraft(next);
+      storeOnboardingDraftToStorage(next);
       draftRef.current = next;
       return next;
     });
   }, []);
 
+  const syncDraft = useCallback((next: OnboardingDraft) => {
+    storeOnboardingDraftToStorage(next);
+    draftRef.current = next;
+    setDraftState(next);
+  }, []);
+
   const clearPendingClaimDraft = useCallback(() => {
     setDraftState((prev) => {
       const next = { ...prev, pendingClaimCode: undefined, pendingClaimPassword: undefined };
-      storeDraft(next);
+      storeOnboardingDraftToStorage(next);
       draftRef.current = next;
       return next;
     });
@@ -378,35 +343,51 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const loadForUser = useCallback(
     async (activeSession: Session): Promise<boolean> => {
       const userId = activeSession.user.id;
-      const displayName = draftRef.current.selfName || activeSession.user.email?.split('@')[0] || 'You';
-      let acct = (await treeService.getAccount(userId)) ?? (await treeService.ensureAccount(userId, displayName));
+      const resolvedDraft = resolveOnboardingDraft(draftRef.current, activeSession);
+      if (resolvedDraft !== draftRef.current) {
+        syncDraft(resolvedDraft);
+      }
 
-      const pendingUsername = draftRef.current.pendingUsername?.trim();
-      if (pendingUsername && !acct.username) {
+      const selfName = resolvedDraft.selfName.trim();
+      const displayName = selfName || activeSession.user.email?.split('@')[0] || 'You';
+      let acct = await treeService.getAccount(userId);
+      if (!acct) {
+        acct = await treeService.ensureAccount(userId, displayName);
+      } else if (selfName && isLikelyAutoDisplayName(acct.displayName, activeSession.user.email)) {
         try {
-          acct = await accountService.setUsername(pendingUsername);
-          setDraftState((prev) => {
-            const next = { ...prev, pendingUsername: undefined };
-            storeDraft(next);
-            return next;
-          });
+          acct = await accountService.updateAccountSettings(userId, { displayName: selfName });
         } catch (e) {
-          console.warn('[tomora] pending username set failed', e);
+          console.warn('[tomora] onboarding display name sync failed', e);
         }
       }
       setAccount(acct);
 
+      const pendingUsername = resolvedDraft.pendingUsername?.trim();
+      if (pendingUsername && !acct.username) {
+        try {
+          acct = await accountService.setUsername(pendingUsername);
+          setAccount(acct);
+          syncDraft({ ...resolvedDraft, pendingUsername: undefined });
+        } catch (e) {
+          console.warn('[tomora] pending username set failed', e);
+        }
+      }
+
       let bundle = await treeService.loadMyTreeBundle(userId);
-      if (!bundle && draftRef.current.lovedOneName.trim()) {
-        bundle = await treeService.createInitialTree({
-          accountId: userId,
-          selfName: draftRef.current.selfName,
-          lovedOneName: draftRef.current.lovedOneName,
-          relationshipType: draftRef.current.lovedOneRelationship,
-          relationshipDetail: draftRef.current.lovedOneRelationshipDetail,
-          isRemembered: draftRef.current.lovedOneIsRemembered,
-        });
-        clearStoredDraft();
+      if (hasOnboardingTreeDraft(resolvedDraft) && !isOnboardingTreeComplete(bundle, userId)) {
+        bundle = await treeService.ensureOnboardingTree(
+          {
+            accountId: userId,
+            selfName: resolvedDraft.selfName,
+            lovedOneName: resolvedDraft.lovedOneName,
+            relationshipType: resolvedDraft.lovedOneRelationship,
+            relationshipDetail: resolvedDraft.lovedOneRelationshipDetail,
+            isRemembered: resolvedDraft.lovedOneIsRemembered,
+          },
+          bundle,
+        );
+        clearOnboardingDraftStorage();
+        void authService.clearOnboardingDraftMetadata();
       }
       applyBundle(bundle);
       if (bundle) {
@@ -448,7 +429,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
       return !!bundle?.tree;
     },
-    [applyBundle, clearPendingClaimDraft],
+    [applyBundle, clearPendingClaimDraft, syncDraft],
   );
 
   const loadForUserRef = useRef(loadForUser);
@@ -480,7 +461,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Hydrate on cold start and after sign-in (e.g. email-confirmation redirect).
-      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+      const shouldHydrate =
+        event === 'INITIAL_SESSION' ||
+        event === 'SIGNED_IN' ||
+        (event === 'USER_UPDATED' && authService.isEmailVerified(newSession));
+
+      if (shouldHydrate && !isAuthHydrationSuppressed()) {
         try {
           await loadForUserRef.current(newSession);
         } catch (e) {
@@ -488,7 +474,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         } finally {
           if (mounted) setLoading(false);
         }
+        return;
       }
+
+      if (mounted) setLoading(false);
     });
 
     return () => {
@@ -513,16 +502,19 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
       setDraftState((prev) => {
         const next = { ...prev, pendingUsername: normalized };
-        storeDraft(next);
+        storeOnboardingDraftToStorage(next);
+        draftRef.current = next;
         return next;
       });
 
       const pendingClaim = draftRef.current.pendingClaimCode?.trim();
+      const signupDraft = draftRef.current;
       const result = await authService.signUpWithEmail(
         email,
         password,
         normalized,
         pendingClaim ? { next: 'claim' } : { next: 'onboarding' },
+        signupDraft,
       );
       if (!result.session) {
         return {
@@ -550,7 +542,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const resetAll = useCallback(async () => {
     await clearPasswordRecoveryPending();
     await authService.signOut();
-    clearStoredDraft();
+    clearOnboardingDraftStorage();
     setSession(null);
     setAccount(null);
     setTree(null);
@@ -559,7 +551,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setMemories([]);
     setSuggestedEdits([]);
     setNotifications([]);
-    setDraftState(emptyDraft);
+    setDraftState(emptyOnboardingDraft());
   }, []);
 
   const updateAccountSettings = useCallback<AppStateValue['updateAccountSettings']>(

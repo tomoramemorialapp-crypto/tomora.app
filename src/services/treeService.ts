@@ -1,3 +1,4 @@
+import { isOnboardingTreeComplete } from '@/lib/onboardingTree';
 import { supabase } from '@/lib/supabase';
 import { userMessageFromSupabaseError } from '@/lib/supabaseErrors';
 import type { RelationshipDetail } from '@/lib/relationshipDetail';
@@ -63,6 +64,64 @@ export interface InitialTreeInput {
   isRemembered: boolean;
 }
 
+type SeedTreeNodesResult = {
+  selfRow: Tables<'nodes'>;
+  lovedRow: Tables<'nodes'>;
+  relRow: Tables<'relationships'>;
+};
+
+async function seedTreeNodes(
+  treeId: string,
+  accountId: string,
+  input: Omit<InitialTreeInput, 'accountId'>,
+): Promise<SeedTreeNodesResult> {
+  const { selfName, lovedOneName, relationshipType, relationshipDetail, isRemembered } = input;
+
+  const { data: selfRow, error: selfErr } = await supabase
+    .from('nodes')
+    .insert({
+      family_tree_id: treeId,
+      owner_account_id: accountId,
+      display_name: selfName.trim() || 'You',
+      status: 'claimed',
+      is_living: true,
+      profile: seedProfile(selfName.trim() || 'You', 'owner', accountId) as unknown as Json,
+    })
+    .select()
+    .single();
+  if (selfErr) throw selfErr;
+
+  const { data: lovedRow, error: lovedErr } = await supabase
+    .from('nodes')
+    .insert({
+      family_tree_id: treeId,
+      display_name: lovedOneName.trim() || 'Loved one',
+      status: nodeStatusFor(relationshipType, isRemembered),
+      is_living: isLivingFor(relationshipType, isRemembered),
+      profile: seedProfile(lovedOneName.trim() || 'Loved one', 'guardian', accountId) as unknown as Json,
+    })
+    .select()
+    .single();
+  if (lovedErr) throw lovedErr;
+
+  const { data: relRow, error: relErr } = await supabase
+    .from('relationships')
+    .insert({
+      family_tree_id: treeId,
+      from_node_id: selfRow.id,
+      to_node_id: lovedRow.id,
+      relationship_type: relationshipType,
+      relationship_detail: relationshipDetail ?? null,
+      status: 'approved',
+      created_by_account_id: accountId,
+    })
+    .select()
+    .single();
+  if (relErr) throw relErr;
+
+  return { selfRow, lovedRow, relRow };
+}
+
 export interface TreeBundle {
   tree: FamilyTree;
   nodes: FamilyNode[];
@@ -91,47 +150,13 @@ export async function createInitialTree(input: InitialTreeInput): Promise<TreeBu
     .insert({ family_tree_id: treeRow.id, account_id: accountId, role: 'creator' });
   if (memErr) throw memErr;
 
-  const { data: selfRow, error: selfErr } = await supabase
-    .from('nodes')
-    .insert({
-      family_tree_id: treeRow.id,
-      owner_account_id: accountId,
-      display_name: selfName.trim() || 'You',
-      status: 'claimed',
-      is_living: true,
-      profile: seedProfile(selfName.trim() || 'You', 'owner', accountId) as unknown as Json,
-    })
-    .select()
-    .single();
-  if (selfErr) throw selfErr;
-
-  const { data: lovedRow, error: lovedErr } = await supabase
-    .from('nodes')
-    .insert({
-      family_tree_id: treeRow.id,
-      display_name: lovedOneName.trim() || 'Loved one',
-      status: nodeStatusFor(relationshipType, isRemembered),
-      is_living: isLivingFor(relationshipType, isRemembered),
-      profile: seedProfile(lovedOneName.trim() || 'Loved one', 'guardian', accountId) as unknown as Json,
-    })
-    .select()
-    .single();
-  if (lovedErr) throw lovedErr;
-
-  const { data: relRow, error: relErr } = await supabase
-    .from('relationships')
-    .insert({
-      family_tree_id: treeRow.id,
-      from_node_id: selfRow.id,
-      to_node_id: lovedRow.id,
-      relationship_type: relationshipType,
-      relationship_detail: relationshipDetail ?? null,
-      status: 'approved',
-      created_by_account_id: accountId,
-    })
-    .select()
-    .single();
-  if (relErr) throw relErr;
+  const { selfRow, lovedRow, relRow } = await seedTreeNodes(treeRow.id, accountId, {
+    selfName,
+    lovedOneName,
+    relationshipType,
+    relationshipDetail,
+    isRemembered,
+  });
 
   return {
     tree: mapTree(treeRow),
@@ -140,6 +165,91 @@ export async function createInitialTree(input: InitialTreeInput): Promise<TreeBu
     memories: [],
     suggestedEdits: [],
   };
+}
+
+/**
+ * Create or repair the onboarding tree from a saved draft — e.g. after delayed email verification
+ * left an empty tree shell or no tree at all.
+ */
+export async function ensureOnboardingTree(
+  input: InitialTreeInput,
+  existing: TreeBundle | null,
+): Promise<TreeBundle | null> {
+  if (!input.lovedOneName.trim()) return existing;
+  if (isOnboardingTreeComplete(existing, input.accountId)) return existing;
+
+  if (!existing?.tree) {
+    return createInitialTree(input);
+  }
+
+  const treeId = existing.tree.id;
+  const live = existing.nodes;
+  const selfNode = live.find((n) => n.ownerAccountId === input.accountId && n.status === 'claimed');
+  const connectedFromSelf = selfNode
+    ? existing.relationships.some((r) => r.fromNodeId === selfNode.id || r.toNodeId === selfNode.id)
+    : false;
+
+  if (live.length === 0) {
+    const { selfRow, lovedRow, relRow } = await seedTreeNodes(treeId, input.accountId, input);
+    return {
+      tree: existing.tree,
+      nodes: [mapNode(selfRow), mapNode(lovedRow)],
+      relationships: [mapRelationship(relRow)],
+      memories: existing.memories,
+      suggestedEdits: existing.suggestedEdits,
+    };
+  }
+
+  if (!selfNode) {
+    const { selfRow, lovedRow, relRow } = await seedTreeNodes(treeId, input.accountId, input);
+    return {
+      tree: existing.tree,
+      nodes: [...live.map((n) => n), mapNode(selfRow), mapNode(lovedRow)],
+      relationships: [...existing.relationships, mapRelationship(relRow)],
+      memories: existing.memories,
+      suggestedEdits: existing.suggestedEdits,
+    };
+  }
+
+  if (!connectedFromSelf || live.length < 2) {
+    const { data: lovedRow, error: lovedErr } = await supabase
+      .from('nodes')
+      .insert({
+        family_tree_id: treeId,
+        display_name: input.lovedOneName.trim() || 'Loved one',
+        status: nodeStatusFor(input.relationshipType, input.isRemembered),
+        is_living: isLivingFor(input.relationshipType, input.isRemembered),
+        profile: seedProfile(input.lovedOneName.trim() || 'Loved one', 'guardian', input.accountId) as unknown as Json,
+      })
+      .select()
+      .single();
+    if (lovedErr) throw lovedErr;
+
+    const { data: relRow, error: relErr } = await supabase
+      .from('relationships')
+      .insert({
+        family_tree_id: treeId,
+        from_node_id: selfNode.id,
+        to_node_id: lovedRow.id,
+        relationship_type: input.relationshipType,
+        relationship_detail: input.relationshipDetail ?? null,
+        status: 'approved',
+        created_by_account_id: input.accountId,
+      })
+      .select()
+      .single();
+    if (relErr) throw relErr;
+
+    return {
+      tree: existing.tree,
+      nodes: [...live, mapNode(lovedRow)],
+      relationships: [...existing.relationships, mapRelationship(relRow)],
+      memories: existing.memories,
+      suggestedEdits: existing.suggestedEdits,
+    };
+  }
+
+  return existing;
 }
 
 export interface AddRelativeInput {

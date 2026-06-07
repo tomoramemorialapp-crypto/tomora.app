@@ -7,6 +7,13 @@ import {
   getPasswordResetRedirectUrl,
   type AuthCallbackIntent,
 } from '@/lib/authRedirect';
+import { suppressAuthHydration } from '@/lib/authHydration';
+import {
+  ONBOARDING_DRAFT_META_KEY,
+  type OnboardingDraft,
+  serializeOnboardingDraftForMeta,
+  hasOnboardingTreeDraft,
+} from '@/lib/onboardingDraft';
 import { validatePasswordLength } from '@/lib/passwordPolicy';
 import { isEmailNotConfirmedError, type ExistingSignupStatus } from '@/lib/authVerification';
 import { friendlyAuthError, userMessageFromError, USER_ERROR_MESSAGES } from '@/lib/userErrors';
@@ -32,19 +39,31 @@ export interface SignUpResult {
 async function probeExistingSignup(
   email: string,
   password: string,
+  onboardingDraft?: OnboardingDraft | null,
 ): Promise<{ status: Exclude<ExistingSignupStatus, 'new'>; session: Session | null }> {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (!error && data.session) {
-    if (!isEmailVerified(data.session)) {
-      await supabase.auth.signOut({ scope: 'local' });
+  return suppressAuthHydration(async () => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (!error && data.session) {
+      if (!isEmailVerified(data.session)) {
+        if (onboardingDraft && hasOnboardingTreeDraft(onboardingDraft)) {
+          try {
+            await supabase.auth.updateUser({
+              data: { [ONBOARDING_DRAFT_META_KEY]: serializeOnboardingDraftForMeta(onboardingDraft) },
+            });
+          } catch {
+            // User can still recover from local draft after verification.
+          }
+        }
+        await supabase.auth.signOut({ scope: 'local' });
+        return { status: 'existing_unverified', session: null };
+      }
+      return { status: 'existing_verified', session: data.session };
+    }
+    if (error && isEmailNotConfirmedError(error)) {
       return { status: 'existing_unverified', session: null };
     }
-    return { status: 'existing_verified', session: data.session };
-  }
-  if (error && isEmailNotConfirmedError(error)) {
-    return { status: 'existing_unverified', session: null };
-  }
-  return { status: 'existing_password_mismatch', session: null };
+    return { status: 'existing_password_mismatch', session: null };
+  });
 }
 
 function normalizeAuthEmail(email: string): string {
@@ -82,16 +101,22 @@ export async function signUpWithEmail(
   password: string,
   username: string,
   intent?: AuthCallbackIntent,
+  onboardingDraft?: OnboardingDraft | null,
 ): Promise<SignUpResult> {
   const passwordError = validatePasswordLength(password);
   if (passwordError) throw new Error(passwordError);
 
   const normalizedEmail = normalizeAuthEmail(email);
+  const metaPayload: Record<string, unknown> = { username: username.toLowerCase() };
+  if (onboardingDraft && hasOnboardingTreeDraft(onboardingDraft)) {
+    metaPayload[ONBOARDING_DRAFT_META_KEY] = serializeOnboardingDraftForMeta(onboardingDraft);
+  }
+
   const { data, error } = await supabase.auth.signUp({
     email: normalizedEmail,
     password,
     options: {
-      data: { username: username.toLowerCase() },
+      data: metaPayload,
       emailRedirectTo: getEmailRedirectUrl(intent),
     },
   });
@@ -100,7 +125,7 @@ export async function signUpWithEmail(
   const alreadyRegistered = Boolean(data.user && data.user.identities?.length === 0);
 
   if (alreadyRegistered) {
-    const probe = await probeExistingSignup(normalizedEmail, password);
+    const probe = await probeExistingSignup(normalizedEmail, password, onboardingDraft);
     if (probe.status === 'existing_verified' && probe.session) {
       return {
         session: probe.session,
@@ -200,6 +225,14 @@ export async function resendEmailConfirmation(email: string, intent?: AuthCallba
     options: { emailRedirectTo: getEmailRedirectUrl(intent) },
   });
   if (error) throw new Error(friendlyAuthError(error));
+}
+
+/** Clear saved onboarding draft from auth metadata after the tree is persisted. */
+export async function clearOnboardingDraftMetadata(): Promise<void> {
+  const { data } = await supabase.auth.getUser();
+  if (!data.user?.user_metadata?.[ONBOARDING_DRAFT_META_KEY]) return;
+  const { error } = await supabase.auth.updateUser({ data: { [ONBOARDING_DRAFT_META_KEY]: null } });
+  if (error) console.warn('[tomora] clear onboarding draft metadata failed', error);
 }
 
 /** Re-fetch the user from Supabase to pick up a freshly-confirmed email. */

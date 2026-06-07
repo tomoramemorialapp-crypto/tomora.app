@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { DateValueInput, dateValueToStorageIso, isoToDateValue } from '@/components/ui/DateValueInput';
+import { DateValueInput } from '@/components/ui/DateValueInput';
+import { dateValueToStorageIso, isoToDateValue, weddingDatePrecision } from '@/lib/dateValue';
 import { Dropdown } from '@/components/ui/Dropdown';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Body, Caption } from '@/components/ui/Typography';
@@ -161,6 +162,11 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
     const iso = dateValueToStorageIso(value);
     // Partial input (month/day without year) emits a DateValue that does not serialize — do not wipe a saved date.
     if (iso === null && value !== undefined) return;
+
+    const rel = rels.find((r) => r.id === relId);
+    const prevIso = rel?.weddingDate ?? null;
+    if (iso && prevIso && weddingDatePrecision(iso) < weddingDatePrecision(prevIso)) return;
+
     setBusy(true);
     try {
       await updateRelationshipWeddingDate(relId, iso);
@@ -335,7 +341,6 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
                 {isPartnership(pType) ? (
                   <View style={{ marginTop: spacing.sm }}>
                     <DateValueInput
-                      key={`wedding-${rel.id}-${rel.weddingDate ?? 'empty'}`}
                       label="Wedding date"
                       value={isoToDateValue(rel.weddingDate)}
                       onChange={(d) => onChangeWeddingDate(rel.id, d)}

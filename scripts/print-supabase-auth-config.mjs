@@ -8,7 +8,7 @@ import { resolve } from 'path';
 const root = resolve(import.meta.dirname, '..');
 const envPath = resolve(root, '.env');
 const env = existsSync(envPath) ? readFileSync(envPath, 'utf8') : '';
-const appUrl = (env.match(/EXPO_PUBLIC_APP_URL=(.+)/)?.[1] ?? 'https://tomora.app').trim();
+const appUrl = (env.match(/EXPO_PUBLIC_APP_URL=(.+)/)?.[1] ?? 'https://www.tomora.app').trim();
 
 const siteUrl = appUrl;
 const redirectUrls = [

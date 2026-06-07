@@ -50,7 +50,9 @@
     "test": "vitest run",
     "db:check": "node scripts/check-supabase-migrations.mjs",
     "db:apply-pending": "node scripts/apply-pending-migrations.mjs",
-    "auth:config": "node scripts/print-supabase-auth-config.mjs"
+    "auth:config": "node scripts/print-supabase-auth-config.mjs",
+    "web:export": "npx expo export --platform web && node scripts/post-export-web.mjs",
+    "smoke:prod": "node scripts/smoke-production.mjs"
   },
   "private": true
 }

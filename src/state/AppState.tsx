@@ -44,6 +44,7 @@ import {
   isPasswordRecoveryPendingSync,
 } from '@/lib/passwordRecovery';
 import '@/lib/passwordRecovery';
+import type { ExistingSignupStatus } from '@/lib/authVerification';
 import { validateUsername } from '@/lib/username';
 import { childIdForParentEdge, detectParentPairingOpportunity } from '@/lib/parentPairing';
 import {
@@ -106,7 +107,11 @@ interface AppStateValue {
     email: string,
     password: string,
     username: string,
-  ) => Promise<{ needsEmailConfirmation: boolean; alreadyRegistered?: boolean }>;
+  ) => Promise<{
+    needsEmailConfirmation: boolean;
+    alreadyRegistered?: boolean;
+    existingSignupStatus?: ExistingSignupStatus;
+  }>;
   signInAndLoad: (identifier: string, password: string) => Promise<void>;
   /** After a successful password reset — load tree data and clear recovery mode. */
   finishPasswordRecovery: () => Promise<boolean>;
@@ -520,8 +525,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         pendingClaim ? { next: 'claim' } : { next: 'onboarding' },
       );
       if (!result.session) {
-        // Email confirmation required — username is kept in draft until hydrate.
-        return { needsEmailConfirmation: true, alreadyRegistered: result.alreadyRegistered };
+        return {
+          needsEmailConfirmation: true,
+          alreadyRegistered: result.alreadyRegistered,
+          existingSignupStatus: result.existingSignupStatus,
+        };
       }
       setSession(result.session);
       await loadForUser(result.session);

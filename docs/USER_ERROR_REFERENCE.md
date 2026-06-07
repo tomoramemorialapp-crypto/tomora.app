@@ -9,8 +9,8 @@ Use `userMessageFromError()` or `formatCaughtError()` before displaying errors i
 | User sees | `UserErrorId` | Typical raw / log signals |
 |-----------|---------------|---------------------------|
 | The email, username, or password is not correct. | `auth.invalid_credentials` | `Invalid login credentials` |
-| Please confirm your email first… | `auth.email_not_confirmed` | `Email not confirmed` |
-| An account with this email already exists… | `auth.email_already_registered` | `User already registered`, sign-up `identities.length === 0` |
+| Please confirm your email first… | `auth.email_not_confirmed` | `Email not confirmed` — use login resend panel |
+| An account with this email already exists… | `auth.email_already_registered` | Duplicate sign-up / `User already registered` |
 | Too many emails were sent recently… | `auth.email_rate_limited` | `over_email_send_rate_limit`, rate limit |
 | This verification link has expired… | `auth.verification_link_expired` | `invalid grant`, flow state expired |
 | This verification link must be opened in the same browser… | `auth.verification_link_pkce` | `PKCE code verifier not found in storage` |
@@ -28,7 +28,18 @@ Use `userMessageFromError()` or `formatCaughtError()` before displaying errors i
 | Something went wrong on our side… | `database.schema_outdated` | Check constraint, enum, missing migration |
 | Something went wrong. Please try again. | `general.unexpected` | Unmatched technical messages |
 
-## Claim & invite codes
+## Unverified account recovery
+
+When sign-up detects a duplicate email (`identities.length === 0`), the app probes sign-in:
+
+| Probe result | User experience |
+|--------------|-----------------|
+| `existing_unverified` | “Account almost ready” screen + auto-resend verification email |
+| `existing_password_mismatch` | Prompt to sign in or reset password |
+| `existing_verified` | Session created — onboarding continues |
+
+Login with an unverified account shows the resend verification panel instead of a dead-end error.
+
 
 Claim flows use `src/lib/claimErrors.ts`. Raw RPC codes map to user copy:
 

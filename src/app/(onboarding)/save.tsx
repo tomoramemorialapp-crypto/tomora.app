@@ -2,21 +2,43 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 
+import { UnverifiedEmailPanel } from '@/components/auth/UnverifiedEmailPanel';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { OnboardingProgress } from '@/components/onboarding/OnboardingProgress';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 import { LightDivider } from '@/components/brand/LightDivider';
-import { Body, Caption, Display, Title } from '@/components/ui/Typography';
-import { GoldStar } from '@/components/brand/GoldStar';
+import { Body, Caption, Display } from '@/components/ui/Typography';
 import { colors, spacing } from '@/constants/theme';
 import { OAuthSignInButtons } from '@/components/auth/OAuthSignInButtons';
 import { copy } from '@/constants/copy';
+import type { ExistingSignupStatus } from '@/lib/authVerification';
 import { passwordMeetsMinLength, passwordMinLengthHint } from '@/lib/passwordPolicy';
 import { normalizeUsername, validateUsername } from '@/lib/username';
 import { formatCaughtError } from '@/lib/userErrors';
-import * as authService from '@/services/authService';
 import { useAppState } from '@/state/AppState';
+
+function verificationCopy(
+  email: string,
+  existingSignupStatus?: ExistingSignupStatus,
+): { title: string; body: string } {
+  if (existingSignupStatus === 'existing_unverified') {
+    return {
+      title: 'Your account is almost ready.',
+      body: `Tomora already has an account for ${email}, but the email address has not been verified yet. We just sent a fresh verification link — or tap Resend below for another. Open the link to finish saving your Family Tree.`,
+    };
+  }
+  if (existingSignupStatus === 'existing_password_mismatch') {
+    return {
+      title: 'This email is already registered.',
+      body: `An account for ${email} already exists, but the password you entered does not match. Sign in with the password you used when you first signed up, or reset your password if you forgot it. If you never verified your email, sign in anyway — we will help you resend the link.`,
+    };
+  }
+  return {
+    title: 'Check your email.',
+    body: `We sent a confirmation link to ${email}. Open it to verify your address and save your Family Tree — it will be waiting for you.`,
+  };
+}
 
 export default function Save() {
   const router = useRouter();
@@ -29,9 +51,7 @@ export default function Save() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmEmail, setConfirmEmail] = useState(false);
-  const [alreadyRegistered, setAlreadyRegistered] = useState(false);
-  const [resendBusy, setResendBusy] = useState(false);
-  const [resendNote, setResendNote] = useState<string | null>(null);
+  const [existingSignupStatus, setExistingSignupStatus] = useState<ExistingSignupStatus>('new');
   const normalizedUsername = normalizeUsername(username);
   const usernameError = username ? validateUsername(normalizedUsername) : 'Choose a username.';
   const canSave =
@@ -45,13 +65,9 @@ export default function Save() {
     setError(null);
     setBusy(true);
     try {
-      const { needsEmailConfirmation, alreadyRegistered: existing } = await signUpAndStart(
-        email,
-        password,
-        normalizedUsername,
-      );
-      if (needsEmailConfirmation) {
-        setAlreadyRegistered(!!existing);
+      const result = await signUpAndStart(email, password, normalizedUsername);
+      if (result.needsEmailConfirmation) {
+        setExistingSignupStatus(result.existingSignupStatus ?? (result.alreadyRegistered ? 'existing_unverified' : 'new'));
         setConfirmEmail(true);
       } else {
         router.push('/(onboarding)/privacy');
@@ -63,52 +79,17 @@ export default function Save() {
     }
   };
 
-  const onResend = async () => {
-    setResendNote(null);
-    setResendBusy(true);
-    try {
-      await authService.resendEmailConfirmation(email, { next: 'onboarding' });
-      setResendNote('Verification email sent. Check your inbox and spam folder.');
-    } catch (e: unknown) {
-      setResendNote(formatCaughtError(e, 'Could not resend. Please try again in a little while.', 'auth'));
-    } finally {
-      setResendBusy(false);
-    }
-  };
-
   if (confirmEmail) {
+    const { title, body } = verificationCopy(email, existingSignupStatus);
     return (
-      <ScreenContainer
-        center
-        footer={
-          <View style={{ gap: spacing.sm, width: '100%', maxWidth: 360 }}>
-            <Button
-              label={resendBusy ? 'Sending…' : 'Resend verification email'}
-              variant="gold"
-              disabled={resendBusy}
-              onPress={onResend}
-            />
-            <Button label="Back to sign in" variant="secondary" onPress={() => router.push('/login')} />
-          </View>
-        }
-      >
-        <View style={{ alignItems: 'center', gap: spacing.lg }}>
-          <GoldStar size={22} />
-          <Display align="center" style={{ fontSize: 32 }}>
-            Check your email.
-          </Display>
-          <Body align="center" style={{ maxWidth: 360, fontSize: 18 }}>
-            {alreadyRegistered
-              ? `If ${email} is already registered, Tomora may not send another link automatically. Use Resend below, or try signing in.`
-              : `We sent a confirmation link to ${email}. Confirm it and your Family Tree will be saved and waiting — always with you.`}
-          </Body>
-          <LightDivider width={70} />
-          <Caption align="center" style={{ maxWidth: 320 }}>
-            Check spam and promotions. If nothing arrives after resending, your Supabase project may need custom SMTP
-            (Authentication → SMTP) for production email delivery.
-          </Caption>
-          {resendNote ? <Caption style={{ color: colors.deepUmber, textAlign: 'center' }}>{resendNote}</Caption> : null}
-        </View>
+      <ScreenContainer center scroll>
+        <UnverifiedEmailPanel
+          email={email.trim().toLowerCase()}
+          intent={{ next: 'onboarding' }}
+          title={title}
+          body={body}
+          secondaryAction={{ label: 'Go to sign in', onPress: () => router.push('/login') }}
+        />
       </ScreenContainer>
     );
   }
@@ -119,11 +100,7 @@ export default function Save() {
       footer={
         <View style={{ gap: spacing.md }}>
           <Button label="Save my Family Tree" variant="gold" disabled={!canSave} loading={busy} onPress={onSave} />
-          <OAuthSignInButtons
-            intent={{ next: 'onboarding' }}
-            disabled={busy}
-            onError={setError}
-          />
+          <OAuthSignInButtons intent={{ next: 'onboarding' }} disabled={busy} onError={setError} />
         </View>
       }
     >
@@ -177,6 +154,10 @@ export default function Save() {
 
         <View style={{ alignItems: 'center', marginTop: spacing.sm, gap: spacing.sm }}>
           <LightDivider width={60} />
+          <Caption align="center" style={{ maxWidth: 320 }}>
+            Already started but did not verify yet? Enter the same email and password here — we will send a fresh
+            verification link.
+          </Caption>
           <Caption align="center" style={{ maxWidth: 320 }}>
             Your Family Tree is private by default. Nothing is shared unless you choose to.
           </Caption>

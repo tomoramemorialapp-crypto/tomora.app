@@ -8,6 +8,7 @@ import {
   type AuthCallbackIntent,
 } from '@/lib/authRedirect';
 import { validatePasswordLength } from '@/lib/passwordPolicy';
+import { isEmailNotConfirmedError, type ExistingSignupStatus } from '@/lib/authVerification';
 import { friendlyAuthError, userMessageFromError, USER_ERROR_MESSAGES } from '@/lib/userErrors';
 import { supabase } from '@/lib/supabase';
 import { isEmailIdentifier } from '@/lib/username';
@@ -24,12 +25,33 @@ export interface SignUpResult {
   needsEmailConfirmation: boolean;
   /** True when the email is already registered — no new confirmation is sent automatically. */
   alreadyRegistered?: boolean;
+  /** How an duplicate-email sign-up attempt relates to an existing auth user. */
+  existingSignupStatus?: ExistingSignupStatus;
+}
+
+async function probeExistingSignup(
+  email: string,
+  password: string,
+): Promise<{ status: Exclude<ExistingSignupStatus, 'new'>; session: Session | null }> {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (!error && data.session) {
+    if (!isEmailVerified(data.session)) {
+      await supabase.auth.signOut({ scope: 'local' });
+      return { status: 'existing_unverified', session: null };
+    }
+    return { status: 'existing_verified', session: data.session };
+  }
+  if (error && isEmailNotConfirmedError(error)) {
+    return { status: 'existing_unverified', session: null };
+  }
+  return { status: 'existing_password_mismatch', session: null };
 }
 
 function normalizeAuthEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
+export { isEmailNotConfirmedError } from '@/lib/authVerification';
 export { friendlyAuthError } from '@/lib/userErrors';
 
 /**
@@ -77,10 +99,36 @@ export async function signUpWithEmail(
 
   const alreadyRegistered = Boolean(data.user && data.user.identities?.length === 0);
 
+  if (alreadyRegistered) {
+    const probe = await probeExistingSignup(normalizedEmail, password);
+    if (probe.status === 'existing_verified' && probe.session) {
+      return {
+        session: probe.session,
+        needsEmailConfirmation: false,
+        alreadyRegistered: true,
+        existingSignupStatus: probe.status,
+      };
+    }
+    if (probe.status === 'existing_unverified') {
+      try {
+        await resendEmailConfirmation(normalizedEmail, intent);
+      } catch {
+        // User can resend manually if rate-limited.
+      }
+    }
+    return {
+      session: null,
+      needsEmailConfirmation: true,
+      alreadyRegistered: true,
+      existingSignupStatus: probe.status,
+    };
+  }
+
   return {
     session: data.session,
     needsEmailConfirmation: !data.session,
-    alreadyRegistered,
+    alreadyRegistered: false,
+    existingSignupStatus: 'new',
   };
 }
 

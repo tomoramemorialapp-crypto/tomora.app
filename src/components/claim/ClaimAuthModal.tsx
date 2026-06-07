@@ -8,7 +8,9 @@ import { OAuthSignInButtons } from '@/components/auth/OAuthSignInButtons';
 import { colors, radii, shadows, spacing } from '@/constants/theme';
 import { passwordMeetsMinLength, passwordMinLengthHint } from '@/lib/passwordPolicy';
 import { isEmailIdentifier, isUsernameIdentifier, normalizeUsername, validateUsername } from '@/lib/username';
-import * as authService from '@/services/authService';
+import { formatCaughtError } from '@/lib/userErrors';
+import type { ExistingSignupStatus } from '@/lib/authVerification';
+import { UnverifiedEmailPanel } from '@/components/auth/UnverifiedEmailPanel';
 import { useAppState } from '@/state/AppState';
 
 type EmailMode = 'signin' | 'signup';
@@ -30,6 +32,7 @@ export function ClaimAuthModal({ visible, onClose, onAuthed }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmEmail, setConfirmEmail] = useState(false);
+  const [existingSignupStatus, setExistingSignupStatus] = useState<ExistingSignupStatus>('new');
 
   const resetEmailForm = () => {
     setEmailMode(null);
@@ -64,7 +67,7 @@ export function ClaimAuthModal({ visible, onClose, onAuthed }: Props) {
       await onAuthed();
       close();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "We couldn't log you in. Please try again.");
+      setError(formatCaughtError(e, "We couldn't log you in. Please try again.", 'auth'));
     } finally {
       setBusy(false);
     }
@@ -74,15 +77,16 @@ export function ClaimAuthModal({ visible, onClose, onAuthed }: Props) {
     setError(null);
     setBusy(true);
     try {
-      const { needsEmailConfirmation } = await signUpAndStart(email, password, normalizedUsername);
-      if (needsEmailConfirmation) {
+      const result = await signUpAndStart(email, password, normalizedUsername);
+      if (result.needsEmailConfirmation) {
+        setExistingSignupStatus(result.existingSignupStatus ?? 'new');
         setConfirmEmail(true);
       } else {
         await onAuthed();
         close();
       }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Something went wrong. Please try again.');
+      setError(formatCaughtError(e, 'Something went wrong. Please try again.', 'auth'));
     } finally {
       setBusy(false);
     }
@@ -118,23 +122,20 @@ export function ClaimAuthModal({ visible, onClose, onAuthed }: Props) {
             </View>
 
             {confirmEmail ? (
-              <View style={{ gap: spacing.md }}>
-                <Display style={{ fontSize: 26 }}>Check your email</Display>
-                <Body style={{ color: colors.deepUmber }}>
-                  We sent a confirmation link to {email}. After you confirm, Tomora will claim your node automatically.
-                </Body>
-                <Button
-                  label="Resend verification email"
-                  variant="secondary"
-                  onPress={async () => {
-                    try {
-                      await authService.resendEmailConfirmation(email, { next: 'claim' });
-                    } catch (e: unknown) {
-                      setError(e instanceof Error ? e.message : 'Could not resend. Please try again.');
-                    }
-                  }}
-                />
-              </View>
+              <UnverifiedEmailPanel
+                email={email.trim().toLowerCase()}
+                intent={{ next: 'claim' }}
+                title={
+                  existingSignupStatus === 'existing_unverified'
+                    ? 'Your account is almost ready.'
+                    : 'Check your email'
+                }
+                body={
+                  existingSignupStatus === 'existing_unverified'
+                    ? `Tomora already has an account for ${email}, but it is not verified yet. Resend a link below, confirm your email, then return here to claim your node.`
+                    : `We sent a confirmation link to ${email}. After you confirm, Tomora will claim your node automatically.`
+                }
+              />
             ) : emailMode === null ? (
               <View style={{ gap: spacing.md }}>
                 <OAuthSignInButtons intent={{ next: 'claim' }} disabled={busy} onError={setError} />

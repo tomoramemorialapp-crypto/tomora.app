@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 
+import { UnverifiedEmailPanel } from '@/components/auth/UnverifiedEmailPanel';
 import { ScreenContainer } from '@/components/ui/ScreenContainer';
 import { TextField } from '@/components/ui/TextField';
 import { Button } from '@/components/ui/Button';
@@ -13,8 +14,9 @@ import { OAuthSignInButtons } from '@/components/auth/OAuthSignInButtons';
 import { copy } from '@/constants/copy';
 import { useT } from '@/i18n';
 import { passwordMeetsMinLength, passwordMinLengthHint } from '@/lib/passwordPolicy';
-import { formatCaughtError } from '@/lib/userErrors';
+import { formatCaughtError, USER_ERROR_MESSAGES } from '@/lib/userErrors';
 import { isEmailIdentifier, isUsernameIdentifier } from '@/lib/username';
+import { isEmailNotConfirmedError, resolveLoginEmail } from '@/services/authService';
 import { useAppState } from '@/state/AppState';
 
 export default function Login() {
@@ -27,22 +29,55 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null);
   const trimmed = identifier.trim();
   const validIdentifier = isEmailIdentifier(trimmed) || isUsernameIdentifier(trimmed);
   const canSubmit = validIdentifier && passwordMeetsMinLength(password) && !busy;
 
   const onSubmit = async () => {
     setError(null);
+    setPendingVerificationEmail(null);
     setBusy(true);
     try {
       await signInAndLoad(trimmed, password);
       router.replace('/(tabs)');
     } catch (e: unknown) {
+      if (isEmailNotConfirmedError(e)) {
+        try {
+          const email = isEmailIdentifier(trimmed)
+            ? trimmed.toLowerCase()
+            : await resolveLoginEmail(trimmed);
+          setPendingVerificationEmail(email);
+          setError(USER_ERROR_MESSAGES['auth.email_not_confirmed']);
+        } catch {
+          setError(USER_ERROR_MESSAGES['auth.email_not_confirmed']);
+        }
+        return;
+      }
       setError(formatCaughtError(e, "We couldn't log you in. Please try again.", 'auth'));
     } finally {
       setBusy(false);
     }
   };
+
+  if (pendingVerificationEmail) {
+    return (
+      <ScreenContainer showBack center scroll>
+        <UnverifiedEmailPanel
+          email={pendingVerificationEmail}
+          title="Verify your email to sign in."
+          body={`Your account for ${pendingVerificationEmail} is registered but not verified yet. Resend a fresh link below, open it, then come back here to sign in.`}
+          secondaryAction={{
+            label: 'Back to sign in',
+            onPress: () => {
+              setPendingVerificationEmail(null);
+              setError(null);
+            },
+          }}
+        />
+      </ScreenContainer>
+    );
+  }
 
   return (
     <ScreenContainer showBack>

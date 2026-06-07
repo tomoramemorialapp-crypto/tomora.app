@@ -122,11 +122,10 @@ const failed = results.filter((r) => !r.ok);
 console.log(`\n${results.length - failed.length}/${results.length} passed`);
 if (failed.length) {
   console.log('\nNext steps:');
-  if (failed.some((f) => f.name.includes('Public profile') || f.name.includes('dist/u'))) {
-    console.log('  • Vercel → Project Settings → Build Command: npm run vercel-build');
-    console.log('  • Turn OFF any override that only runs `npx expo export --platform web`');
-    console.log('  • Redeploy; build log should show "post-export-web: removed dist/u/"');
-    console.log('  • Confirm EXPO_PUBLIC_APP_URL=https://www.tomora.app in Vercel env');
+  if (failed.some((f) => f.name.includes('Public profile') || f.name.includes('Claim') || f.name.includes('dist/u'))) {
+    console.log('  • Redeploy latest main with “Clear cache and redeploy” in Vercel');
+    console.log('  • vercel.json must use rewrites: { source: "/:path*", destination: "/" }');
+    console.log('  • Build Command: npm run vercel-build · Output: dist');
   }
   if (failed.some((f) => f.name.includes('get_public_profile'))) {
     console.log('  • Turn on public profile in app + set username in Account settings');

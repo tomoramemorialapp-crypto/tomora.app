@@ -118,6 +118,27 @@ function hasEdge(edges: RelationshipEdge[], id: string): boolean {
   return edges.some((e) => e.id === id);
 }
 
+/** Parents and partnerships must be expanded before siblings/indirect types. */
+const RELATIONSHIP_PROCESS_PRIORITY: Partial<Record<RelationshipType, number>> = {
+  parent: 0,
+  step_parent: 0,
+  spouse: 1,
+  partner: 1,
+  child: 2,
+  child_in_law: 2,
+  parent_in_law: 2,
+  sibling: 10,
+  grandparent: 10,
+  grandchild: 10,
+  aunt_uncle: 10,
+  niece_nephew: 10,
+  cousin: 10,
+};
+
+function relationshipProcessOrder(type: RelationshipType): number {
+  return RELATIONSHIP_PROCESS_PRIORITY[type] ?? 5;
+}
+
 /**
  * Expand one stored relationship edge into TKE edges + optional placeholders.
  *
@@ -217,6 +238,8 @@ function applyStoredRelationship(params: {
     return;
   }
 
+  const unbridgedSibling = target.tags?.includes('Unbridged sibling');
+
   const result = buildRelationshipWithPlaceholders({
     intent: {
       anchorNodeId: sourceId,
@@ -224,6 +247,7 @@ function applyStoredRelationship(params: {
       relationshipToAnchor: intent,
       side: 'unsorted',
       targetNodeId: targetId,
+      skipParentBridge: unbridgedSibling && intent === 'sibling',
     },
     existingNodes,
     existingEdges,
@@ -311,7 +335,11 @@ export function buildKinshipGraphFromApp(params: {
 
   const storedRels = relationships
     .filter((r) => nodeIds.has(r.fromNodeId) && nodeIds.has(r.toNodeId))
-    .sort((a, b) => a.id.localeCompare(b.id));
+    .sort(
+      (a, b) =>
+        relationshipProcessOrder(a.relationshipType) - relationshipProcessOrder(b.relationshipType) ||
+        a.id.localeCompare(b.id),
+    );
 
   for (const rel of storedRels) {
     applyStoredRelationship({

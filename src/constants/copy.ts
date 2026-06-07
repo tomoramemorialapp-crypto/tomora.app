@@ -144,6 +144,19 @@ export const copy = {
 /** Relationship choices for onboarding / add-relative — derived from the taxonomy. */
 export const relationshipChoices = getAnchorRelationshipChoices();
 
+/** Prompt when adding a sibling without any known parents (§1.2). */
+export const siblingBridgeCopy = {
+  title: 'Shared parent needed',
+  body: 'To place this sibling correctly, Tomora needs a shared parent.',
+  addParent: 'Add a parent now',
+  unknownParent: 'Use an Unknown Parent for now',
+  unbridged: 'Same-generation only (no shared parent yet)',
+  unknownNote:
+    'Tomora will add one shared Unknown Parent so siblings connect on your tree. You can replace it anytime.',
+  unbridgedNote:
+    'They’ll appear beside you without a parent link. You can add shared parents later.',
+};
+
 /** Soft prompt when a child gains a second parent without a partnership edge. */
 export const parentPairingCopy = {
   title: 'Connect these parents?',

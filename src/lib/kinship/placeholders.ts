@@ -28,6 +28,8 @@ export interface AddRelationshipIntent {
   side?: 'mother_side' | 'father_side' | 'partner_side' | 'unsorted';
   /** When set, connect to this existing node instead of creating the target. */
   targetNodeId?: string;
+  /** Skip creating an Unknown Parent when no parents exist (unbridged sibling). */
+  skipParentBridge?: boolean;
 }
 
 export interface BuildResult {
@@ -257,7 +259,7 @@ export function buildRelationshipWithPlaceholders(params: {
             toRole: 'child',
           });
         }
-      } else {
+      } else if (!intent.skipParentBridge) {
         const parentId = ensureParent(ctx, anchor, branch);
         addEdge(ctx, 'parent_child', parentId, targetId, { status: 'inferred', fromRole: 'parent', toRole: 'child' });
       }

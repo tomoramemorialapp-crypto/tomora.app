@@ -94,6 +94,23 @@ describe('placeholder bridge creation', () => {
     expect(sibling.edgesToCreate.some((e) => e.type === 'parent_child' && e.fromNodeId === 'mom')).toBe(true);
   });
 
+  it('skips unknown parent for unbridged siblings', () => {
+    const res = buildRelationshipWithPlaceholders({
+      intent: {
+        anchorNodeId: ANCHOR_ID,
+        targetDisplayName: 'Ana',
+        relationshipToAnchor: 'sibling',
+        targetNodeId: 'sis',
+        skipParentBridge: true,
+      },
+      existingNodes: [anchorNode()],
+      existingEdges: [],
+      familyTreeId: 't',
+    });
+    expect(res.nodesToCreate.filter((n) => n.metadata?.roleLabel === 'Parent').length).toBe(0);
+    expect(res.edgesToCreate.some((e) => e.type === 'sibling')).toBe(true);
+  });
+
   it('keeps maternal and paternal grandparents on separate parent bridges', () => {
     const { nodes, edges } = buildGraph([
       { id: 'gm', name: 'Maternal GM', rel: 'grandparent', side: 'mother_side' },

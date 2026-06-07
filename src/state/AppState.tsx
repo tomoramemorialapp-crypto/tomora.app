@@ -45,6 +45,11 @@ import {
 import '@/lib/passwordRecovery';
 import { validateUsername } from '@/lib/username';
 import { childIdForParentEdge, detectParentPairingOpportunity } from '@/lib/parentPairing';
+import {
+  inferSiblingParentEdges,
+  tagsForSiblingBridgeMode,
+  type SiblingBridgeMode,
+} from '@/lib/siblingAdd';
 import { activeNodes, activeRelationships, isActiveNode } from '@/lib/activeNodes';
 import { pickPrimaryRelationship } from '@/lib/relationshipUtils';
 import type { NodeInvite } from '@/services/inviteService';
@@ -115,6 +120,8 @@ interface AppStateValue {
     tags?: string[];
     /** When set, the new person is added relative to this node (not only the anchor). */
     contextNodeId?: string;
+    /** How to bridge a sibling when no shared parent exists yet (§1.2). */
+    siblingBridgeMode?: SiblingBridgeMode;
   }) => Promise<{ node: FamilyNode; pairingOpportunity: import('@/lib/parentPairing').ParentPairingOpportunity | null }>;
 
   /** Turn a synthetic unknown tree node into a minimal, editable Life Profile. */
@@ -571,7 +578,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, [account]);
 
   const addRelative = useCallback<AppStateValue['addRelative']>(
-    async ({ name, relationshipType, relationshipDetail, isRemembered, tags, contextNodeId }) => {
+    async ({ name, relationshipType, relationshipDetail, isRemembered, tags, contextNodeId, siblingBridgeMode }) => {
       if (!tree || !account) throw new Error('No tree or account loaded.');
       const selfNode =
         nodes.find((n) => n.ownerAccountId === account.id) ??
@@ -584,6 +591,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         throw new Error('That family member is no longer in your tree.');
       }
 
+      const bridgeTags = siblingBridgeMode ? tagsForSiblingBridgeMode(siblingBridgeMode) : undefined;
+      const mergedTags = [...(tags ?? []), ...(bridgeTags ?? [])];
+
       const { node, relationship } = await treeService.addRelative({
         treeId: tree.id,
         accountId: account.id,
@@ -592,10 +602,28 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         relationshipType,
         relationshipDetail,
         isRemembered,
-        tags,
+        tags: mergedTags.length ? mergedTags : undefined,
       });
 
       const createdRelationships = [relationship];
+
+      if (relationshipType === 'sibling' && siblingBridgeMode !== 'unbridged') {
+        const parentEdges = inferSiblingParentEdges({
+          childId: fromNodeId,
+          newSiblingId: node.id,
+          relationships: [...relationships, relationship],
+        });
+        for (const edge of parentEdges) {
+          const extra = await treeService.createRelationship({
+            treeId: tree.id,
+            accountId: account.id,
+            fromNodeId: edge.fromNodeId,
+            toNodeId: edge.toNodeId,
+            relationshipType: edge.relationshipType,
+          });
+          createdRelationships.push(extra);
+        }
+      }
       if (contextNodeId && contextNodeId !== selfNode.id) {
         const inferred = inferContextualRelationships({
           contextNodeId,

@@ -77,6 +77,34 @@ describe('buildKinshipGraphFromApp', () => {
     expect(parentChild!.toNodeId).toBe('self');
   });
 
+  it('reuses known parents for a sibling even when the sibling edge sorts first', () => {
+    const self = node('self', 'You', { status: 'claimed', ownerAccountId: 'acct1' });
+    const father = node('father', 'Jose');
+    const mother = node('mother', 'Maria');
+    const sister = node('sister', 'Ana');
+
+    const graph = buildKinshipGraphFromApp({
+      anchorNodeId: 'self',
+      nodes: [self, father, mother, sister],
+      relationships: [
+        rel('r-sis', 'self', 'sister', 'sibling'),
+        rel('r-dad', 'self', 'father', 'parent'),
+        rel('r-mom', 'self', 'mother', 'parent'),
+      ],
+    });
+
+    const unknownParents = graph.nodes.filter(
+      (n) => n.nodeType === 'placeholder' && n.metadata?.placeholder === true,
+    );
+    expect(unknownParents.length).toBe(0);
+    expect(
+      graph.edges.some((e) => e.type === 'parent_child' && e.fromNodeId === 'father' && e.toNodeId === 'sister'),
+    ).toBe(true);
+    expect(
+      graph.edges.some((e) => e.type === 'parent_child' && e.fromNodeId === 'mother' && e.toNodeId === 'sister'),
+    ).toBe(true);
+  });
+
   it('tags step-parent and parent-in-law edges with distinct lineage roles', () => {
     const self = node('self', 'You', { status: 'claimed', ownerAccountId: 'acct1' });
     const bio = node('mom', 'Maria');

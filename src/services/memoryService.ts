@@ -1,3 +1,4 @@
+import { USER_ERROR_MESSAGES, userMessageFromError } from '@/lib/userErrors';
 import { supabase } from '@/lib/supabase';
 import type { Memory, MemoryMediaItem, MemoryType, VisibilityLevel } from '@/types/models';
 import { removeMedia } from '@/lib/media';
@@ -33,10 +34,9 @@ export async function createMemory(input: CreateMemoryInput): Promise<Memory> {
       p_add_bytes: totalBytes,
     });
     if (quotaErr) {
-      if (quotaErr.message.includes('STORAGE_QUOTA_EXCEEDED')) {
-        throw new Error('You have reached your media storage limit. Remove some memories to free space.');
-      }
-      throw quotaErr;
+      throw new Error(
+        userMessageFromError(quotaErr, USER_ERROR_MESSAGES['storage.quota_exceeded'], 'media'),
+      );
     }
   }
   const first = media[0];

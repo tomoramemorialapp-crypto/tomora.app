@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 import { Body, Caption, Display } from '@/components/ui/Typography';
 import { colors, spacing } from '@/constants/theme';
+import { formatCaughtError, USER_ERROR_MESSAGES } from '@/lib/userErrors';
 import * as authService from '@/services/authService';
 import {
   AuthCallbackSessionError,
@@ -78,18 +79,14 @@ export default function AuthCallback() {
 
         if (!session && Platform.OS === 'web') {
           throw new AuthCallbackSessionError(
-            'We couldn’t complete your sign-in. Your link may have expired or already been used.',
+            USER_ERROR_MESSAGES['auth.verification_link_expired'],
             'expired',
           );
         }
       } catch (e) {
         if (!cancelled) {
           setStatus('error');
-          setErrorMessage(
-            e instanceof AuthCallbackSessionError || e instanceof Error
-              ? e.message
-              : 'We couldn’t complete your sign-in. Your link may have expired or already been used.',
-          );
+          setErrorMessage(formatCaughtError(e, USER_ERROR_MESSAGES['auth.verification_link_expired'], 'auth'));
         }
       }
     })();
@@ -149,7 +146,7 @@ export default function AuthCallback() {
       );
       setResendNote('A new confirmation link is on its way. Check your inbox.');
     } catch (e) {
-      setResendNote(e instanceof Error ? e.message : 'Could not resend the email. Please try again.');
+      setResendNote(formatCaughtError(e, 'Could not resend the email. Please try again.', 'auth'));
     } finally {
       setResendBusy(false);
     }

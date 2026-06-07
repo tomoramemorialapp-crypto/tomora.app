@@ -12,6 +12,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 
+import { USER_ERROR_MESSAGES, userMessageFromError } from '@/lib/userErrors';
 import { supabase } from '@/lib/supabase';
 import type { MemoryType } from '@/types/models';
 
@@ -159,11 +160,11 @@ export async function uploadMedia(accountId: string, file: PickedFile): Promise<
       p_add_bytes: bytes,
     });
     if (quotaErr) {
-      if (quotaErr.message.includes('STORAGE_QUOTA_EXCEEDED')) {
-        throw new Error('You have reached your media storage limit. Remove some uploads to free space.');
-      }
-      throw quotaErr;
+      throw new Error(
+        userMessageFromError(quotaErr, USER_ERROR_MESSAGES['storage.quota_exceeded'], 'media'),
+      );
     }
+    throw quotaErr;
   }
   const path = `${accountId}/${Date.now()}-${sanitizeName(file.name)}`;
   const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(path, body, {
@@ -181,7 +182,7 @@ export async function removeMedia(storagePath: string): Promise<void> {
   if (!error) return;
   const msg = error.message.toLowerCase();
   if (msg.includes('not found') || msg.includes('does not exist')) return;
-  throw new Error(error.message);
+  throw new Error(userMessageFromError(error, USER_ERROR_MESSAGES['media.upload_failed'], 'media'));
 }
 
 const signedUrlCache = new Map<string, { url: string; expires: number }>();

@@ -1,3 +1,4 @@
+import { USER_ERROR_MESSAGES, userMessageFromError } from '@/lib/userErrors';
 import { supabase } from '@/lib/supabase';
 import { removeReplacedAccountStorage } from '@/lib/storageCleanup';
 import type { FamilyNode, MemorialPrivacy, MemorialRequest } from '@/types/models';
@@ -21,7 +22,7 @@ export async function requestPassing(input: {
     p_death_date: input.deathDate ?? undefined,
     p_reason: input.reason ?? undefined,
   });
-  if (error) throw new Error(friendly(error.message));
+  if (error) throw new Error(userMessageFromError(error, USER_ERROR_MESSAGES['memorial.generic'], 'memorial'));
   const r = (data ?? {}) as { mode?: string; request_id?: string; resolve_after?: string };
   return {
     mode: r.mode === 'pending' ? 'pending' : 'finalized',
@@ -33,7 +34,7 @@ export async function requestPassing(input: {
 /** Confirm a pending passing immediately (family consensus / after the window). */
 export async function finalizeMemorial(requestId: string): Promise<void> {
   const { error } = await supabase.rpc('finalize_memorial', { p_request_id: requestId });
-  if (error) throw new Error(friendly(error.message));
+  if (error) throw new Error(userMessageFromError(error, USER_ERROR_MESSAGES['memorial.generic'], 'memorial'));
 }
 
 /** Dispute a pending passing report. */
@@ -42,7 +43,7 @@ export async function disputeMemorial(requestId: string, reason?: string): Promi
     p_request_id: requestId,
     p_reason: reason ?? undefined,
   });
-  if (error) throw new Error(friendly(error.message));
+  if (error) throw new Error(userMessageFromError(error, USER_ERROR_MESSAGES['memorial.generic'], 'memorial'));
 }
 
 /** The most recent memorial request for a node (pending/disputed take precedence). */
@@ -111,7 +112,7 @@ export async function getMemorialPage(
     p_node_id: nodeId,
     p_password: password ?? undefined,
   });
-  if (error) throw new Error(friendly(error.message));
+  if (error) throw new Error(userMessageFromError(error, USER_ERROR_MESSAGES['memorial.generic'], 'memorial'));
   const r = (data ?? {}) as { node?: Record<string, unknown>; memories?: Record<string, unknown>[] };
   return { node: r.node ?? {}, memories: r.memories ?? [] };
 }
@@ -145,7 +146,7 @@ export async function castMemorialVote(requestId: string, vote: 'confirm' | 'dis
     },
     { onConflict: 'request_id,account_id' },
   );
-  if (error) throw new Error(friendly(error.message));
+  if (error) throw new Error(userMessageFromError(error, USER_ERROR_MESSAGES['memorial.generic'], 'memorial'));
 }
 
 /** Vote totals for a memorial request, including the signed-in member's vote. */
@@ -169,14 +170,4 @@ export async function fetchMemorialVotes(requestId: string): Promise<MemorialVot
   }
 
   return { confirm, dispute, myVote };
-}
-
-function friendly(message: string): string {
-  if (message.includes('NOT_SIGNED_IN')) return 'Please sign in first.';
-  if (message.includes('NOT_A_MEMBER')) return 'You are not part of this family tree.';
-  if (message.includes('NODE_NOT_FOUND')) return 'We couldn’t find that profile.';
-  if (message.includes('NOT_A_MEMORIAL')) return 'This profile is not a memorial yet.';
-  if (message.includes('NOT_ALLOWED')) return 'This memorial is private or the password is incorrect.';
-  if (message.includes('REQUEST_NOT_FOUND')) return 'That request no longer exists.';
-  return message;
 }

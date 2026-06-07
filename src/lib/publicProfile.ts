@@ -32,14 +32,4 @@ export function mapPublicMemoryMedia(raw: unknown): MemoryMediaItem[] {
   return out;
 }
 
-/** Viewer-friendly unlock errors (avoid leaking internals). */
-export function friendlyPublicMemoryUnlockError(message: string): string {
-  const m = message.toLowerCase();
-  if (m.includes('incorrect password')) return "That password didn't work.";
-  if (m.includes('password_required')) return 'Enter the password to view this memory.';
-  if (m.includes('not on a public profile') || m.includes('not shared publicly')) {
-    return 'This memory is no longer available on this profile.';
-  }
-  if (m.includes('memory not found')) return 'This memory is no longer available.';
-  return 'Could not open this memory. Please try again.';
-}
+export { friendlyPublicMemoryUnlockError } from '@/lib/userErrors';

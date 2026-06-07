@@ -5,6 +5,8 @@ function formatPhotoSize(bytes: number): string {
   return mb < 10 ? `${mb.toFixed(1)} MB` : `${Math.round(mb)} MB`;
 }
 
+import { USER_ERROR_MESSAGES } from '@/lib/userErrors';
+
 export const PROFILE_PHOTO_MAX_BYTES = 10 * 1024 * 1024;
 
 export const ACCEPTED_PROFILE_PHOTO_TYPES = [
@@ -30,8 +32,7 @@ export type ProfilePhotoValidationResult =
   | { valid: true; mimeType: string }
   | { valid: false; reason: ProfilePhotoInvalidReason };
 
-export const PROFILE_PHOTO_ERROR_COPY =
-  "This file can't be used as a profile photo. Please upload a JPG, PNG, or WebP image under 10MB.";
+export const PROFILE_PHOTO_ERROR_COPY = USER_ERROR_MESSAGES['media.profile_photo_invalid'];
 
 /** Resolve a MIME type from picker metadata or file extension. */
 export function resolveProfilePhotoMime(file: Pick<PickedFile, 'name' | 'mimeType'>): string | undefined {

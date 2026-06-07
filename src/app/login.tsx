@@ -13,6 +13,7 @@ import { OAuthSignInButtons } from '@/components/auth/OAuthSignInButtons';
 import { copy } from '@/constants/copy';
 import { useT } from '@/i18n';
 import { passwordMeetsMinLength, passwordMinLengthHint } from '@/lib/passwordPolicy';
+import { formatCaughtError } from '@/lib/userErrors';
 import { isEmailIdentifier, isUsernameIdentifier } from '@/lib/username';
 import { useAppState } from '@/state/AppState';
 
@@ -37,8 +38,7 @@ export default function Login() {
       await signInAndLoad(trimmed, password);
       router.replace('/(tabs)');
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "We couldn't log you in. Please try again.";
-      setError(message);
+      setError(formatCaughtError(e, "We couldn't log you in. Please try again.", 'auth'));
     } finally {
       setBusy(false);
     }

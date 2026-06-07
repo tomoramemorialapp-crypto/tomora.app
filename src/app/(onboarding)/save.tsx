@@ -14,6 +14,7 @@ import { OAuthSignInButtons } from '@/components/auth/OAuthSignInButtons';
 import { copy } from '@/constants/copy';
 import { passwordMeetsMinLength, passwordMinLengthHint } from '@/lib/passwordPolicy';
 import { normalizeUsername, validateUsername } from '@/lib/username';
+import { formatCaughtError } from '@/lib/userErrors';
 import * as authService from '@/services/authService';
 import { useAppState } from '@/state/AppState';
 
@@ -56,8 +57,7 @@ export default function Save() {
         router.push('/(onboarding)/privacy');
       }
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'Something went wrong. Please try again.';
-      setError(message);
+      setError(formatCaughtError(e, 'Something went wrong. Please try again.', 'auth'));
     } finally {
       setBusy(false);
     }
@@ -70,7 +70,7 @@ export default function Save() {
       await authService.resendEmailConfirmation(email, { next: 'onboarding' });
       setResendNote('Verification email sent. Check your inbox and spam folder.');
     } catch (e: unknown) {
-      setResendNote(e instanceof Error ? e.message : 'Could not resend. Please try again in a little while.');
+      setResendNote(formatCaughtError(e, 'Could not resend. Please try again in a little while.', 'auth'));
     } finally {
       setResendBusy(false);
     }

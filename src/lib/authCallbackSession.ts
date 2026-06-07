@@ -1,5 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+import { USER_ERROR_MESSAGES, userMessageForId, userMessageFromError } from '@/lib/userErrors';
+
 export type AuthReturnParams = {
   code: string | null;
   tokenHash: string | null;
@@ -94,7 +96,10 @@ export async function completeSessionFromAuthReturn(
 ): Promise<void> {
   const urlError = decodeAuthError(params.error);
   if (urlError) {
-    throw new AuthCallbackSessionError(urlError, 'url_error');
+    throw new AuthCallbackSessionError(
+      userMessageFromError(urlError, USER_ERROR_MESSAGES['auth.generic'], 'auth'),
+      'url_error',
+    );
   }
 
   if (params.tokenHash) {
@@ -102,7 +107,12 @@ export async function completeSessionFromAuthReturn(
       token_hash: params.tokenHash,
       type: verifyOtpTypeFromUrl(params.type),
     });
-    if (error) throw new AuthCallbackSessionError(error.message, 'expired');
+    if (error) {
+      throw new AuthCallbackSessionError(
+        userMessageFromError(error, USER_ERROR_MESSAGES['auth.verification_link_expired'], 'auth'),
+        'expired',
+      );
+    }
     return;
   }
 
@@ -114,7 +124,7 @@ export async function completeSessionFromAuthReturn(
     });
     if (!ok) {
       throw new AuthCallbackSessionError(
-        'We couldn’t finish signing you in from this link. Please request a new verification email.',
+        USER_ERROR_MESSAGES['auth.verification_link_expired'],
         'expired',
       );
     }
@@ -131,12 +141,12 @@ export async function completeSessionFromAuthReturn(
         });
         if (recovered) return;
 
-        throw new AuthCallbackSessionError(
-          'This verification link must be opened in the same browser where you signed up, or you can request a fresh link below.',
-          'pkce_missing',
-        );
+        throw new AuthCallbackSessionError(userMessageForId('auth.verification_link_pkce'), 'pkce_missing');
       }
-      throw new AuthCallbackSessionError(error.message, 'expired');
+      throw new AuthCallbackSessionError(
+        userMessageFromError(error, USER_ERROR_MESSAGES['auth.verification_link_expired'], 'auth'),
+        'expired',
+      );
     }
     return;
   }

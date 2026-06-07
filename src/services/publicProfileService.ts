@@ -1,3 +1,4 @@
+import { userMessageFromError } from '@/lib/userErrors';
 import { supabase } from '@/lib/supabase';
 import {
   friendlyPublicMemoryUnlockError,
@@ -83,7 +84,7 @@ export async function getPublicProfile(username: string): Promise<PublicProfileV
   if (!normalized) return null;
 
   const { data, error } = await supabase.rpc('get_public_profile', { p_username: normalized });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(userMessageFromError(error, 'Could not load this profile.', 'general'));
   if (!data) return null;
   const raw = data as unknown as RawPublicProfile;
   const lifeProfile = (raw.lifeProfile ?? {}) as NodeProfile;
@@ -154,5 +155,5 @@ export async function setMemorySharePassword(memoryId: string, password: string 
     p_memory_id: memoryId,
     p_password: password ?? '',
   });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(userMessageFromError(error, 'Could not load this profile.', 'general'));
 }

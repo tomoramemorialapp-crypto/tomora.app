@@ -1,6 +1,7 @@
 import { validatePasswordLength } from '@/lib/passwordPolicy';
 import { supabase } from '@/lib/supabase';
 import { validateUsername } from '@/lib/username';
+import { userMessageFromError } from '@/lib/userErrors';
 import { extractStoragePath, removeReplacedAccountStorage } from '@/lib/storageCleanup';
 import type { Account, FamilyNode, PublicProfileConfig, SocialLinks, ThemePreference } from '@/types/models';
 import type { Json, Tables, TablesUpdate } from '@/types/database.types';
@@ -46,7 +47,7 @@ export async function setUsername(username: string): Promise<Account> {
   if (usernameError) throw new Error(usernameError);
 
   const { data, error } = await supabase.rpc('set_username', { p_username: username });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(userMessageFromError(error, 'Could not save username.', 'account'));
   return mapAccount(data as Tables<'accounts'>);
 }
 

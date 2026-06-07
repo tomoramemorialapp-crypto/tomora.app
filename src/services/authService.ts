@@ -8,6 +8,7 @@ import {
   type AuthCallbackIntent,
 } from '@/lib/authRedirect';
 import { validatePasswordLength } from '@/lib/passwordPolicy';
+import { friendlyAuthError, userMessageFromError, USER_ERROR_MESSAGES } from '@/lib/userErrors';
 import { supabase } from '@/lib/supabase';
 import { isEmailIdentifier } from '@/lib/username';
 import type { Session } from '@supabase/supabase-js';
@@ -29,30 +30,7 @@ function normalizeAuthEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-/** Turn Supabase auth errors into calm, actionable copy. */
-export function friendlyAuthError(error: unknown): string {
-  if (!(error instanceof Error)) return 'Something went wrong. Please try again.';
-  const msg = error.message.toLowerCase();
-  if (msg.includes('rate limit') || msg.includes('over_email_send_rate_limit')) {
-    return 'Too many verification emails were sent recently. Wait about an hour, then use Resend below — or check spam.';
-  }
-  if (msg.includes('error sending confirmation mail') || msg.includes('error sending confirmation email')) {
-    return 'Tomora could not send the verification email. Your Supabase project needs custom SMTP configured (see Supabase → Auth → SMTP).';
-  }
-  if (msg.includes('email address not authorized')) {
-    return 'This email address cannot receive messages from the default Supabase mailer. Set up custom SMTP in your Supabase project, or sign up with an email on your Supabase org team.';
-  }
-  if (msg.includes('recovery email') || msg.includes('reset password')) {
-    return 'Could not send the reset email. Check your SMTP settings in Supabase, or try again in a few minutes.';
-  }
-  if (msg.includes('pkce') && msg.includes('code verifier')) {
-    return 'This verification link must be opened in the same browser where you signed up. Use “Resend verification email” below for a fresh link that works in any browser.';
-  }
-  if (msg.includes('oauth') || msg.includes('provider')) {
-    return 'Sign-in with this provider is not available yet. Try email and password, or check Supabase Auth provider settings.';
-  }
-  return error.message;
-}
+export { friendlyAuthError } from '@/lib/userErrors';
 
 /**
  * Resolve an email or username to the auth email Supabase expects for sign-in.
@@ -66,9 +44,9 @@ export async function resolveLoginEmail(identifier: string): Promise<string> {
   }
 
   const { data, error } = await supabase.rpc('resolve_login_email', { p_identifier: trimmed });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(userMessageFromError(error, USER_ERROR_MESSAGES['auth.generic'], 'auth'));
   if (!data || typeof data !== 'string') {
-    throw new Error('No account found for that username or email.');
+    throw new Error(USER_ERROR_MESSAGES['auth.account_not_found']);
   }
   return data;
 }
@@ -108,8 +86,8 @@ export async function signUpWithEmail(
 
 export async function signInWithEmail(email: string, password: string): Promise<Session> {
   const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-  if (error) throw error;
-  if (!data.session) throw new Error('Could not start a session.');
+  if (error) throw new Error(userMessageFromError(error, USER_ERROR_MESSAGES['auth.generic'], 'auth'));
+  if (!data.session) throw new Error(USER_ERROR_MESSAGES['auth.session_failed']);
   return data.session;
 }
 
@@ -160,9 +138,9 @@ export async function completePasswordReset(newPassword: string): Promise<Sessio
 
   const { data, error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) throw new Error(friendlyAuthError(error));
-  if (!data.user) throw new Error('Could not update your password. Please try again.');
+  if (!data.user) throw new Error(USER_ERROR_MESSAGES['auth.password_reset_expired']);
   const session = await getSession();
-  if (!session) throw new Error('Your reset link may have expired. Request a new one.');
+  if (!session) throw new Error(USER_ERROR_MESSAGES['auth.password_reset_expired']);
   return session;
 }
 

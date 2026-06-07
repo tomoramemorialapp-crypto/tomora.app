@@ -18,6 +18,7 @@ export function TomoraLogo({
   layout = 'horizontal',
   showEmblem = true,
   color = colors.ink,
+  accessible = true,
 }: {
   /** Named size preset, or an explicit wordmark height in px. */
   size?: 'sm' | 'md' | 'lg' | number;
@@ -25,6 +26,8 @@ export function TomoraLogo({
   showEmblem?: boolean;
   /** Wordmark text color. Defaults to ink so it adapts to the active theme. */
   color?: string;
+  /** When false, the wordmark is hidden from screen readers (e.g. when wrapped in a link). */
+  accessible?: boolean;
 }) {
   const wordHeight = typeof size === 'number' ? size : size === 'lg' ? 44 : size === 'sm' ? 22 : 32;
   const emblemSize = typeof size === 'number' ? size * 1.9 : size === 'lg' ? 84 : size === 'sm' ? 30 : 48;
@@ -32,8 +35,9 @@ export function TomoraLogo({
 
   return (
     <View
-      accessibilityRole="header"
-      accessibilityLabel="Tomora"
+      accessible={accessible}
+      accessibilityRole={accessible ? 'header' : undefined}
+      accessibilityLabel={accessible ? 'Tomora' : undefined}
       style={{
         flexDirection: vertical ? 'column' : 'row',
         alignItems: 'center',

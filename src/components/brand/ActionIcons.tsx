@@ -11,22 +11,22 @@ function Base({ children, size = 22 }: { children: React.ReactNode; size?: numbe
   );
 }
 
-/** Share / link-out icon for opening the share sheet. */
+/** Share / link-out icon for opening the share sheet (arrow up from tray). */
 export function ShareLinkIcon({ color, size = 22 }: { color: ColorValue; size?: number }) {
   return (
     <Base size={size}>
+      <Path d="M12 4v8.5" stroke={color} strokeWidth={SW} strokeLinecap="round" />
       <Path
-        d="M9 8.5 15 4.5v15L9 15.5"
+        d="M8.5 8 12 4.5 15.5 8"
         stroke={color}
         strokeWidth={SW}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <Path
-        d="M5 6.5h4.5V11M19 17.5h-4.5V13"
+        d="M6 12.5h12v6.5H6z"
         stroke={color}
         strokeWidth={SW}
-        strokeLinecap="round"
         strokeLinejoin="round"
       />
     </Base>

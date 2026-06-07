@@ -11,7 +11,7 @@ import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Toggle } from '@/components/ui/Toggle';
 import { Badge } from '@/components/ui/Badge';
 import { Body, Caption, Display } from '@/components/ui/Typography';
-import { SocialIcon, SOCIAL_LABELS, type SocialNetwork } from '@/components/brand/SocialIcon';
+import { SocialLinksEditor } from '@/components/public/SocialLinksEditor';
 import { colors, radii, spacing } from '@/constants/theme';
 import { ShareSheet } from '@/components/ui/ShareSheet';
 import { ShareLinkIcon } from '@/components/brand/ActionIcons';
@@ -21,23 +21,9 @@ import { openPublicProfile } from '@/lib/publicProfileNav';
 import { useAppState } from '@/state/AppState';
 import { getSignedUrl, pickMedia, uploadMedia } from '@/lib/media';
 import { publicLifeProfileFields } from '@/lib/publicProfileFields';
+import { parseSocialLinkItems, serializeSocialLinks } from '@/lib/socialLinks';
 import { setMemorySharePassword } from '@/services/publicProfileService';
-import type { Memory, PublicProfileConfig, SocialLinks } from '@/types/models';
-
-const SOCIAL_FIELDS: { key: SocialNetwork; placeholder: string }[] = [
-  { key: 'website', placeholder: 'https://…' },
-  { key: 'instagram', placeholder: '@handle' },
-  { key: 'facebook', placeholder: 'Profile URL' },
-  { key: 'x', placeholder: '@handle' },
-  { key: 'linkedin', placeholder: 'Profile URL' },
-  { key: 'youtube', placeholder: 'Channel URL' },
-  { key: 'tiktok', placeholder: '@handle' },
-  { key: 'spotify', placeholder: 'Profile/artist URL' },
-  { key: 'whatsapp', placeholder: 'wa.me/… or number' },
-  { key: 'telegram', placeholder: '@handle' },
-  { key: 'github', placeholder: '@username' },
-  { key: 'threads', placeholder: '@handle' },
-];
+import type { Memory, PublicProfileConfig, SocialLinkItem } from '@/types/models';
 
 function MemoryRow({
   memory,
@@ -134,7 +120,9 @@ export default function PublicProfileSettings() {
       featuredMemoryIds: [],
     },
   );
-  const [social, setSocial] = useState<SocialLinks>(account?.socialLinks ?? {});
+  const [socialItems, setSocialItems] = useState<SocialLinkItem[]>(() =>
+    parseSocialLinkItems(account?.socialLinks, account?.email),
+  );
   const [msg, setMsg] = useState<string | null>(null);
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [savingSocial, setSavingSocial] = useState(false);
@@ -144,8 +132,8 @@ export default function PublicProfileSettings() {
 
   useEffect(() => {
     if (account?.publicProfile) setPub(account.publicProfile);
-    if (account?.socialLinks) setSocial(account.socialLinks);
-  }, [account?.publicProfile, account?.socialLinks]);
+    if (account) setSocialItems(parseSocialLinkItems(account.socialLinks, account.email));
+  }, [account?.publicProfile, account?.socialLinks, account?.email, account]);
 
   const eligibleMemories = useMemo(
     () =>
@@ -201,7 +189,7 @@ export default function PublicProfileSettings() {
     setSavingSocial(true);
     setMsg(null);
     try {
-      await updateAccountSettings({ socialLinks: social });
+      await updateAccountSettings({ socialLinks: serializeSocialLinks(socialItems) });
       setMsg('Social links saved.');
     } catch {
       setMsg('Could not save social links.');
@@ -223,8 +211,6 @@ export default function PublicProfileSettings() {
       setSavingPasswordFor(null);
     }
   };
-
-  const setSocialField = (key: keyof SocialLinks) => (v: string) => setSocial((p) => ({ ...p, [key]: v }));
 
   return (
     <ScreenContainer maxWidth={620} showBack>
@@ -296,24 +282,15 @@ export default function PublicProfileSettings() {
 
           <Card style={{ marginBottom: spacing.lg }}>
             <SectionHeader title="Social links" />
-            <Caption style={{ marginTop: 2 }}>Shown on your public page when social links are enabled.</Caption>
-            <View style={{ gap: spacing.md, marginTop: spacing.md }}>
-              {SOCIAL_FIELDS.map(({ key, placeholder }) => (
-                <View key={key} style={{ flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm }}>
-                  <View style={{ paddingBottom: 6 }}>
-                    <SocialIcon network={key} tile size={20} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <TextField
-                      label={SOCIAL_LABELS[key]}
-                      value={social[key] ?? ''}
-                      onChangeText={setSocialField(key)}
-                      placeholder={placeholder}
-                      autoCapitalize="none"
-                    />
-                  </View>
-                </View>
-              ))}
+            <Caption style={{ marginTop: 2 }}>
+              Email and SMS are included by default. Reorder links, set privacy, or add custom links with icons.
+            </Caption>
+            <View style={{ marginTop: spacing.md }}>
+              <SocialLinksEditor
+                items={socialItems}
+                onChange={setSocialItems}
+                accountEmail={account?.email}
+              />
             </View>
             <View style={{ marginTop: spacing.md }}>
               <Button

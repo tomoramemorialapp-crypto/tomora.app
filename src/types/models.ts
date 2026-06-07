@@ -3,6 +3,8 @@
  * relational schema so it stays compatible with the future Supabase backend.
  */
 
+import type { SocialNetwork } from '@/lib/socialNetworks';
+
 export type VisibilityLevel =
   | 'private'
   | 'selected_people'
@@ -28,7 +30,28 @@ export type AccountStatus = 'active' | 'vacated';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 
-export interface SocialLinks {
+/** Who can see a social link on profiles. */
+export type SocialLinkVisibility = 'public' | 'family_tree' | 'private';
+
+export interface SocialLinkItem {
+  id: string;
+  network: SocialNetwork;
+  url: string;
+  /** Optional display name (especially for custom links). */
+  label?: string;
+  visibility: SocialLinkVisibility;
+}
+
+/** Stored in accounts.social_links — v2 list or legacy flat map. */
+export type SocialLinks =
+  | {
+      version: 2;
+      items: SocialLinkItem[];
+    }
+  | Record<string, string | undefined>;
+
+/** @deprecated Legacy flat map; use SocialLinks + parseSocialLinkItems. */
+export interface LegacySocialLinks {
   website?: string;
   instagram?: string;
   facebook?: string;

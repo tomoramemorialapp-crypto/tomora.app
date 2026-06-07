@@ -10,8 +10,8 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Body, Caption, Display, Title } from '@/components/ui/Typography';
-import { SocialIcon, SOCIAL_LABELS, type SocialNetwork } from '@/components/brand/SocialIcon';
-import { PublicProfileCta } from '@/components/public/PublicProfileCta';
+import { SocialIcon } from '@/components/brand/SocialIcon';
+import { AppFooter } from '@/components/brand/AppFooter';
 import { PublicMemoryCard } from '@/components/public/PublicMemoryCard';
 import { ShareSheet } from '@/components/ui/ShareSheet';
 import { colors, radii, spacing } from '@/constants/theme';
@@ -25,53 +25,7 @@ import {
 } from '@/lib/publicProfile';
 import { useAppState } from '@/state/AppState';
 import { getPublicProfile, type PublicProfileView } from '@/services/publicProfileService';
-
-const SOCIAL_ORDER: SocialNetwork[] = [
-  'website',
-  'instagram',
-  'facebook',
-  'x',
-  'linkedin',
-  'youtube',
-  'tiktok',
-  'spotify',
-  'whatsapp',
-  'telegram',
-  'github',
-  'threads',
-];
-
-function resolveSocialUrl(network: SocialNetwork, value: string): string {
-  const v = value.trim();
-  if (/^https?:\/\//i.test(v)) return v;
-  const handle = v.replace(/^@/, '');
-  switch (network) {
-    case 'instagram':
-      return `https://instagram.com/${handle}`;
-    case 'facebook':
-      return `https://facebook.com/${handle}`;
-    case 'x':
-      return `https://x.com/${handle}`;
-    case 'linkedin':
-      return `https://www.linkedin.com/in/${handle}`;
-    case 'youtube':
-      return `https://youtube.com/${handle}`;
-    case 'tiktok':
-      return `https://www.tiktok.com/@${handle}`;
-    case 'spotify':
-      return v;
-    case 'whatsapp':
-      return `https://wa.me/${handle.replace(/[^0-9]/g, '')}`;
-    case 'telegram':
-      return `https://t.me/${handle}`;
-    case 'github':
-      return `https://github.com/${handle}`;
-    case 'threads':
-      return `https://www.threads.net/@${handle}`;
-    default:
-      return v.startsWith('http') ? v : `https://${v}`;
-  }
-}
+import { resolveSocialUrl, socialLinkLabel } from '@/lib/socialLinks';
 
 async function openExternal(url: string) {
   try {
@@ -153,7 +107,7 @@ export default function PublicProfilePage() {
         <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
           <Button label="Retry" variant="gold" onPress={loadProfile} />
         </View>
-        <PublicProfileCta />
+        <AppFooter />
       </ScreenContainer>
     );
   }
@@ -178,12 +132,12 @@ export default function PublicProfilePage() {
             />
           </View>
         ) : null}
-        <PublicProfileCta />
+        <AppFooter />
       </ScreenContainer>
     );
   }
 
-  const socials = SOCIAL_ORDER.filter((n) => (profile.socialLinks[n] ?? '').trim().length > 0);
+  const socials = profile.socialLinkItems;
 
   return (
     <ScreenContainer maxWidth={640} showBack={isOwner}>
@@ -224,14 +178,14 @@ export default function PublicProfilePage() {
                 marginTop: spacing.xs,
               }}
             >
-              {socials.map((n) => (
+              {socials.map((item) => (
                 <Pressable
-                  key={n}
-                  onPress={() => openExternal(resolveSocialUrl(n, profile.socialLinks[n] as string))}
+                  key={item.id}
+                  onPress={() => openExternal(resolveSocialUrl(item.network, item.url))}
                   accessibilityRole="button"
-                  accessibilityLabel={SOCIAL_LABELS[n]}
+                  accessibilityLabel={socialLinkLabel(item)}
                 >
-                  <SocialIcon network={n} tile size={22} />
+                  <SocialIcon network={item.network} tile size={22} />
                 </Pressable>
               ))}
             </View>
@@ -298,7 +252,7 @@ export default function PublicProfilePage() {
         </View>
       )}
 
-      <PublicProfileCta />
+      <AppFooter />
 
       {isOwner ? (
         <>

@@ -6,7 +6,8 @@ import {
 } from '@/lib/publicProfile';
 import { publicLifeProfileFields } from '@/lib/publicProfileFields';
 import type { NodeProfile } from '@/types/profile';
-import type { MemoryMediaItem, SocialLinks } from '@/types/models';
+import type { MemoryMediaItem, SocialLinkItem, SocialLinks } from '@/types/models';
+import { publicSocialLinkItems } from '@/lib/socialLinks';
 
 /** A public memory teaser shown on a social profile. */
 export interface PublicMemory {
@@ -43,6 +44,7 @@ export interface PublicProfileView {
   bannerUrl?: string;
   bio?: string;
   socialLinks: SocialLinks;
+  socialLinkItems: SocialLinkItem[];
   showLifeProfile: boolean;
   lifeProfileFields: { key: string; label: string; value: string }[];
   memories: PublicMemory[];
@@ -92,6 +94,7 @@ export async function getPublicProfile(username: string): Promise<PublicProfileV
     bannerUrl: raw.bannerUrl ?? undefined,
     bio: raw.bio || undefined,
     socialLinks: raw.socialLinks ?? {},
+    socialLinkItems: publicSocialLinkItems(raw.socialLinks),
     showLifeProfile: raw.showLifeProfile ?? true,
     lifeProfileFields: publicLifeProfileFields(lifeProfile).map((f) => ({
       key: f.key,

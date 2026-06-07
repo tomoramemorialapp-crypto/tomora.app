@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, View, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Linking, Platform, Pressable, View, type ViewStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { TomoraLogo } from './TomoraLogo';
@@ -8,6 +8,20 @@ import { colors, spacing } from '@/constants/theme';
 import { APP_VERSION, COPYRIGHT } from '@/constants/app';
 import { footer } from '@/constants/copy';
 import { clearAppCache, confirmClearCache } from '@/lib/clearCache';
+
+const TOMORA_WEBSITE_URL = 'https://tomora.app';
+
+async function openTomoraWebsite() {
+  try {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.open(TOMORA_WEBSITE_URL, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    await Linking.openURL(TOMORA_WEBSITE_URL);
+  } catch {
+    // ignore
+  }
+}
 
 /**
  * Quiet brand footer: the Tomora wordmark above the app version, copyright, and
@@ -41,7 +55,16 @@ export function AppFooter({
 
   return (
     <View style={[{ alignItems: 'center', gap: 4, paddingTop: spacing.xl, paddingBottom: spacing.lg }, style]}>
-      {showLogo ? <TomoraLogo size="sm" showEmblem={false} /> : null}
+      {showLogo ? (
+        <Pressable
+          onPress={() => void openTomoraWebsite()}
+          hitSlop={8}
+          accessibilityRole="link"
+          accessibilityLabel="Visit tomora.app"
+        >
+          <TomoraLogo size="sm" showEmblem={false} accessible={false} />
+        </Pressable>
+      ) : null}
       <Caption style={{ color: colors.ashTaupe, fontSize: 12, marginTop: showLogo ? spacing.sm : 0 }}>{APP_VERSION}</Caption>
       <Caption style={{ color: colors.ashTaupe, fontSize: 12 }}>{COPYRIGHT}</Caption>
 

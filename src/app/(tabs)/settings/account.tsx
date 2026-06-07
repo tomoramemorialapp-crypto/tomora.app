@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Body, Caption, Display } from '@/components/ui/Typography';
-import { SocialIcon, SOCIAL_LABELS, type SocialNetwork } from '@/components/brand/SocialIcon';
 import { colors, radii, spacing } from '@/constants/theme';
 import { useAppState } from '@/state/AppState';
 import { useTheme, type AppearancePreference } from '@/theme';
@@ -22,22 +21,7 @@ import { PUBLIC_PROFILE_EDITOR_PATH } from '@/lib/publicProfile';
 import { normalizeUsername } from '@/lib/username';
 import { Badge } from '@/components/ui/Badge';
 import { AppFooter } from '@/components/brand/AppFooter';
-import type { SocialLinks, ThemePreference } from '@/types/models';
-
-const SOCIAL_FIELDS: { key: SocialNetwork; placeholder: string }[] = [
-  { key: 'website', placeholder: 'https://…' },
-  { key: 'instagram', placeholder: '@handle' },
-  { key: 'facebook', placeholder: 'Profile URL' },
-  { key: 'x', placeholder: '@handle' },
-  { key: 'linkedin', placeholder: 'Profile URL' },
-  { key: 'youtube', placeholder: 'Channel URL' },
-  { key: 'tiktok', placeholder: '@handle' },
-  { key: 'spotify', placeholder: 'Profile/artist URL' },
-  { key: 'whatsapp', placeholder: 'wa.me/… or number' },
-  { key: 'telegram', placeholder: '@handle' },
-  { key: 'github', placeholder: '@username' },
-  { key: 'threads', placeholder: '@handle' },
-];
+import type { ThemePreference } from '@/types/models';
 
 const THEMES: { id: AppearancePreference; label: string }[] = [
   { id: 'light', label: 'Light' },
@@ -98,7 +82,6 @@ export default function AccountSettings() {
   const [username, setUsernameInput] = useState(account?.username ?? '');
   const [language, setLanguage] = useState(activeLanguage);
   const [theme, setTheme] = useState<AppearancePreference>(appearancePreference);
-  const [social, setSocial] = useState<SocialLinks>(account?.socialLinks ?? {});
 
   // Username (rate-limited, unique) saved via its own RPC-backed action.
   const [savingUsername, setSavingUsername] = useState(false);
@@ -157,13 +140,11 @@ export default function AccountSettings() {
   const [emailMsg, setEmailMsg] = useState<string | null>(null);
   const [pwMsg, setPwMsg] = useState<string | null>(null);
 
-  const setSocialField = (key: keyof SocialLinks) => (v: string) => setSocial((p) => ({ ...p, [key]: v }));
-
   const onSaveProfile = async () => {
     setSavingProfile(true);
     setProfileMsg(null);
     try {
-      await updateAccountSettings({ displayName, socialLinks: social });
+      await updateAccountSettings({ displayName });
       setProfileMsg('Saved.');
     } catch {
       setProfileMsg('Could not save. Please try again.');
@@ -243,30 +224,6 @@ export default function AccountSettings() {
           <Caption style={{ color: colors.deepUmber, marginTop: spacing.sm }}>Appearance</Caption>
           <Chips options={THEMES} value={theme} onChange={onChangeAppearance} />
           <Caption>Choose how Tomora appears. Your memories stay warm in either light.</Caption>
-        </View>
-      </Card>
-
-      {/* Social links */}
-      <Card style={{ marginBottom: spacing.lg }}>
-        <SectionHeader title="Social links" />
-        <Caption style={{ marginTop: 2 }}>Add the ones you use — they appear on your public profile.</Caption>
-        <View style={{ gap: spacing.md, marginTop: spacing.md }}>
-          {SOCIAL_FIELDS.map(({ key, placeholder }) => (
-            <View key={key} style={{ flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm }}>
-              <View style={{ paddingBottom: 6 }}>
-                <SocialIcon network={key} tile size={20} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <TextField
-                  label={SOCIAL_LABELS[key]}
-                  value={social[key] ?? ''}
-                  onChangeText={setSocialField(key)}
-                  placeholder={placeholder}
-                  autoCapitalize="none"
-                />
-              </View>
-            </View>
-          ))}
         </View>
       </Card>
 

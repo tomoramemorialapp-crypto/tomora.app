@@ -12,7 +12,8 @@ import { VisibilitySelector } from '@/components/ui/VisibilitySelector';
 import { ShareSheet } from '@/components/ui/ShareSheet';
 import { AppFooter } from '@/components/brand/AppFooter';
 import { Body, Caption, Display, Title } from '@/components/ui/Typography';
-import { inviteUrl } from '@/constants/urls';
+import { inviteUrl, publicProfileUrl } from '@/constants/urls';
+import { PublicProfileQrSheet } from '@/components/public/PublicProfileQrSheet';
 import { colors, radii, spacing } from '@/constants/theme';
 import { useAppState } from '@/state/AppState';
 import { isEmailVerified } from '@/services/authService';
@@ -73,6 +74,7 @@ export default function YouScreen() {
   const { account, session, nodes, tree, mediaUsageBytes, updateTreePrivacy, undoAccountDeletion, resetAll } =
     useAppState();
   const [shareOpen, setShareOpen] = useState(false);
+  const [publicQrOpen, setPublicQrOpen] = useState(false);
   const [undoing, setUndoing] = useState(false);
 
   // Editable Family Tree privacy, synced from the loaded tree.
@@ -144,36 +146,71 @@ export default function YouScreen() {
           </Card>
         ) : null}
 
-        {/* Profile header (mirrors your Life Profile node) */}
-        <View style={{ alignItems: 'center', gap: spacing.md }}>
-          <Avatar name={account?.displayName ?? 'You'} size={88} uri={photo} />
-          <View style={{ alignItems: 'center', gap: 2 }}>
-            <Display style={{ fontSize: 30 }}>{account?.displayName ?? 'You'}</Display>
-            {account?.username ? (
-              <Pressable
-                onPress={() => router.push({ pathname: '/u/[username]', params: { username: account.username! } })}
-                hitSlop={8}
-              >
-                <Caption style={{ color: colors.guardianGold, fontWeight: '700' }}>@{account.username}</Caption>
-              </Pressable>
+        {/* Life Profile — source of truth + public page */}
+        <Card>
+          <SectionLabel>Life Profile</SectionLabel>
+          <View style={{ alignItems: 'center', gap: spacing.md, marginTop: spacing.sm }}>
+            <Avatar name={account?.displayName ?? 'You'} size={88} uri={photo} />
+            <View style={{ alignItems: 'center', gap: 2 }}>
+              <Display style={{ fontSize: 30 }}>{account?.displayName ?? 'You'}</Display>
+              {account?.username ? (
+                <Pressable onPress={() => router.push(`/u/${account.username}`)} hitSlop={8}>
+                  <Caption style={{ color: colors.guardianGold, fontWeight: '700' }}>@{account.username}</Caption>
+                </Pressable>
+              ) : null}
+            </View>
+            <View style={{ alignSelf: 'center' }}>
+              <Badge label="Account Owner · Creator" tone="gold" />
+            </View>
+            {selfNode ? (
+              <Button
+                label="Edit my Life Profile"
+                variant="secondary"
+                fullWidth={false}
+                onPress={() => router.push({ pathname: '/node/edit', params: { nodeId: selfNode.id } })}
+              />
             ) : null}
+            {account?.username && account.publicProfile.enabled ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: spacing.sm }}>
+                <Button
+                  label="View Public Profile"
+                  variant="gold"
+                  fullWidth={false}
+                  onPress={() => router.push(`/u/${account.username}`)}
+                />
+                <Button
+                  label="Edit Public Profile"
+                  variant="secondary"
+                  fullWidth={false}
+                  onPress={() => router.push('/settings/public-profile')}
+                />
+                <Button
+                  label="Share QR"
+                  variant="secondary"
+                  fullWidth={false}
+                  onPress={() => setPublicQrOpen(true)}
+                />
+              </View>
+            ) : (
+              <View style={{ gap: spacing.sm, alignItems: 'center' }}>
+                <Caption align="center" style={{ maxWidth: 360, color: colors.deepUmber }}>
+                  {account?.username
+                    ? 'Turn on your public profile to share a page at ' + publicProfileUrl(account.username)
+                    : 'Set a username in Account settings, then customize your public page.'}
+                </Caption>
+                <Button
+                  label="Set up Public Profile"
+                  variant="secondary"
+                  fullWidth={false}
+                  onPress={() => router.push('/settings/public-profile')}
+                />
+              </View>
+            )}
+            <Caption align="center" style={{ maxWidth: 360 }}>
+              Your Life Profile is the source of truth. Choose what flows to your separate, shareable public page.
+            </Caption>
           </View>
-          <View style={{ alignSelf: 'center' }}>
-            <Badge label="Account Owner · Creator" tone="gold" />
-          </View>
-          {selfNode ? (
-            <Button
-              label="Edit my Life Profile"
-              variant="secondary"
-              fullWidth={false}
-              onPress={() => router.push({ pathname: '/node/edit', params: { nodeId: selfNode.id } })}
-            />
-          ) : null}
-          <Caption align="center" style={{ maxWidth: 360 }}>
-            Everything here is your single source of truth — your edits flow straight into your Life Profile in the
-            Family Tree.
-          </Caption>
-        </View>
+        </Card>
 
         {/* Claim from invite while signed in */}
         <Card style={{ backgroundColor: colors.candlelight, borderColor: colors.softGold }}>
@@ -303,6 +340,14 @@ export default function YouScreen() {
         title="Invite to your Family Tree"
         message="Join our Family Tree on Tomora and claim your place."
       />
+
+      {account?.username ? (
+        <PublicProfileQrSheet
+          visible={publicQrOpen}
+          onClose={() => setPublicQrOpen(false)}
+          username={account.username}
+        />
+      ) : null}
     </ScreenContainer>
   );
 }

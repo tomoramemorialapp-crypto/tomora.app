@@ -19,9 +19,8 @@ import { usernameChangesRemaining } from '@/services/accountService';
 import { passwordMinLengthHint, validatePasswordLength } from '@/lib/passwordPolicy';
 import { normalizeUsername } from '@/lib/username';
 import { Badge } from '@/components/ui/Badge';
-import { Toggle } from '@/components/ui/Toggle';
 import { AppFooter } from '@/components/brand/AppFooter';
-import type { PublicProfileConfig, SocialLinks, ThemePreference } from '@/types/models';
+import type { SocialLinks, ThemePreference } from '@/types/models';
 
 const SOCIAL_FIELDS: { key: SocialNetwork; placeholder: string }[] = [
   { key: 'website', placeholder: 'https://…' },
@@ -87,7 +86,6 @@ export default function AccountSettings() {
     session,
     updateAccountSettings,
     setUsername: applyUsername,
-    updatePublicProfile,
     updateEmail,
     updatePassword,
   } = useAppState();
@@ -115,23 +113,6 @@ export default function AccountSettings() {
       setUsernameMsg(e instanceof Error ? e.message : 'Could not save username.');
     } finally {
       setSavingUsername(false);
-    }
-  };
-
-  // Owner-controlled public profile config.
-  const [pub, setPub] = useState<PublicProfileConfig>(
-    account?.publicProfile ?? { enabled: false, bio: '', showSocial: true, showMemories: true },
-  );
-  const [pubMsg, setPubMsg] = useState<string | null>(null);
-
-  const savePublic = async (patch: Partial<PublicProfileConfig>) => {
-    const next = { ...pub, ...patch };
-    setPub(next);
-    setPubMsg(null);
-    try {
-      await updatePublicProfile(patch);
-    } catch {
-      setPubMsg('Could not save. Please try again.');
     }
   };
 
@@ -292,54 +273,28 @@ export default function AccountSettings() {
         {profileMsg ? <Caption align="center" style={{ color: colors.deepUmber }}>{profileMsg}</Caption> : null}
       </View>
 
-      {/* Public profile (social page) */}
+      {/* Public profile — full editor lives on the You tab */}
       <Card style={{ marginBottom: spacing.lg }}>
         <SectionHeader title="Public profile" />
         <Caption style={{ marginTop: 2 }}>
-          A separate, shareable social page at your username. You choose what shows — it's not your Family Tree Life
-          Profile.
+          A shareable page at{' '}
+          {account?.username ? publicProfileUrl(account.username) : 'your username'} — banner, social links, curated
+          memories, and Life Profile fields you mark public.
         </Caption>
-        <View style={{ gap: spacing.md, marginTop: spacing.md }}>
-          <Toggle
-            value={pub.enabled}
-            onValueChange={(v) => savePublic({ enabled: v })}
-            label="Make my profile public"
-            description={
-              account?.username
-                ? `Anyone with the link ${publicProfileUrl(account.username)} can view it.`
-                : 'Set a username above first to enable your public link.'
-            }
+        <View style={{ gap: spacing.sm, marginTop: spacing.md }}>
+          <Button
+            label="Manage public profile"
+            variant="secondary"
+            onPress={() => router.push('/settings/public-profile')}
           />
-          {pub.enabled ? (
-            <>
-              <TextField
-                label="Short bio"
-                value={pub.bio ?? ''}
-                onChangeText={(v) => setPub((p) => ({ ...p, bio: v }))}
-                placeholder="A line about you"
-                multiline
-              />
-              <Button label="Save bio" variant="ghost" fullWidth={false} onPress={() => savePublic({ bio: pub.bio })} />
-              <Toggle
-                value={pub.showSocial}
-                onValueChange={(v) => savePublic({ showSocial: v })}
-                label="Show social links"
-              />
-              <Toggle
-                value={pub.showMemories}
-                onValueChange={(v) => savePublic({ showMemories: v })}
-                label="Show my public memories"
-              />
-              {account?.username ? (
-                <Button
-                  label="View public profile"
-                  variant="secondary"
-                  onPress={() => router.push({ pathname: '/u/[username]', params: { username: account.username! } })}
-                />
-              ) : null}
-            </>
+          {account?.username && account.publicProfile.enabled ? (
+            <Button
+              label="View public profile"
+              variant="ghost"
+              fullWidth={false}
+              onPress={() => router.push(`/u/${account.username}`)}
+            />
           ) : null}
-          {pubMsg ? <Caption style={{ color: colors.deepUmber }}>{pubMsg}</Caption> : null}
         </View>
       </Card>
 

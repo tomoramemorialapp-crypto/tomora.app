@@ -137,8 +137,14 @@ export type ApprovalStatus = 'draft' | 'pending' | 'approved' | 'rejected';
 export interface PublicProfileConfig {
   enabled: boolean;
   bio?: string;
+  /** Header image URL for the public page. */
+  bannerUrl?: string;
   showSocial: boolean;
   showMemories: boolean;
+  /** When true, Life Profile fields marked `public` appear on the shareable page. */
+  showLifeProfile: boolean;
+  /** Curated memory ids; empty = all eligible public / link-shared memories. */
+  featuredMemoryIds?: string[];
 }
 
 export interface Account {

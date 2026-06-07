@@ -88,6 +88,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="u/[username]" options={{ href: null }} />
       <Tabs.Screen name="relative/new" options={{ href: null }} />
       <Tabs.Screen name="settings/account" options={{ href: null }} />
+      <Tabs.Screen name="settings/public-profile" options={{ href: null }} />
       <Tabs.Screen name="settings/billing" options={{ href: null }} />
       <Tabs.Screen name="settings/delete" options={{ href: null }} />
       <Tabs.Screen name="occasion/[occasionId]" options={{ href: null }} />

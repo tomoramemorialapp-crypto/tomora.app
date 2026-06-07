@@ -10,7 +10,7 @@ const viewer: Account = {
   language: 'en',
   themePreference: 'system',
   socialLinks: {},
-  publicProfile: { enabled: false, showSocial: true, showMemories: true },
+  publicProfile: { enabled: false, showSocial: true, showMemories: true, showLifeProfile: true },
   usernameChanges: [],
   status: 'active',
   createdAt: '',

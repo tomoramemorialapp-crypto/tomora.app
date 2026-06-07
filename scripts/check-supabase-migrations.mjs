@@ -51,6 +51,11 @@ const MIGRATIONS = [
     name: 'nodes_status_deleted',
     probe: () => sb.rpc('nodes_status_supports_deleted'),
   },
+  {
+    version: '20260606190000',
+    name: 'public_profile',
+    probe: () => sb.rpc('public_profile_supports_v2'),
+  },
 ];
 
 async function col(table, column) {

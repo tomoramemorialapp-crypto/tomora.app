@@ -50,8 +50,11 @@ export function mapAccount(row: Tables<'accounts'>): Account {
     publicProfile: {
       enabled: pp.enabled ?? false,
       bio: pp.bio ?? '',
+      bannerUrl: pp.bannerUrl ?? '',
       showSocial: pp.showSocial ?? true,
       showMemories: pp.showMemories ?? true,
+      showLifeProfile: pp.showLifeProfile ?? true,
+      featuredMemoryIds: pp.featuredMemoryIds ?? [],
     },
     usernameChanges: row.username_changes ?? [],
     deletionRequestedAt: row.deletion_requested_at ?? undefined,

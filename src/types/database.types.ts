@@ -774,6 +774,15 @@ export type Database = {
         Returns: Json
       }
       get_public_profile: { Args: { p_username: string }; Returns: Json }
+      unlock_public_memory: {
+        Args: { p_memory_id: string; p_password: string }
+        Returns: Json
+      }
+      set_memory_share_password: {
+        Args: { p_memory_id: string; p_password: string }
+        Returns: undefined
+      }
+      public_profile_supports_v2: { Args: Record<PropertyKey, never>; Returns: boolean }
       is_tree_member: { Args: { p_tree_id: string }; Returns: boolean }
       process_due_account_deletions: { Args: never; Returns: number }
       request_passing: {

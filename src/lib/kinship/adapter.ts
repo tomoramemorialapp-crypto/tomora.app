@@ -1,4 +1,5 @@
 import { parentRoleForLineage, parentLineageFromRelationshipType } from '@/lib/parentLineage';
+import { resolveEdgeTypeForStorage } from '@/lib/relationshipTaxonomy';
 import { resolveTreeNodeFullName, resolveTreeNodeLabel } from '@/lib/nodeLabel';
 import { personNameSearchHaystack, resolvePersonName } from '@/lib/profile';
 import type {
@@ -105,8 +106,15 @@ function roleLabelFor(type: RelationshipType): string {
     friend: 'Friend',
     chosen_family: 'Chosen family',
     caretaker: 'Caretaker',
+    other: 'Family member',
   };
   return map[type] ?? 'Family member';
+}
+
+function roleLabelFromDetail(detail?: string): string | undefined {
+  if (detail === 'guardian') return 'Guardian';
+  if (detail === 'caretaker') return 'Caretaker';
+  return undefined;
 }
 
 export interface KinshipGraphData {
@@ -174,6 +182,64 @@ function applyStoredRelationship(params: {
         visibility: mapVisibility(rel.visibility),
         createdByAccountId: rel.createdByAccountId,
         metadata: { affinity: rel.relationshipType, detail: rel.relationshipDetail },
+      });
+    }
+    return;
+  }
+
+  if (rel.relationshipType === 'pet') {
+    const id = `edge:pet_owner:${sourceId}->${targetId}`;
+    if (!hasEdge(existingEdges, id)) {
+      existingEdges.push({
+        id,
+        familyTreeId,
+        fromNodeId: sourceId,
+        toNodeId: targetId,
+        type: 'pet_owner',
+        status: 'confirmed',
+        visibility: mapVisibility(rel.visibility),
+        fromRole: 'owner',
+        toRole: 'pet',
+        createdByAccountId: rel.createdByAccountId,
+      });
+    }
+    return;
+  }
+
+  if (rel.relationshipType === 'caretaker') {
+    const edgeType =
+      resolveEdgeTypeForStorage(rel.relationshipType, rel.relationshipDetail) ??
+      (!rel.relationshipDetail ? 'guardian_managed' : undefined);
+    if (edgeType === 'guardian_managed' || rel.relationshipDetail === 'guardian') {
+      const id = `edge:guardian_managed:${targetId}->${sourceId}`;
+      if (!hasEdge(existingEdges, id)) {
+        existingEdges.push({
+          id,
+          familyTreeId,
+          fromNodeId: targetId,
+          toNodeId: sourceId,
+          type: 'guardian_managed',
+          status: 'confirmed',
+          visibility: mapVisibility(rel.visibility),
+          createdByAccountId: rel.createdByAccountId,
+          metadata: { detail: rel.relationshipDetail ?? 'guardian' },
+        });
+      }
+      return;
+    }
+
+    const id = `edge:chosen_family:${sourceId}->${targetId}:caretaker`;
+    if (!hasEdge(existingEdges, id)) {
+      existingEdges.push({
+        id,
+        familyTreeId,
+        fromNodeId: sourceId,
+        toNodeId: targetId,
+        type: 'chosen_family',
+        status: 'confirmed',
+        visibility: mapVisibility(rel.visibility),
+        createdByAccountId: rel.createdByAccountId,
+        metadata: { affinity: 'caretaker', detail: rel.relationshipDetail ?? 'caretaker' },
       });
     }
     return;
@@ -290,19 +356,20 @@ export function buildKinshipGraphFromApp(params: {
     if (r.relationshipType === 'pet' && nodeIds.has(r.fromNodeId) && nodeIds.has(r.toNodeId)) {
       petIds.add(r.toNodeId);
     }
-    if (r.relationshipType === 'caretaker' && nodeIds.has(r.fromNodeId) && nodeIds.has(r.toNodeId)) {
-      petIds.add(r.fromNodeId);
+  }
+
+  const roleByNode = new Map<string, { type: RelationshipType; detail?: string }>();
+  for (const r of relationships) {
+    if (r.fromNodeId === anchorNodeId) {
+      roleByNode.set(r.toNodeId, { type: r.relationshipType, detail: r.relationshipDetail });
+    } else if (r.toNodeId === anchorNodeId) {
+      roleByNode.set(r.fromNodeId, { type: r.relationshipType, detail: r.relationshipDetail });
     }
   }
 
-  const roleByNode = new Map<string, RelationshipType>();
-  for (const r of relationships) {
-    if (r.fromNodeId === anchorNodeId) roleByNode.set(r.toNodeId, r.relationshipType);
-    else if (r.toNodeId === anchorNodeId) roleByNode.set(r.fromNodeId, r.relationshipType);
-  }
-
   const baseNodes: KinshipNode[] = appNodes.map((n) => {
-    const role = roleByNode.get(n.id);
+    const roleInfo = roleByNode.get(n.id);
+    const role = roleInfo?.type;
     const personName = resolvePersonName(n.profile ?? {}, n.displayName);
     const surname = personName.surname?.trim();
     return {
@@ -317,7 +384,9 @@ export function buildKinshipGraphFromApp(params: {
       isAnchor: n.id === anchorNodeId,
       visibility: mapVisibility(n.defaultVisibility),
       metadata: {
-        ...(role ? { roleLabel: roleLabelFor(role) } : null),
+        ...(role
+          ? { roleLabel: roleLabelFromDetail(roleInfo?.detail) ?? roleLabelFor(role) }
+          : null),
         tags: n.tags ?? [],
         isLiving: n.isLiving !== false,
         avatarUrl: n.profile?.profilePhoto?.value ?? n.avatarUrl,

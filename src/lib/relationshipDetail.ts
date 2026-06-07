@@ -87,6 +87,8 @@ export const INVERSE_RELATIONSHIP_DETAIL: Record<RelationshipDetail, Relationshi
   former_husband: 'former_wife',
   former_wife: 'former_husband',
   former_partner: 'former_partner',
+  guardian: 'guardian',
+  caretaker: 'caretaker',
 };
 
 export const RELATIONSHIP_DETAIL_OPTIONS: Partial<
@@ -169,6 +171,10 @@ export const RELATIONSHIP_DETAIL_OPTIONS: Partial<
     { id: 'former_wife', label: 'Former wife' },
   ],
   partner: [{ id: 'former_partner', label: 'Former partner' }],
+  caretaker: [
+    { id: 'guardian', label: 'Guardian' },
+    { id: 'caretaker', label: 'Caretaker' },
+  ],
 };
 
 const MALE_DEFAULT: Partial<Record<RelationshipType, RelationshipDetail>> = {
@@ -253,6 +259,8 @@ const DETAIL_LABEL: Record<RelationshipDetail, string> = {
   former_husband: 'former husband',
   former_wife: 'former wife',
   former_partner: 'former partner',
+  guardian: 'guardian',
+  caretaker: 'caretaker',
 };
 
 const TYPE_FALLBACK_LABEL: Partial<Record<RelationshipType, string>> = {

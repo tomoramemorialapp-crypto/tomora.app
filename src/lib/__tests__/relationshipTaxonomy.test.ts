@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  CURATED_ANCHOR_TAXON_IDS,
   RELATIONSHIP_TAXONOMY,
   generationOffsetForChoice,
   getAnchorRelationshipChoices,
+  getContextRelationshipChoices,
   getGroupedAnchorChoices,
   getTaxon,
   resolveChoiceStorage,
+  resolveEdgeTypeForStorage,
+  validateCuratedTaxonomyIntegrity,
 } from '@/lib/relationshipTaxonomy';
 
 describe('relationshipTaxonomy', () => {
@@ -37,6 +41,22 @@ describe('relationshipTaxonomy', () => {
     expect(groups[0]?.choices.some((c) => c.id === 'mother')).toBe(true);
   });
 
+  it('includes commonly requested anchor relationship variants', () => {
+    const ids = new Set(getAnchorRelationshipChoices().map((c) => c.id));
+    for (const id of [
+      'guardian',
+      'paternal_grandfather',
+      'maternal_grandfather',
+      'half_sister',
+      'step_sister',
+      'maternal_aunt',
+      'paternal_uncle',
+      'step_son',
+    ]) {
+      expect(ids.has(id), `missing ${id}`).toBe(true);
+    }
+  });
+
   it('resolves storage fields from a choice', () => {
     const choice = getAnchorRelationshipChoices().find((c) => c.id === 'paternal_aunt');
     expect(choice).toBeDefined();
@@ -50,5 +70,30 @@ describe('relationshipTaxonomy', () => {
     expect(generationOffsetForChoice({ id: 'grandmother', relationshipType: 'grandparent' })).toBe(-2);
     expect(generationOffsetForChoice({ id: 'son', relationshipType: 'child' })).toBe(1);
     expect(generationOffsetForChoice({ id: 'brother', relationshipType: 'sibling' })).toBe(0);
+  });
+
+  it('keeps curated anchor and context choices aligned', () => {
+    const anchorIds = getAnchorRelationshipChoices().map((c) => c.id);
+    const contextIds = getContextRelationshipChoices().map((c) => c.id);
+    expect(contextIds).toEqual(anchorIds);
+    expect(anchorIds).toEqual(CURATED_ANCHOR_TAXON_IDS);
+  });
+
+  it('labels context choices relative to the selected person', () => {
+    const guardian = getContextRelationshipChoices().find((c) => c.id === 'guardian');
+    expect(guardian?.label).toBe('Their guardian');
+    expect(guardian?.relationshipDetail).toBe('guardian');
+  });
+
+  it('passes curated taxonomy integrity checks', () => {
+    expect(validateCuratedTaxonomyIntegrity()).toEqual([]);
+  });
+
+  it('resolves kinship edge types from storage fields', () => {
+    expect(resolveEdgeTypeForStorage('caretaker', 'guardian')).toBe('guardian_managed');
+    expect(resolveEdgeTypeForStorage('caretaker', 'caretaker')).toBe('caretaker');
+    expect(resolveEdgeTypeForStorage('child', 'step_son')).toBe('step_parent_child');
+    expect(resolveEdgeTypeForStorage('grandparent', 'paternal_grandfather')).toBe('parent_child');
+    expect(resolveEdgeTypeForStorage('pet')).toBe('pet_owner');
   });
 });

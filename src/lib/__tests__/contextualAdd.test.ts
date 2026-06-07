@@ -41,6 +41,12 @@ describe('composeContextualRelationship', () => {
   it('maps spouse + parent_in_law to parent-in-law for the partner', () => {
     expect(composeContextualRelationship('spouse', 'parent_in_law')).toBe('parent_in_law');
   });
+
+  it('maps step-parent and grandparent contextual links', () => {
+    expect(composeContextualRelationship('step_parent', 'sibling')).toBe('aunt_uncle');
+    expect(composeContextualRelationship('grandparent', 'child')).toBe('parent');
+    expect(composeContextualRelationship('niece_nephew', 'sibling')).toBe('child');
+  });
 });
 
 describe('inferContextualRelationships', () => {

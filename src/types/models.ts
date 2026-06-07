@@ -98,7 +98,9 @@ export type RelationshipDetail =
   | 'wife'
   | 'former_husband'
   | 'former_wife'
-  | 'former_partner';
+  | 'former_partner'
+  | 'guardian'
+  | 'caretaker';
 
 export type RelationshipType =
   | 'self'

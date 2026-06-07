@@ -77,8 +77,8 @@ export const RELATIONSHIP_TAXONOMY: readonly RelationshipTaxon[] = [
   taxon({ id: 'step_mother', label: 'Step-Mother', relationshipType: 'step_parent', relationshipDetail: 'stepmother', category: 'affinity', generationOffset: -1, edgeType: 'step_parent_child', group: 'parents' }),
   taxon({ id: 'father', label: 'Father', relationshipType: 'parent', relationshipDetail: 'father', category: 'consanguinity', generationOffset: -1, edgeType: 'parent_child', group: 'parents', bridgeHint: 'Refine biological/adoptive/step later' }),
   taxon({ id: 'mother', label: 'Mother', relationshipType: 'parent', relationshipDetail: 'mother', category: 'consanguinity', generationOffset: -1, edgeType: 'parent_child', group: 'parents', bridgeHint: 'Refine biological/adoptive/step later' }),
-  taxon({ id: 'guardian', label: 'Guardian', relationshipType: 'caretaker', category: 'care', generationOffset: -1, edgeType: 'guardian_managed', group: 'parents' }),
-  taxon({ id: 'caretaker', label: 'Caretaker', relationshipType: 'caretaker', category: 'care', generationOffset: 0, edgeType: 'caretaker', group: 'parents' }),
+  taxon({ id: 'guardian', label: 'Guardian', relationshipType: 'caretaker', relationshipDetail: 'guardian', category: 'care', generationOffset: -1, edgeType: 'guardian_managed', group: 'parents' }),
+  taxon({ id: 'caretaker', label: 'Caretaker', relationshipType: 'caretaker', relationshipDetail: 'caretaker', category: 'care', generationOffset: 0, edgeType: 'caretaker', group: 'parents' }),
 
   // B — Grandparents
   taxon({ id: 'paternal_grandfather', label: 'Paternal Grandfather', relationshipType: 'grandparent', relationshipDetail: 'paternal_grandfather', category: 'consanguinity', generationOffset: -2, edgeType: 'parent_child', bridgeHint: 'Father', group: 'grandparents' }),
@@ -165,14 +165,67 @@ export const PICKER_GROUP_LABELS: Record<PickerGroup, string> = {
 };
 
 /** Curated choices for onboarding / add-relative (anchor perspective). */
-const ANCHOR_TAXON_IDS: RelationshipTaxonId[] = [
-  'mother', 'father', 'step_mother', 'step_father', 'adoptive_mother', 'adoptive_father',
-  'grandmother', 'grandfather', 'paternal_grandmother', 'maternal_grandmother',
-  'brother', 'sister', 'half_brother', 'step_brother', 'husband', 'wife', 'partner',
-  'aunt', 'uncle', 'paternal_aunt', 'maternal_uncle', 'cousin',
-  'daughter', 'son', 'step_daughter', 'grandson', 'granddaughter', 'niece', 'nephew',
-  'daughter_in_law', 'son_in_law', 'mother_in_law', 'father_in_law',
-  'pet', 'unsure',
+export const CURATED_ANCHOR_TAXON_IDS: RelationshipTaxonId[] = [
+  'mother',
+  'father',
+  'step_mother',
+  'step_father',
+  'adoptive_mother',
+  'adoptive_father',
+  'guardian',
+  'caretaker',
+  'grandmother',
+  'grandfather',
+  'paternal_grandmother',
+  'paternal_grandfather',
+  'maternal_grandmother',
+  'maternal_grandfather',
+  'step_grandmother',
+  'step_grandfather',
+  'brother',
+  'sister',
+  'half_brother',
+  'half_sister',
+  'step_brother',
+  'step_sister',
+  'husband',
+  'wife',
+  'partner',
+  'former_husband',
+  'former_wife',
+  'former_partner',
+  'cousin',
+  'cousin_male',
+  'cousin_female',
+  'aunt',
+  'uncle',
+  'paternal_aunt',
+  'paternal_uncle',
+  'maternal_aunt',
+  'maternal_uncle',
+  'aunt_by_marriage',
+  'uncle_by_marriage',
+  'son',
+  'daughter',
+  'step_son',
+  'step_daughter',
+  'adopted_son',
+  'adopted_daughter',
+  'grandson',
+  'granddaughter',
+  'nephew',
+  'niece',
+  'step_nephew',
+  'step_niece',
+  'father_in_law',
+  'mother_in_law',
+  'son_in_law',
+  'daughter_in_law',
+  'brother_in_law',
+  'sister_in_law',
+  'pet',
+  'family_pet',
+  'unsure',
 ];
 
 export function getTaxon(id: RelationshipTaxonId): RelationshipTaxon | undefined {
@@ -190,7 +243,51 @@ export function taxonToChoice(t: RelationshipTaxon): RelationshipChoice {
 }
 
 export function getAnchorRelationshipChoices(): RelationshipChoice[] {
-  return ANCHOR_TAXON_IDS.map((id) => taxonToChoice(TAXON_BY_ID.get(id)!));
+  return CURATED_ANCHOR_TAXON_IDS.map((id) => taxonToChoice(TAXON_BY_ID.get(id)!));
+}
+
+function contextualChoiceLabel(t: RelationshipTaxon): string {
+  return `Their ${t.label.charAt(0).toLowerCase()}${t.label.slice(1)}`;
+}
+
+/** Resolve taxonomy edge type from stored relationship fields (best match). */
+export function resolveEdgeTypeForStorage(
+  relationshipType: RelationshipType,
+  relationshipDetail?: RelationshipDetail,
+): EdgeType | undefined {
+  const exact = RELATIONSHIP_TAXONOMY.find(
+    (t) => t.relationshipType === relationshipType && t.relationshipDetail === relationshipDetail,
+  );
+  if (exact) return exact.edgeType;
+
+  const generic = RELATIONSHIP_TAXONOMY.find(
+    (t) => t.relationshipType === relationshipType && t.relationshipDetail === undefined,
+  );
+  return generic?.edgeType;
+}
+
+/** Validate every curated taxon id resolves to storage + taxonomy metadata. */
+export function validateCuratedTaxonomyIntegrity(): string[] {
+  const errors: string[] = [];
+  for (const id of CURATED_ANCHOR_TAXON_IDS) {
+    const taxon = TAXON_BY_ID.get(id);
+    if (!taxon) {
+      errors.push(`Missing taxon for curated id: ${id}`);
+      continue;
+    }
+    const choice = taxonToChoice(taxon);
+    const stored = resolveChoiceStorage(choice);
+    if (stored.relationshipType !== taxon.relationshipType) {
+      errors.push(`${id}: storage type mismatch`);
+    }
+    if (stored.relationshipDetail !== taxon.relationshipDetail) {
+      errors.push(`${id}: storage detail mismatch`);
+    }
+    if (!taxon.edgeType) {
+      errors.push(`${id}: missing edgeType`);
+    }
+  }
+  return errors;
 }
 
 export function getGroupedAnchorChoices(): { group: PickerGroup; label: string; choices: RelationshipChoice[] }[] {
@@ -219,20 +316,13 @@ export function getGroupedContextChoices(): { group: PickerGroup; label: string;
 }
 
 export function getContextRelationshipChoices(): RelationshipChoice[] {
-  const contextualIds: RelationshipTaxonId[] = [
-    'biological_father', 'biological_mother', 'step_father', 'step_mother',
-    'father_in_law', 'mother_in_law', 'son_in_law', 'daughter_in_law',
-    'son', 'daughter', 'step_son', 'brother', 'sister', 'step_brother',
-    'husband', 'wife', 'partner', 'grandfather', 'grandmother', 'grandson', 'granddaughter',
-    'cousin', 'nephew', 'niece', 'pet', 'unsure',
-  ];
-  return contextualIds
-    .map((id) => TAXON_BY_ID.get(id))
-    .filter((t): t is RelationshipTaxon => !!t)
-    .map((t) => ({
-      ...taxonToChoice(t),
-      label: `Their ${t.label.toLowerCase()}`,
-    }));
+  return CURATED_ANCHOR_TAXON_IDS.map((id) => {
+    const taxon = TAXON_BY_ID.get(id)!;
+    return {
+      ...taxonToChoice(taxon),
+      label: contextualChoiceLabel(taxon),
+    };
+  });
 }
 
 export function generationOffsetForChoice(choice: Pick<RelationshipChoice, 'id' | 'relationshipType'>): -2 | -1 | 0 | 1 | 2 {

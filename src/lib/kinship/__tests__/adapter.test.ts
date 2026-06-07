@@ -131,6 +131,63 @@ describe('buildKinshipGraphFromApp', () => {
     expect(inLawEdge?.metadata?.affinity).toBe('parent_in_law');
   });
 
+  it('maps guardian and pet relationships to TKE edge types', () => {
+    const self = node('self', 'You', { status: 'claimed', ownerAccountId: 'acct1' });
+    const guardian = node('guardian', 'Helen');
+    const pet = node('pet', 'Barak', { tags: ['Pet'] });
+
+    const graph = buildKinshipGraphFromApp({
+      anchorNodeId: 'self',
+      nodes: [self, guardian, pet],
+      relationships: [
+        {
+          ...rel('r1', 'self', 'guardian', 'caretaker'),
+          relationshipDetail: 'guardian',
+        },
+        rel('r2', 'self', 'pet', 'pet'),
+      ],
+    });
+
+    const guardianEdge = graph.edges.find((e) => e.type === 'guardian_managed');
+    expect(guardianEdge).toBeDefined();
+    expect(guardianEdge!.fromNodeId).toBe('guardian');
+    expect(guardianEdge!.toNodeId).toBe('self');
+
+    const petEdge = graph.edges.find((e) => e.type === 'pet_owner');
+    expect(petEdge).toBeDefined();
+    expect(petEdge!.fromNodeId).toBe('self');
+    expect(petEdge!.toNodeId).toBe('pet');
+    expect(graph.nodes.find((n) => n.id === 'pet')?.nodeType).toBe('pet');
+  });
+
+  it('expands grandparent and step-son detail through kinship engine', () => {
+    const self = node('self', 'You', { status: 'claimed', ownerAccountId: 'acct1' });
+    const father = node('father', 'Jose');
+    const pgf = node('pgf', 'Rufino');
+    const stepSon = node('stepson', 'Luis');
+
+    const graph = buildKinshipGraphFromApp({
+      anchorNodeId: 'self',
+      nodes: [self, father, pgf, stepSon],
+      relationships: [
+        rel('r1', 'self', 'father', 'parent'),
+        {
+          ...rel('r2', 'self', 'pgf', 'grandparent'),
+          relationshipDetail: 'paternal_grandfather',
+        },
+        {
+          ...rel('r3', 'self', 'stepson', 'child'),
+          relationshipDetail: 'step_son',
+        },
+      ],
+    });
+
+    expect(graph.edges.some((e) => e.type === 'parent_child' && e.toNodeId === 'stepson')).toBe(true);
+    expect(
+      graph.edges.some((e) => e.type === 'parent_child' && e.fromNodeId === 'pgf' && e.toNodeId === 'father'),
+    ).toBe(true);
+  });
+
   it('maps child-in-law edges to affinity chosen_family edges (not biological parent_child)', () => {
     const mgf = node('mgf', 'Rufino');
     const father = node('father', 'Emmanuel');

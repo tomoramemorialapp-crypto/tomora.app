@@ -26,10 +26,11 @@ let removed = 0;
 for (const name of DYNAMIC_ROUTE_DIRS) {
   const path = join(dist, name);
   if (!existsSync(path) || !statSync(path).isDirectory()) continue;
+
   if (!hasOnlyBracketHtml(path)) {
-    console.warn(`post-export-web: skip ${name}/ — not only dynamic bracket html`);
-    continue;
+    console.warn(`post-export-web: force-removing dist/${name}/ (unexpected contents)`);
   }
+
   rmSync(path, { recursive: true, force: true });
   console.log(`post-export-web: removed dist/${name}/`);
   removed += 1;
@@ -38,3 +39,10 @@ for (const name of DYNAMIC_ROUTE_DIRS) {
 if (removed === 0) {
   console.log('post-export-web: nothing to remove');
 }
+
+if (existsSync(join(dist, 'u'))) {
+  console.error('post-export-web: dist/u still present — public profiles will 404 on Vercel');
+  process.exit(1);
+}
+
+console.log('post-export-web: export OK for SPA routing');

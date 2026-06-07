@@ -44,6 +44,21 @@ async function head(url) {
   return { status: res.status, url: res.url };
 }
 
+async function checkStaticShell() {
+  const shell = await fetch(`${BASE}/u/%5Busername%5D.html`, { redirect: 'manual' });
+  const hasShell =
+    shell.status === 200 ||
+    shell.status === 308 ||
+    shell.headers.get('location')?.includes('[username]');
+  record(
+    'No dist/u/[username].html shell on CDN',
+    !hasShell,
+    hasShell
+      ? 'static shell still deployed — post-export did not run on Vercel build'
+      : 'shell absent',
+  );
+}
+
 async function checkHttp() {
   const home = await head(`${BASE}/`);
   record('Home (www)', home.status === 200, `HTTP ${home.status}`);
@@ -51,12 +66,14 @@ async function checkHttp() {
   const claim = await head(`${BASE}/claim`);
   record('Claim page', claim.status === 200, `HTTP ${claim.status}`);
 
+  await checkStaticShell();
+
   const profile = await head(`${BASE}/u/${encodeURIComponent(USERNAME)}`);
   record(
     'Public profile route /u/{username}',
     profile.status === 200,
     profile.status === 404
-      ? 'HTTP 404 — redeploy with post-export-web.mjs (removes dist/u/)'
+      ? 'HTTP 404 — set Vercel Build Command to npm run vercel-build and redeploy'
       : `HTTP ${profile.status}`,
   );
 
@@ -105,8 +122,10 @@ const failed = results.filter((r) => !r.ok);
 console.log(`\n${results.length - failed.length}/${results.length} passed`);
 if (failed.length) {
   console.log('\nNext steps:');
-  if (failed.some((f) => f.name.includes('Public profile route'))) {
-    console.log('  • Redeploy after post-export-web fix (vercel buildCommand runs it automatically)');
+  if (failed.some((f) => f.name.includes('Public profile') || f.name.includes('dist/u'))) {
+    console.log('  • Vercel → Project Settings → Build Command: npm run vercel-build');
+    console.log('  • Turn OFF any override that only runs `npx expo export --platform web`');
+    console.log('  • Redeploy; build log should show "post-export-web: removed dist/u/"');
     console.log('  • Confirm EXPO_PUBLIC_APP_URL=https://www.tomora.app in Vercel env');
   }
   if (failed.some((f) => f.name.includes('get_public_profile'))) {

@@ -52,6 +52,8 @@
     "db:apply-pending": "node scripts/apply-pending-migrations.mjs",
     "auth:config": "node scripts/print-supabase-auth-config.mjs",
     "web:export": "npx expo export --platform web && node scripts/post-export-web.mjs",
+    "vercel-build": "npx expo export --platform web && node scripts/post-export-web.mjs && node scripts/verify-export.mjs",
+    "verify:export": "node scripts/verify-export.mjs",
     "smoke:prod": "node scripts/smoke-production.mjs"
   },
   "private": true

@@ -55,55 +55,71 @@ export function FamilyTreeNode({
         ? colors.paper
         : colors.mistBeige;
 
+  const frameBorder = isMemorial ? 3 : isAnchor || selected ? 3 : 2;
+  const avatarInset = isMemorial && avatarUri && !isSyntheticPlaceholder ? 3 : 0;
+  const innerDiameter = size - frameBorder * 2;
+  const avatarDiameter = innerDiameter - avatarInset * 2;
+
   return (
     <View
       accessibilityRole="button"
-      accessibilityLabel={`${node.displayName}${node.relationshipLabelFromAnchor ? `, ${node.relationshipLabelFromAnchor}` : ''}`}
+      accessibilityLabel={`${node.displayName}${node.relationshipLabelFromAnchor ? `, ${node.relationshipLabelFromAnchor}` : ''}${isMemorial ? ', in memory' : ''}`}
       style={{ alignItems: 'center', width: 132 }}
     >
-      <View
-        style={[
-          {
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: bg,
-            borderWidth: isAnchor || selected ? 3 : 2,
-            borderColor: selected || highlighted ? colors.guardianGold : ringColor,
-            borderStyle: isSyntheticPlaceholder ? 'dashed' : 'solid',
-            opacity: isSyntheticPlaceholder ? 0.8 : 1,
-            overflow: 'hidden',
-          },
-          isMemorial || isClaimed || selected ? shadows.goldGlow : shadows.card,
-        ]}
-      >
-        {avatarUri && !isSyntheticPlaceholder ? (
-          <Image
-            source={{ uri: avatarUri }}
-            style={{ width: size, height: size, opacity: isMemorial ? 0.78 : 1 }}
-            contentFit="cover"
-          />
-        ) : (
-          <Text
-            style={{
-              fontFamily: fonts.display,
-              fontSize: size * 0.32,
-              color: isMemorial ? colors.guardianGold : isPlaceholder ? colors.ashTaupe : colors.deepUmber,
-              fontWeight: '600',
-            }}
-          >
-            {initials(node.displayName)}
-          </Text>
-        )}
+      <View style={{ width: size, height: size, position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
+        <View
+          style={[
+            {
+              width: size,
+              height: size,
+              borderRadius: size / 2,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: bg,
+              borderWidth: frameBorder,
+              borderColor: selected || highlighted ? colors.guardianGold : ringColor,
+              borderStyle: isSyntheticPlaceholder ? 'dashed' : 'solid',
+              opacity: isSyntheticPlaceholder ? 0.8 : 1,
+              overflow: 'hidden',
+            },
+            isMemorial || isClaimed || selected ? shadows.goldGlow : shadows.card,
+          ]}
+        >
+          {avatarUri && !isSyntheticPlaceholder ? (
+            <Image
+              source={{ uri: avatarUri }}
+              style={{
+                width: avatarDiameter,
+                height: avatarDiameter,
+                borderRadius: avatarDiameter / 2,
+                opacity: isMemorial ? 0.78 : 1,
+              }}
+              contentFit="cover"
+            />
+          ) : (
+            <Text
+              style={{
+                fontFamily: fonts.display,
+                fontSize: size * 0.32,
+                color: isMemorial ? colors.guardianGold : isPlaceholder ? colors.ashTaupe : colors.deepUmber,
+                fontWeight: '600',
+              }}
+            >
+              {initials(node.displayName)}
+            </Text>
+          )}
+        </View>
+
         {isMemorial ? (
-          <View style={{ position: 'absolute', top: -6, right: -2 }}>
+          <View
+            pointerEvents="none"
+            style={{ position: 'absolute', top: -6, right: -2, zIndex: 2 }}
+          >
             <GoldStar size={16} />
           </View>
         ) : null}
         {isPet ? (
-          <View style={{ position: 'absolute', bottom: -4, right: -2 }}>
+          <View pointerEvents="none" style={{ position: 'absolute', bottom: -4, right: -2, zIndex: 2 }}>
             <Text style={{ fontSize: 14 }}>🐾</Text>
           </View>
         ) : null}

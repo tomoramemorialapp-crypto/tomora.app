@@ -79,6 +79,119 @@ function isNamed(node?: KinshipNode): boolean {
   return !!node && node.status !== 'placeholder' && node.nodeType !== 'placeholder';
 }
 
+function parentRoleLabel(edge: RelationshipEdge, parentId: string): string {
+  if (edge.fromNodeId !== parentId) return 'Parent';
+  if (edge.fromRole === 'father') return 'Father';
+  if (edge.fromRole === 'mother') return 'Mother';
+  if (edge.fromRole === 'step_parent') return 'Step-parent';
+  return 'Parent';
+}
+
+function childRoleLabelFromEdge(edge: RelationshipEdge, targetId: string, edges: RelationshipEdge[]): string {
+  if (edge.fromRole === 'mother') return 'Daughter';
+  if (edge.fromRole === 'father') return 'Child';
+
+  const asParent = edges.find((e) => e.type === 'parent_child' && e.fromNodeId === targetId);
+  if (asParent?.fromRole === 'father') return 'Son';
+  if (asParent?.fromRole === 'mother') return 'Daughter';
+  return 'Child';
+}
+
+function childRoleLabel(targetId: string, edges: RelationshipEdge[]): string {
+  const asChild = edges.find((e) => e.type === 'parent_child' && e.toNodeId === targetId);
+  if (asChild) return childRoleLabelFromEdge(asChild, targetId, edges);
+  return 'Child';
+}
+
+function inLawLabel(childId: string, edges: RelationshipEdge[]): string {
+  const childAsParent = edges.find((e) => e.type === 'parent_child' && e.fromNodeId === childId);
+  if (childAsParent?.fromRole === 'father') return 'Daughter-in-law';
+  if (childAsParent?.fromRole === 'mother') return 'Son-in-law';
+  return "Child's partner";
+}
+
+/**
+ * Labels relative to the selected view anchor using the kinship path.
+ * Used when metadata.roleLabel still reflects the signed-in user's perspective.
+ */
+function labelFromKinshipPath(params: ExplainParams): string {
+  const { targetNodeId, path, nodes, edges } = params;
+  if (path.length < 2) return 'Family member';
+
+  const anchorId = path[0];
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const target = byId.get(targetNodeId);
+  if (!target) return 'Family member';
+
+  if (path.length === 2) {
+    const e = edgeBetween(edges, path[0], path[1]);
+    if (!e) return 'Family member';
+
+    if (e.type === 'partnership') return 'Spouse';
+    if (e.type === 'sibling') return 'Sibling';
+    if (e.type === 'pet_owner') return 'Family pet';
+    if (e.type === 'parent_child') {
+      if (e.fromNodeId === anchorId && e.toNodeId === targetNodeId) {
+        return childRoleLabelFromEdge(e, targetNodeId, edges);
+      }
+      if (e.toNodeId === anchorId && e.fromNodeId === targetNodeId) {
+        return parentRoleLabel(e, targetNodeId);
+      }
+    }
+  }
+
+  if (path.length === 3) {
+    const e1 = edgeBetween(edges, path[0], path[1]);
+    const e2 = edgeBetween(edges, path[1], path[2]);
+    if (e1 && e2) {
+      if (
+        e1.type === 'parent_child' &&
+        e1.fromNodeId === anchorId &&
+        e1.toNodeId === path[1] &&
+        e2.type === 'partnership' &&
+        path[2] === targetNodeId
+      ) {
+        return inLawLabel(path[1], edges);
+      }
+      if (
+        e1.type === 'parent_child' &&
+        e1.fromNodeId === anchorId &&
+        e2.type === 'parent_child' &&
+        e2.fromNodeId === path[1] &&
+        e2.toNodeId === targetNodeId
+      ) {
+        return 'Grandchild';
+      }
+      if (
+        e1.type === 'parent_child' &&
+        e1.toNodeId === anchorId &&
+        e2.type === 'parent_child' &&
+        e2.toNodeId === path[1] &&
+        e2.fromNodeId === targetNodeId
+      ) {
+        const branch = target.branchType ?? branchFromPath(path, edges, byId);
+        const mp = maternalPaternal(branch);
+        return mp ? `${cap(mp)} grandparent` : 'Grandparent';
+      }
+    }
+  }
+
+  const gen = genFromPath(path, edges);
+  const branch = target.branchType ?? branchFromPath(path, edges, byId);
+  const mp = maternalPaternal(branch);
+
+  if (gen === 1) {
+    const e = edgeBetween(edges, path[path.length - 2], path[path.length - 1]);
+    if (e?.type === 'parent_child') return parentRoleLabel(e, targetNodeId);
+    return 'Parent';
+  }
+  if (gen === 2) return mp ? `${cap(mp)} grandparent` : 'Grandparent';
+  if (gen === -1) return childRoleLabel(targetNodeId, edges);
+  if (gen === -2) return 'Grandchild';
+  if (gen === 0) return 'Relative';
+  return 'Family member';
+}
+
 /** Short relationship label, e.g. "Maternal grandmother", "Cousin on your father’s side". */
 export function getRelationshipLabel(params: ExplainParams): string {
   const { anchorNodeId, targetNodeId, path, nodes, edges, labelAnchorAsYou = true } = params;
@@ -86,6 +199,10 @@ export function getRelationshipLabel(params: ExplainParams): string {
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const target = byId.get(targetNodeId);
   if (!target) return 'Family member';
+
+  if (!labelAnchorAsYou) {
+    return labelFromKinshipPath(params);
+  }
 
   const role = (target.metadata?.roleLabel as string | undefined) ?? '';
   const gen = genFromPath(path, edges);

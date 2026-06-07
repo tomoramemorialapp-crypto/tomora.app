@@ -34,6 +34,8 @@ const PAD_TOP = 70;
 const PAD_BOTTOM = 110;
 const NODE_HALF_W = 66;
 const NODE_HALF_H = 36;
+/** Room for the bottom-right zoom/minimal control stack when the tooltip is shown. */
+const MINIMAL_VIEW_CONTROLS_STACK = 196;
 
 const ZOOM = { min: 0.35, max: 2.5, default: 1 };
 
@@ -72,7 +74,6 @@ const CanvasNode = function CanvasNode({
   left,
   top,
   highlighted,
-  minimalView,
   canvasPanRef,
   onTap,
   onDragUpdate,
@@ -82,7 +83,6 @@ const CanvasNode = function CanvasNode({
   left: number;
   top: number;
   highlighted: boolean;
-  minimalView: boolean;
   canvasPanRef: React.MutableRefObject<GestureType | undefined>;
   onTap: (id: string) => void;
   onDragUpdate: (id: string, dx: number, dy: number) => void;
@@ -99,6 +99,7 @@ const CanvasNode = function CanvasNode({
         runOnJS(onDragEnd)(node.id, e.translationX, e.translationY);
       });
     const tap = Gesture.Tap()
+      .blocksExternalGesture(canvasPanRef)
       .maxDistance(TREE_DRAG_THRESHOLD)
       .onEnd(() => {
         runOnJS(onTap)(node.id);
@@ -109,7 +110,7 @@ const CanvasNode = function CanvasNode({
   return (
     <GestureDetector gesture={gesture}>
       <View style={{ position: 'absolute', left, top }}>
-        <FamilyTreeNode node={node} highlighted={highlighted} showRelationshipLabel={!minimalView} />
+        <FamilyTreeNode node={node} highlighted={highlighted} />
       </View>
     </GestureDetector>
   );
@@ -389,6 +390,7 @@ export function KinshipTreeCanvas({
     () =>
       Gesture.Pan()
         .withRef(canvasPanRef)
+        .minDistance(TREE_DRAG_THRESHOLD)
         .onStart(() => runOnJS(panStart)())
         .onUpdate((e) => runOnJS(panMove)(e.translationX, e.translationY)),
     [panStart, panMove],
@@ -505,7 +507,6 @@ export function KinshipTreeCanvas({
         setSearchOpen(false);
         setSearchQuery('');
         setFilterOpen(false);
-        setDetailsOpen(false);
       }
       onMinimalViewChange?.(next);
       return next;
@@ -544,7 +545,6 @@ export function KinshipTreeCanvas({
                   left={p.x + off.x + view.offsetX - NODE_HALF_W}
                   top={p.y + off.y + view.offsetY - NODE_HALF_H}
                   highlighted={node.id === viewAnchor && detailsOpen}
-                  minimalView={minimalView}
                   canvasPanRef={canvasPanRef}
                   onTap={onTapNode}
                   onDragUpdate={onDragUpdateNode}
@@ -688,8 +688,15 @@ export function KinshipTreeCanvas({
         </View>
       ) : null}
 
-      {detailsOpen && anchorNode && !minimalView ? (
-        <View style={{ position: 'absolute', left: spacing.md, right: spacing.md, bottom: spacing.md }}>
+      {detailsOpen && anchorNode ? (
+        <View
+          style={{
+            position: 'absolute',
+            left: spacing.md,
+            right: spacing.md,
+            bottom: minimalView ? spacing.sm + MINIMAL_VIEW_CONTROLS_STACK : spacing.md,
+          }}
+        >
           <RelationshipTooltip
             name={anchorNode.displayName}
             label={viewingFromOther ? undefined : 'You'}

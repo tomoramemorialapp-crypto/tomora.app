@@ -50,7 +50,15 @@ import {
   tagsForSiblingBridgeMode,
   type SiblingBridgeMode,
 } from '@/lib/siblingAdd';
-import { activeNodes, activeRelationships, isActiveNode } from '@/lib/activeNodes';
+import {
+  activeNodes,
+  activeRelationships,
+  findTreeAnchorId,
+  isActiveNode,
+  reachableNodeIds,
+  treeMemberNodes,
+} from '@/lib/activeNodes';
+import { editScopeFor } from '@/lib/profile';
 import { pickPrimaryRelationship } from '@/lib/relationshipUtils';
 import type { NodeInvite } from '@/services/inviteService';
 import type { AccountSettingsPatch } from '@/services/accountService';
@@ -330,9 +338,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     }
     setTree(bundle.tree);
     const liveNodes = activeNodes(bundle.nodes);
-    setNodes(liveNodes);
-    setRelationships(activeRelationships(liveNodes, bundle.relationships));
-    setMemories(bundle.memories);
+    const anchorId = findTreeAnchorId(liveNodes);
+    const treeNodes = treeMemberNodes(liveNodes, bundle.relationships, anchorId);
+    const treeIds = new Set(treeNodes.map((n) => n.id));
+    setNodes(treeNodes);
+    setRelationships(activeRelationships(treeNodes, bundle.relationships));
+    setMemories(bundle.memories.filter((m) => !!m.nodeId && treeIds.has(m.nodeId)));
     setSuggestedEdits(bundle.suggestedEdits);
   }, []);
 
@@ -390,6 +401,19 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         clearStoredDraft();
       }
       applyBundle(bundle);
+      if (bundle) {
+        const live = activeNodes(bundle.nodes);
+        const anchorId = findTreeAnchorId(live);
+        const connected = new Set(treeMemberNodes(live, bundle.relationships, anchorId).map((n) => n.id));
+        for (const orphan of live) {
+          if (connected.has(orphan.id)) continue;
+          if (orphan.ownerAccountId === userId) continue;
+          if (editScopeFor(orphan, userId) !== 'guardian') continue;
+          void treeService.deleteNode(orphan.id, userId).catch((e) => {
+            console.warn('[tomora] orphan cleanup failed', e);
+          });
+        }
+      }
 
       const pendingClaim = draftRef.current.pendingClaimCode?.trim();
       if (pendingClaim) {
@@ -717,9 +741,29 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   );
 
   const deleteRelationship = useCallback<AppStateValue['deleteRelationship']>(async (relationshipId) => {
+    if (!account) throw new Error('Sign in to update connections.');
     await treeService.deleteRelationship(relationshipId);
-    setRelationships((prev) => prev.filter((r) => r.id !== relationshipId));
-  }, []);
+    const nextRels = relationships.filter((r) => r.id !== relationshipId);
+    const anchorId = findTreeAnchorId(nodes);
+    const reachable = anchorId ? reachableNodeIds(nodes, nextRels, anchorId) : new Set(nodes.map((n) => n.id));
+    const orphans = nodes.filter((n) => !reachable.has(n.id));
+
+    for (const orphan of orphans) {
+      if (orphan.ownerAccountId === account.id) continue;
+      if (editScopeFor(orphan, account.id) !== 'guardian') continue;
+      try {
+        await treeService.deleteNode(orphan.id, account.id);
+      } catch (e) {
+        console.warn('[tomora] orphan node prune failed', e);
+      }
+    }
+
+    const remainingNodes = nodes.filter((n) => reachable.has(n.id));
+    setNodes(remainingNodes);
+    setRelationships(activeRelationships(remainingNodes, nextRels));
+    setMemories((prev) => prev.filter((m) => !!m.nodeId && reachable.has(m.nodeId)));
+    setSuggestedEdits((prev) => prev.filter((e) => reachable.has(e.targetNodeId)));
+  }, [account, nodes, relationships]);
 
   const deleteNode = useCallback<AppStateValue['deleteNode']>(async (nodeId) => {
     if (!account) throw new Error('Sign in to remove a family member.');

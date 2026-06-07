@@ -7,7 +7,7 @@ import { Dropdown } from '@/components/ui/Dropdown';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Body, Caption } from '@/components/ui/Typography';
 import { colors, radii, spacing } from '@/constants/theme';
-import { activeNodes } from '@/lib/activeNodes';
+import { findTreeAnchorId, treeMemberNodes } from '@/lib/activeNodes';
 import {
   INVERSE_RELATIONSHIP_TYPE,
   connectionCaption,
@@ -75,7 +75,10 @@ export function ConnectionsEditor({ node }: { node: FamilyNode }) {
   const isViewerSelf = node.ownerAccountId === account?.id;
   const possessive = isViewerSelf ? 'your' : `${node.displayName}'s`;
 
-  const liveNodes = useMemo(() => activeNodes(nodes), [nodes]);
+  const liveNodes = useMemo(
+    () => treeMemberNodes(nodes, relationships, findTreeAnchorId(nodes)),
+    [nodes, relationships],
+  );
   const rels = getRelationshipsForNode(node.id);
   const nodeById = useMemo(() => new Map(liveNodes.map((n) => [n.id, n])), [liveNodes]);
 

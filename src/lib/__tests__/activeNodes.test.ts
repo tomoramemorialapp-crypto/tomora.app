@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { activeNodes, activeRelationships, isActiveNode } from '../activeNodes';
+import {
+  activeNodes,
+  activeRelationships,
+  isActiveNode,
+  treeMemberNodes,
+} from '../activeNodes';
 import type { Relationship } from '@/types/models';
 import type { FamilyNode } from '@/types/models';
 
@@ -50,5 +55,30 @@ describe('activeNodes', () => {
       },
     ];
     expect(activeRelationships(nodes, rels)).toEqual([]);
+  });
+});
+
+describe('treeMemberNodes', () => {
+  it('excludes orphaned nodes disconnected from the anchor', () => {
+    const nodes = [
+      node({ id: 'you', displayName: 'You', ownerAccountId: 'acct' }),
+      node({ id: 'barak', displayName: 'Barak' }),
+      node({ id: 'mom', displayName: 'Mom' }),
+    ];
+    const rels: Relationship[] = [
+      {
+        id: 'r1',
+        familyTreeId: 't',
+        fromNodeId: 'you',
+        toNodeId: 'mom',
+        relationshipType: 'parent',
+        status: 'approved',
+        visibility: 'family_tree',
+        createdByAccountId: 'acct',
+        createdAt: '',
+        updatedAt: '',
+      },
+    ];
+    expect(treeMemberNodes(nodes, rels, 'you').map((n) => n.id)).toEqual(['you', 'mom']);
   });
 });

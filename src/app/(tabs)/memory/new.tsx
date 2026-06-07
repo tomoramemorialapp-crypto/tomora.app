@@ -13,7 +13,7 @@ import { Body, Caption, Display } from '@/components/ui/Typography';
 import { colors, radii, spacing } from '@/constants/theme';
 import { useAppState } from '@/state/AppState';
 import type { MemoryMediaItem, MemoryType, VisibilityLevel } from '@/types/models';
-import { activeNodes } from '@/lib/activeNodes';
+import { findTreeAnchorId, treeMemberNodes } from '@/lib/activeNodes';
 import { goBack } from '@/lib/navigation';
 import {
   capFor,
@@ -46,8 +46,12 @@ const MEDIA_KINDS: { id: UploadMediaKind; label: string }[] = [
 export default function NewMemory() {
   const router = useRouter();
   const params = useLocalSearchParams<{ nodeId?: string; memoryId?: string; pickRecipient?: string }>();
-  const { account, nodes, getNode, getMemory, createMemory, updateMemory, deleteMemory } = useAppState();
-  const liveNodes = useMemo(() => activeNodes(nodes), [nodes]);
+  const { account, nodes, relationships, getNode, getMemory, createMemory, updateMemory, deleteMemory } =
+    useAppState();
+  const liveNodes = useMemo(
+    () => treeMemberNodes(nodes, relationships, findTreeAnchorId(nodes)),
+    [nodes, relationships],
+  );
 
   const editing = getMemory(String(params.memoryId ?? ''));
   const selfNode = liveNodes.find((n) => n.ownerAccountId) ?? liveNodes[0];

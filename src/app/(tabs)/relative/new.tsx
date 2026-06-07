@@ -24,7 +24,7 @@ import {
   needsSiblingBridgePrompt,
   type SiblingBridgeMode,
 } from '@/lib/siblingAdd';
-import { activeNodes } from '@/lib/activeNodes';
+import { findTreeAnchorId, treeMemberNodes } from '@/lib/activeNodes';
 import { useAppState } from '@/state/AppState';
 import type { RelationshipType } from '@/types/models';
 
@@ -35,7 +35,10 @@ export default function NewRelative() {
   const router = useRouter();
   const { contextNodeId } = useLocalSearchParams<{ contextNodeId?: string }>();
   const { addRelative, createRelationship, nodes, relationships, account } = useAppState();
-  const liveNodes = useMemo(() => activeNodes(nodes), [nodes]);
+  const liveNodes = useMemo(
+    () => treeMemberNodes(nodes, relationships, findTreeAnchorId(nodes)),
+    [nodes, relationships],
+  );
 
   const anchorNode = useMemo(
     () =>

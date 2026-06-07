@@ -1,7 +1,7 @@
 /**
  * After `expo export --platform web`, remove dist folders that only hold
- * dynamic `[param].html` shells. On Vercel those directories intercept `/u/*`
- * (and similar) and return NOT_FOUND before SPA rewrites run.
+ * dynamic `[param].html` shells (static export mode). With `web.output: single`
+ * these should not exist; this script is a safety net if output mode changes.
  */
 import { existsSync, readdirSync, rmSync, statSync } from 'fs';
 import { join, resolve } from 'path';
@@ -37,7 +37,7 @@ for (const name of DYNAMIC_ROUTE_DIRS) {
 }
 
 if (removed === 0) {
-  console.log('post-export-web: nothing to remove');
+  console.log('post-export-web: no dynamic route shells to remove (expected for SPA export)');
 }
 
 if (existsSync(join(dist, 'u'))) {

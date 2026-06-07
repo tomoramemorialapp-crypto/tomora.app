@@ -1,5 +1,5 @@
 /**
- * Verify a local dist/ folder is safe to deploy (no blocking dynamic route dirs).
+ * Verify a local dist/ folder is safe to deploy (SPA + no blocking dynamic route dirs).
  * Usage: node scripts/verify-export.mjs
  */
 import { existsSync, readdirSync, statSync } from 'fs';
@@ -23,9 +23,15 @@ for (const name of BLOCKING) {
   }
 }
 
-if (!existsSync(join(dist, 'index.html'))) {
+const indexHtml = join(dist, 'index.html');
+if (!existsSync(indexHtml)) {
   console.error('verify-export: FAIL dist/index.html missing');
   ok = false;
+}
+
+const htmlCount = readdirSync(dist).filter((name) => name.endsWith('.html')).length;
+if (htmlCount > 3) {
+  console.warn(`verify-export: warn ${htmlCount} top-level HTML files — SPA export expected 1`);
 }
 
 if (ok) {
